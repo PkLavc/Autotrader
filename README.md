@@ -6,7 +6,7 @@
 
 Autonomous **paper-trading research system** powered by the [Kronos](https://github.com/shiyu-coder/Kronos) financial foundation model.
 
-Autotrader runs unattended on GitHub Actions, downloads a pinned Kronos release, forecasts a liquid US-market universe, builds a constrained portfolio, simulates rebalancing, and records its own performance over time.
+Autotrader runs unattended on GitHub Actions, downloads a pinned Kronos release, forecasts a liquid US-market universe, builds a constrained portfolio, simulates rebalancing, and records its own performance over time.\n\n**Live dashboard:** https://pklavc.com/Autotrader/
 
 > **Status:** paper trading only. No broker credentials and no real-money order execution are included.
 
