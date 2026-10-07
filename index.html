@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080a0d">
+  <meta name="description" content="Autotrader live paper-trading dashboard powered by Kronos-base and GitHub Actions.">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://pklavc.com/Autotrader/">
+  <meta property="og:title" content="Autotrader | Autonomous Market Research Dashboard">
+  <meta property="og:description" content="Live autonomous paper-trading experiment powered by Kronos-base, portfolio constraints and GitHub Actions.">
+  <meta property="og:url" content="https://pklavc.com/Autotrader/">
+  <meta property="og:type" content="website">
+  <title>Autotrader | Live Dashboard</title>
+  <link rel="stylesheet" href="./assets/dashboard.css?v=1">
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="https://pklavc.com/">
+      <span class="brand-mark">A</span>
+      <span><strong>AUTOTRADER</strong><small>by PkLavc</small></span>
+    </a>
+    <nav class="top-actions" aria-label="Dashboard links">
+      <span class="status-pill"><i></i> PAPER TRADING</span>
+      <a href="https://github.com/PkLavc/Autotrader" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://pklavc.com/projects/autotrader/">Project</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">AUTONOMOUS MARKET EXPERIMENT</p>
+        <h1>One model. One portfolio.<br><span>No daily intervention.</span></h1>
+        <p class="lead">Kronos-base forecasts a liquid market universe, Autotrader ranks the signals, applies portfolio constraints and records every simulated decision through GitHub Actions.</p>
+      </div>
+      <div class="hero-meta">
+        <div><span>Model</span><strong id="modelName">Kronos-base</strong></div>
+        <div><span>Mode</span><strong>Paper</strong></div>
+        <div><span>Last run</span><strong id="lastRun">Loading…</strong></div>
+      </div>
+    </section>
+
+    <section class="kpis" aria-label="Portfolio summary">
+      <article class="kpi primary"><span>Portfolio value</span><strong id="navValue">—</strong><small id="navDelta">—</small></article>
+      <article class="kpi"><span>Total return</span><strong id="returnValue">—</strong><small>since simulation start</small></article>
+      <article class="kpi"><span>Cash</span><strong id="cashValue">—</strong><small id="cashShare">—</small></article>
+      <article class="kpi"><span>Positions</span><strong id="positionsValue">—</strong><small>current holdings</small></article>
+      <article class="kpi"><span>Trades</span><strong id="tradesValue">—</strong><small>recorded executions</small></article>
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="panel panel-wide">
+        <div class="panel-head">
+          <div><p class="panel-kicker">EQUITY CURVE</p><h2>Portfolio over time</h2></div>
+          <span class="legend"><i></i> NAV</span>
+        </div>
+        <div class="chart-shell">
+          <canvas id="equityChart" aria-label="Portfolio value timeline"></canvas>
+          <div id="equityEmpty" class="chart-empty" hidden>More points will appear after future runs.</div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div><p class="panel-kicker">RISK</p><h2>Current metrics</h2></div>
+        </div>
+        <div class="metric-list">
+          <div><span>Max drawdown</span><strong id="drawdownValue">—</strong></div>
+          <div><span>SPY benchmark</span><strong id="benchmarkValue">—</strong></div>
+          <div><span>Forecast horizon</span><strong>5 sessions</strong></div>
+          <div><span>Max position</span><strong>18%</strong></div>
+          <div><span>Cash buffer</span><strong>10%</strong></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="panel panel-wide">
+        <div class="panel-head">
+          <div><p class="panel-kicker">MODEL SIGNALS</p><h2>Forecast return — bullish vs bearish</h2></div>
+          <span class="subtle">Kronos-base · 5-session horizon</span>
+        </div>
+        <div id="forecastBars" class="diverging-chart" aria-label="Forecast returns by asset"></div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div><p class="panel-kicker">ALLOCATION</p><h2>Current positions</h2></div>
+        </div>
+        <div id="positionsList" class="positions-list"></div>
+      </article>
+    </section>
+
+    <section class="panel trades-panel">
+      <div class="panel-head">
+        <div><p class="panel-kicker">EXECUTION LOG</p><h2>Trade history</h2></div>
+        <span class="subtle">Newest first</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Action</th><th>Asset</th><th>Quantity</th><th>Price</th><th>Notional</th><th>Timestamp</th></tr></thead>
+          <tbody id="tradesBody"><tr><td colspan="6" class="loading-cell">Loading records…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="method">
+      <div>
+        <p class="panel-kicker">HOW IT RUNS</p>
+        <h2>Forecast → rank → constrain → rebalance → record.</h2>
+      </div>
+      <p>This dashboard reports a software research experiment using simulated capital. It is not investment advice and it does not currently execute real-money broker orders.</p>
+    </section>
+  </main>
+
+  <footer>
+    <span>Autotrader · Patrick Araujo / PkLavc</span>
+    <span>Forecasting engine: <a href="https://github.com/shiyu-coder/Kronos" target="_blank" rel="noopener">Kronos by ShiYu</a> · MIT</span>
+  </footer>
+
+  <script src="./assets/dashboard.js?v=1" defer></script>
+</body>
+</html>
