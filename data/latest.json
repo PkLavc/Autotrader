@@ -1,0 +1,213 @@
+{
+  "cash": 1000.0,
+  "errors": {},
+  "forecasts": [
+    {
+      "current_close": 68.69000244140625,
+      "expected_return": 0.25253394963822307,
+      "predicted_close": 86.03656005859375,
+      "symbol": "NFLX"
+    },
+    {
+      "current_close": 286.69000244140625,
+      "expected_return": 0.12313926230256822,
+      "predicted_close": 321.9927978515625,
+      "symbol": "HD"
+    },
+    {
+      "current_close": 107.19999694824219,
+      "expected_return": 0.04371842466093678,
+      "predicted_close": 111.88661193847656,
+      "symbol": "WMT"
+    },
+    {
+      "current_close": 375.80999755859375,
+      "expected_return": 0.015687063311002447,
+      "predicted_close": 381.7053527832031,
+      "symbol": "AVGO"
+    },
+    {
+      "current_close": 376.32000732421875,
+      "expected_return": 0.011860107658150598,
+      "predicted_close": 380.783203125,
+      "symbol": "UNH"
+    },
+    {
+      "current_close": 935.6799926757812,
+      "expected_return": -0.010780433707860304,
+      "predicted_close": 925.5929565429688,
+      "symbol": "COST"
+    },
+    {
+      "current_close": 281.3399963378906,
+      "expected_return": -0.023065752939950057,
+      "predicted_close": 274.8506774902344,
+      "symbol": "IWM"
+    },
+    {
+      "current_close": 566.5800170898438,
+      "expected_return": -0.026233869846179703,
+      "predicted_close": 551.7164306640625,
+      "symbol": "MA"
+    },
+    {
+      "current_close": 331.2799987792969,
+      "expected_return": -0.03500622686458876,
+      "predicted_close": 319.6831359863281,
+      "symbol": "JPM"
+    },
+    {
+      "current_close": 256.2900085449219,
+      "expected_return": -0.03628708884652754,
+      "predicted_close": 246.989990234375,
+      "symbol": "AMZN"
+    },
+    {
+      "current_close": 779.0900268554688,
+      "expected_return": -0.05423087315390962,
+      "predicted_close": 736.8392944335938,
+      "symbol": "SPY"
+    },
+    {
+      "current_close": 347.67999267578125,
+      "expected_return": -0.0721025196839612,
+      "predicted_close": 322.61138916015625,
+      "symbol": "GOOGL"
+    },
+    {
+      "current_close": 370.6400146484375,
+      "expected_return": -0.07409503659573236,
+      "predicted_close": 343.17742919921875,
+      "symbol": "V"
+    },
+    {
+      "current_close": 738.8800048828125,
+      "expected_return": -0.08168540560276427,
+      "predicted_close": 678.5242919921875,
+      "symbol": "META"
+    },
+    {
+      "current_close": 164.47999572753906,
+      "expected_return": -0.10144655142359549,
+      "predicted_close": 147.7940673828125,
+      "symbol": "XOM"
+    },
+    {
+      "current_close": 759.6599731445312,
+      "expected_return": -0.10943094673592546,
+      "predicted_close": 676.5296630859375,
+      "symbol": "QQQ"
+    },
+    {
+      "current_close": 529.2999877929688,
+      "expected_return": -0.11087988297116791,
+      "predicted_close": 470.61126708984375,
+      "symbol": "MSFT"
+    },
+    {
+      "current_close": 1157.489990234375,
+      "expected_return": -0.130471565649929,
+      "predicted_close": 1006.470458984375,
+      "symbol": "LLY"
+    },
+    {
+      "current_close": 239.24000549316406,
+      "expected_return": -0.13411508369277225,
+      "predicted_close": 207.15431213378906,
+      "symbol": "NVDA"
+    },
+    {
+      "current_close": 333.6300048828125,
+      "expected_return": -0.15130582632083678,
+      "predicted_close": 283.14984130859375,
+      "symbol": "AAPL"
+    }
+  ],
+  "generated_at": "2026-10-07T03:06:29.057770+00:00",
+  "metrics": {
+    "benchmark_return": 0.0,
+    "benchmark_symbol": "SPY",
+    "current_nav": 9991.008991008992,
+    "initial_cash": 10000.0,
+    "max_drawdown": 0.0,
+    "observation_count": 1,
+    "total_return": -0.0008991008991008353,
+    "trade_count": 5
+  },
+  "mode": "paper",
+  "model": "NeoQuasar/Kronos-base",
+  "model_revision": "2b554741eca47781b64468546e77fef3e85130e6",
+  "nav": 9991.008991008992,
+  "positions": {
+    "AVGO": 4.784869508218538,
+    "HD": 6.2722863821151735,
+    "NFLX": 26.178508287806444,
+    "UNH": 4.778384787425231,
+    "WMT": 16.774270983141893
+  },
+  "targets": [
+    {
+      "score": 0.25253394963822307,
+      "symbol": "NFLX",
+      "weight": 0.18
+    },
+    {
+      "score": 0.12313926230256822,
+      "symbol": "HD",
+      "weight": 0.18
+    },
+    {
+      "score": 0.04371842466093678,
+      "symbol": "WMT",
+      "weight": 0.18
+    },
+    {
+      "score": 0.015687063311002447,
+      "symbol": "AVGO",
+      "weight": 0.18
+    },
+    {
+      "score": 0.011860107658150598,
+      "symbol": "UNH",
+      "weight": 0.18
+    }
+  ],
+  "tokenizer_revision": "0e0117387f39004a9016484a186a908917e22426",
+  "trades": [
+    {
+      "price": 68.75869244384765,
+      "qty": 26.178508287806444,
+      "side": "BUY",
+      "symbol": "NFLX",
+      "timestamp": "2026-10-07T03:06:29.057282+00:00"
+    },
+    {
+      "price": 286.97669244384764,
+      "qty": 6.2722863821151735,
+      "side": "BUY",
+      "symbol": "HD",
+      "timestamp": "2026-10-07T03:06:29.057282+00:00"
+    },
+    {
+      "price": 107.30719694519041,
+      "qty": 16.774270983141893,
+      "side": "BUY",
+      "symbol": "WMT",
+      "timestamp": "2026-10-07T03:06:29.057282+00:00"
+    },
+    {
+      "price": 376.1858075561523,
+      "qty": 4.784869508218538,
+      "side": "BUY",
+      "symbol": "AVGO",
+      "timestamp": "2026-10-07T03:06:29.057282+00:00"
+    },
+    {
+      "price": 376.69632733154293,
+      "qty": 4.778384787425231,
+      "side": "BUY",
+      "symbol": "UNH",
+      "timestamp": "2026-10-07T03:06:29.057282+00:00"
+    }
+  ]
+}
