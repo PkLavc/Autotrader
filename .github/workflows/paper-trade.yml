@@ -4,11 +4,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "15 22 * * 1-5"
-  push:
-    branches: [main]
-    paths:
-      - "RUN_NOW"
-
 concurrency:
   group: autotrader-paper-portfolio
   cancel-in-progress: false
