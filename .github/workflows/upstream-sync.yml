@@ -1,0 +1,119 @@
+name: Validate upstream updates
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "40 7 * * 0"
+
+concurrency:
+  group: autotrader-upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    outputs:
+      changed: ${{ steps.candidate.outputs.changed }}
+      source: ${{ steps.candidate.outputs.source }}
+      model: ${{ steps.candidate.outputs.model }}
+      tokenizer: ${{ steps.candidate.outputs.tokenizer }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Resolve latest source and model revisions
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_SOURCE="$(tr -d '[:space:]' < UPSTREAM_REF)"
+          CURRENT_MODEL="$(tr -d '[:space:]' < MODEL_REF)"
+          CURRENT_TOKENIZER="$(tr -d '[:space:]' < TOKENIZER_REF)"
+
+          SOURCE="$(git ls-remote https://github.com/shiyu-coder/Kronos.git refs/heads/master | cut -f1)"
+          MODEL="$(git ls-remote https://huggingface.co/NeoQuasar/Kronos-base refs/heads/main | cut -f1)"
+          TOKENIZER="$(git ls-remote https://huggingface.co/NeoQuasar/Kronos-Tokenizer-base refs/heads/main | cut -f1)"
+
+          echo "source=$SOURCE" >> "$GITHUB_OUTPUT"
+          echo "model=$MODEL" >> "$GITHUB_OUTPUT"
+          echo "tokenizer=$TOKENIZER" >> "$GITHUB_OUTPUT"
+
+          if [ "$CURRENT_SOURCE" = "$SOURCE" ] && [ "$CURRENT_MODEL" = "$MODEL" ] && [ "$CURRENT_TOKENIZER" = "$TOKENIZER" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch candidate Kronos source
+        if: steps.candidate.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p vendor/Kronos
+          git -C vendor/Kronos init
+          git -C vendor/Kronos remote add origin https://github.com/shiyu-coder/Kronos.git
+          git -C vendor/Kronos fetch --depth 1 origin "${{ steps.candidate.outputs.source }}"
+          git -C vendor/Kronos checkout --detach FETCH_HEAD
+
+      - name: Cache candidate Hugging Face models
+        if: steps.candidate.outputs.changed == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-kronos-candidate-${{ steps.candidate.outputs.model }}-${{ steps.candidate.outputs.tokenizer }}
+
+      - name: Install candidate dependencies
+        if: steps.candidate.outputs.changed == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r vendor/Kronos/requirements.txt
+          pip install -r requirements.txt
+
+      - name: Run upstream regression tests
+        if: steps.candidate.outputs.changed == 'true'
+        working-directory: vendor/Kronos
+        run: pytest -q tests/test_kronos_regression.py
+
+      - name: Run Autotrader tests
+        if: steps.candidate.outputs.changed == 'true'
+        run: pytest -q
+
+      - name: Test candidate Kronos-base end-to-end
+        if: steps.candidate.outputs.changed == 'true'
+        env:
+          AUTOTRADER_MODEL_REVISION: ${{ steps.candidate.outputs.model }}
+          AUTOTRADER_TOKENIZER_REVISION: ${{ steps.candidate.outputs.tokenizer }}
+        run: python scripts/validate_kronos.py
+
+  pin:
+    needs: validate
+    if: needs.validate.outputs.changed == 'true'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pin validated revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "${{ needs.validate.outputs.source }}" > UPSTREAM_REF
+          printf '%s\n' "${{ needs.validate.outputs.model }}" > MODEL_REF
+          printf '%s\n' "${{ needs.validate.outputs.tokenizer }}" > TOKENIZER_REF
+          git config user.name "autotrader-upstream-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add UPSTREAM_REF MODEL_REF TOKENIZER_REF
+          if git diff --cached --quiet; then
+            echo "Nothing to pin"
+          else
+            git commit -m "chore: pin validated Kronos revisions"
+            git push
+          fi
