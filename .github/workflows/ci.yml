@@ -6,12 +6,14 @@ on:
     paths:
       - "autotrader/**"
       - "tests/**"
+      - "pytest.ini"
       - "requirements.txt"
       - ".github/workflows/**"
   pull_request:
     paths:
       - "autotrader/**"
       - "tests/**"
+      - "pytest.ini"
       - "requirements.txt"
       - ".github/workflows/**"
 
