@@ -76,6 +76,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: main
 
       - name: Download generated state
         uses: actions/download-artifact@v7
@@ -87,8 +89,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp generated/data/state.json data/state.json
-          cp generated/data/latest.json data/latest.json
+          STATE_FILE="$(find generated -type f -name state.json -print -quit)"
+          LATEST_FILE="$(find generated -type f -name latest.json -print -quit)"
+          test -n "$STATE_FILE"
+          test -n "$LATEST_FILE"
+          cp "$STATE_FILE" data/state.json
+          cp "$LATEST_FILE" data/latest.json
           git config user.name "autotrader-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/state.json data/latest.json
