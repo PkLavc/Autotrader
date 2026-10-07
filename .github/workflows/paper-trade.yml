@@ -20,15 +20,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
 
       - name: Cache Hugging Face models
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/huggingface
           key: hf-kronos-base-${{ hashFiles('MODEL_REF', 'TOKENIZER_REF') }}
@@ -49,6 +49,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.0"
           pip install -r vendor/Kronos/requirements.txt
           pip install -r requirements.txt
 
@@ -59,7 +60,7 @@ jobs:
         run: python -m autotrader.run --state data/state.json --report data/latest.json
 
       - name: Upload generated state
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: autotrader-state
           path: |
@@ -74,10 +75,10 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download generated state
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: autotrader-state
           path: generated
