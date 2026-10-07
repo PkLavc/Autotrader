@@ -1,5 +1,9 @@
 # Autotrader
 
+[![CI](https://github.com/PkLavc/Autotrader/actions/workflows/ci.yml/badge.svg)](https://github.com/PkLavc/Autotrader/actions/workflows/ci.yml)
+[![Paper Portfolio](https://github.com/PkLavc/Autotrader/actions/workflows/paper-trade.yml/badge.svg)](https://github.com/PkLavc/Autotrader/actions/workflows/paper-trade.yml)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Autonomous **paper-trading research system** powered by the [Kronos](https://github.com/shiyu-coder/Kronos) financial foundation model.
 
 Autotrader runs unattended on GitHub Actions, downloads a pinned Kronos release, forecasts a liquid US-market universe, builds a constrained portfolio, simulates rebalancing, and records its own performance over time.
@@ -105,7 +109,7 @@ A full Kronos run additionally downloads the pinned upstream source and Hugging 
 
 ## Attribution
 
-Autotrader is an independent project. Its forecasting engine is based on **Kronos**, created by ShiYu and contributors and distributed under the MIT License.
+Autotrader is an independent project maintained by **Patrick Araujo (PkLavc)**. Its forecasting engine is based on **Kronos**, created by ShiYu and contributors and distributed under the MIT License.
 
 - Upstream project: https://github.com/shiyu-coder/Kronos
 - Kronos model weights: https://huggingface.co/NeoQuasar
