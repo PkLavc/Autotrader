@@ -1,173 +1,180 @@
 {
-  "cash": 4573.95799524273,
+  "cash": 4643.316149859627,
   "errors": {},
   "forecasts": [
     {
-      "current_close": 290.739990234375,
-      "expected_return": 0.10657021205487416,
-      "predicted_close": 321.7242126464844,
-      "symbol": "HD"
-    },
-    {
-      "current_close": 70.30000305175781,
-      "expected_return": 0.07821670127568248,
-      "predicted_close": 75.79863739013672,
+      "current_close": 70.61000061035156,
+      "expected_return": 0.2072281192186618,
+      "predicted_close": 85.24237823486328,
       "symbol": "NFLX"
     },
     {
-      "current_close": 111.3499984741211,
-      "expected_return": 0.02317623038291483,
-      "predicted_close": 113.93067169189453,
-      "symbol": "WMT"
+      "current_close": 290.6199951171875,
+      "expected_return": 0.1313769054322591,
+      "predicted_close": 328.8007507324219,
+      "symbol": "HD"
     },
     {
-      "current_close": 361.5400085449219,
-      "expected_return": -0.0013928487711977189,
-      "predicted_close": 361.03643798828125,
+      "current_close": 354.7300109863281,
+      "expected_return": 0.01161625985596948,
+      "predicted_close": 358.85064697265625,
       "symbol": "AVGO"
     },
     {
-      "current_close": 379.29998779296875,
-      "expected_return": -0.017379169937939865,
-      "predicted_close": 372.70806884765625,
+      "current_close": 113.08000183105469,
+      "expected_return": 0.0021840389668552618,
+      "predicted_close": 113.32697296142578,
+      "symbol": "WMT"
+    },
+    {
+      "current_close": 378.5199890136719,
+      "expected_return": -0.008518348641974982,
+      "predicted_close": 375.2956237792969,
       "symbol": "UNH"
     },
     {
-      "current_close": 946.9199829101562,
-      "expected_return": -0.01742871770801424,
-      "predicted_close": 930.4163818359375,
-      "symbol": "COST"
-    },
-    {
-      "current_close": 278.94000244140625,
-      "expected_return": -0.030012452537147016,
-      "predicted_close": 270.5683288574219,
+      "current_close": 277.8999938964844,
+      "expected_return": -0.01567795311933251,
+      "predicted_close": 273.5430908203125,
       "symbol": "IWM"
     },
     {
-      "current_close": 332.989990234375,
-      "expected_return": -0.05705180702486279,
-      "predicted_close": 313.9923095703125,
+      "current_close": 959.4400024414062,
+      "expected_return": -0.021883314731131143,
+      "predicted_close": 938.4442749023438,
+      "symbol": "COST"
+    },
+    {
+      "current_close": 334.29998779296875,
+      "expected_return": -0.03254928502323551,
+      "predicted_close": 323.41876220703125,
       "symbol": "JPM"
     },
     {
-      "current_close": 778.5700073242188,
-      "expected_return": -0.059680900677174575,
-      "predicted_close": 732.104248046875,
-      "symbol": "SPY"
-    },
-    {
-      "current_close": 351.6600036621094,
-      "expected_return": -0.06124534037651885,
-      "predicted_close": 330.1224670410156,
-      "symbol": "GOOGL"
-    },
-    {
-      "current_close": 262.42999267578125,
-      "expected_return": -0.07109783045282958,
-      "predicted_close": 243.77178955078125,
+      "current_close": 259.5299987792969,
+      "expected_return": -0.06039824187329701,
+      "predicted_close": 243.85484313964844,
       "symbol": "AMZN"
     },
     {
-      "current_close": 589.1400146484375,
-      "expected_return": -0.07797962594030339,
-      "predicted_close": 543.1990966796875,
+      "current_close": 352.7200012207031,
+      "expected_return": -0.06763919383827333,
+      "predicted_close": 328.8623046875,
+      "symbol": "GOOGL"
+    },
+    {
+      "current_close": 778.0999755859375,
+      "expected_return": -0.08915800348122394,
+      "predicted_close": 708.7261352539062,
+      "symbol": "SPY"
+    },
+    {
+      "current_close": 595.0900268554688,
+      "expected_return": -0.09362648340428237,
+      "predicted_close": 539.3738403320312,
       "symbol": "MA"
     },
     {
-      "current_close": 718.6699829101562,
-      "expected_return": -0.08151680269432171,
-      "predicted_close": 660.0863037109375,
-      "symbol": "META"
-    },
-    {
-      "current_close": 751.27001953125,
-      "expected_return": -0.11304725851601549,
-      "predicted_close": 666.3410034179688,
-      "symbol": "QQQ"
-    },
-    {
-      "current_close": 1179.27001953125,
-      "expected_return": -0.12024102072546372,
-      "predicted_close": 1037.473388671875,
-      "symbol": "LLY"
-    },
-    {
-      "current_close": 385.45001220703125,
-      "expected_return": -0.12401584871325799,
-      "predicted_close": 337.6481018066406,
-      "symbol": "V"
-    },
-    {
-      "current_close": 229.27999877929688,
-      "expected_return": -0.1261732423609223,
-      "predicted_close": 200.3509979248047,
-      "symbol": "NVDA"
-    },
-    {
-      "current_close": 168.94000244140625,
-      "expected_return": -0.13689763731735793,
-      "predicted_close": 145.81251525878906,
-      "symbol": "XOM"
-    },
-    {
-      "current_close": 535.0700073242188,
-      "expected_return": -0.14097795413425995,
-      "predicted_close": 459.6369323730469,
+      "current_close": 541.1500244140625,
+      "expected_return": -0.10440220062660421,
+      "predicted_close": 484.65277099609375,
       "symbol": "MSFT"
     },
     {
-      "current_close": 336.6400146484375,
-      "expected_return": -0.149479195940176,
-      "predicted_close": 286.3193359375,
+      "current_close": 746.0399780273438,
+      "expected_return": -0.11700491503027988,
+      "predicted_close": 658.7496337890625,
+      "symbol": "QQQ"
+    },
+    {
+      "current_close": 742.9600219726562,
+      "expected_return": -0.12565744684993585,
+      "predicted_close": 649.6015625,
+      "symbol": "META"
+    },
+    {
+      "current_close": 226.32000732421875,
+      "expected_return": -0.13001253766490917,
+      "predicted_close": 196.89556884765625,
+      "symbol": "NVDA"
+    },
+    {
+      "current_close": 389.2699890136719,
+      "expected_return": -0.13889673076113473,
+      "predicted_close": 335.20166015625,
+      "symbol": "V"
+    },
+    {
+      "current_close": 1182.6199951171875,
+      "expected_return": -0.14075007873123335,
+      "predicted_close": 1016.1661376953125,
+      "symbol": "LLY"
+    },
+    {
+      "current_close": 340.9700012207031,
+      "expected_return": -0.16271829036405483,
+      "predicted_close": 285.4879455566406,
       "symbol": "AAPL"
+    },
+    {
+      "current_close": 172.14999389648438,
+      "expected_return": -0.1859893554541907,
+      "predicted_close": 140.13192749023438,
+      "symbol": "XOM"
     }
   ],
-  "generated_at": "2026-10-10T01:49:21.750803+00:00",
+  "generated_at": "2026-10-13T03:07:40.768354+00:00",
   "metrics": {
-    "benchmark_return": -0.0006674703992154418,
+    "benchmark_return": -0.0012707790311823342,
     "benchmark_symbol": "SPY",
-    "current_nav": 10105.726737626703,
+    "current_nav": 10138.388322213126,
     "initial_cash": 10000.0,
     "max_drawdown": -0.0043741471156354406,
-    "observation_count": 4,
-    "total_return": 0.010572673762670348,
-    "trade_count": 9
+    "observation_count": 5,
+    "total_return": 0.013838832221312547,
+    "trade_count": 11
   },
   "mode": "paper",
   "model": "NeoQuasar/Kronos-base",
   "model_revision": "2b554741eca47781b64468546e77fef3e85130e6",
-  "nav": 10105.726737626703,
+  "nav": 10138.388322213126,
   "positions": {
+    "AVGO": 5.141250505866471,
     "HD": 6.2722863821151735,
-    "NFLX": 26.178508287806444,
-    "WMT": 16.774270983141893
+    "NFLX": 26.178508287806444
   },
   "targets": [
     {
-      "score": 0.10657021205487416,
-      "symbol": "HD",
-      "weight": 0.18
-    },
-    {
-      "score": 0.07821670127568248,
+      "score": 0.2072281192186618,
       "symbol": "NFLX",
       "weight": 0.18
     },
     {
-      "score": 0.02317623038291483,
-      "symbol": "WMT",
+      "score": 0.1313769054322591,
+      "symbol": "HD",
+      "weight": 0.18
+    },
+    {
+      "score": 0.01161625985596948,
+      "symbol": "AVGO",
       "weight": 0.18
     }
   ],
   "tokenizer_revision": "0e0117387f39004a9016484a186a908917e22426",
   "trades": [
     {
-      "price": 361.17846853637695,
-      "qty": 5.069818039622165,
+      "price": 112.96692182922364,
+      "qty": 16.774270983141893,
       "side": "SELL",
+      "symbol": "WMT",
+      "timestamp": "2026-10-13T03:07:40.767803+00:00"
+    },
+    {
+      "price": 355.08474099731444,
+      "qty": 5.141250505866471,
+      "side": "BUY",
       "symbol": "AVGO",
-      "timestamp": "2026-10-10T01:49:21.750200+00:00"
+      "timestamp": "2026-10-13T03:07:40.767803+00:00"
     }
   ]
 }
