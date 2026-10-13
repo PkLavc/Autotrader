@@ -35,6 +35,10 @@ Optional broker lane (separate book):
 signal report -> guarded plan -> Alpaca paper -> reconciliation audit
                                       |
                          live remains hard-locked
+
+Private fleet lane:
+one signal -> isolated queue job per account -> private account snapshots
+                                            -> one-time-link dashboards
 ```
 
 The research ledger and broker account are intentionally separate. Broker failures,
@@ -96,6 +100,17 @@ to Alpaca paper mode. It can produce dry-run plans or submit guarded paper order
 Read [Broker setup](docs/BROKER_SETUP.md) before enabling it. Do not enable live execution
 until every gate in [Operations and promotion](docs/OPERATIONS.md) is satisfied.
 
+### Private multi-account fleet
+
+`fleet-worker/` adds an encrypted Cloudflare D1 account registry, isolated Queue execution,
+one-time dashboard invitations, revocable sessions, and per-account audit/snapshots. The same
+validated signal is applied to every enabled account, but no account can spend another's cash,
+sell another's holdings, see another's data, or block another's run.
+
+The fleet is paper-only and all order gates default to disabled. See
+[Private fleet setup](docs/FLEET_SETUP.md). Live authorization for other people must use an
+approved broker OAuth/Broker integration; raw customer credentials do not belong in GitHub.
+
 ### Safe upstream updates
 
 `.github/workflows/upstream-sync.yml` validates upstream source/model candidates before
@@ -142,6 +157,13 @@ data/
   state.json          persistent research ledger
   latest.json         latest research signal/report
   broker-latest.json  sanitized broker audit, once configured
+
+fleet-worker/
+  src/              private API, encrypted registry and queue consumer
+  migrations/       D1 schema for accounts, sessions, snapshots and audits
+
+account/
+  index.html        private per-account dashboard shell (data stays in the API)
 ```
 
 ## Scope and limitations

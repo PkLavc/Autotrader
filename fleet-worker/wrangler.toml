@@ -1,0 +1,35 @@
+name = "autotrader-fleet"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+routes = [
+  { pattern = "api.pklavc.com/autotrader/*", zone_name = "pklavc.com" }
+]
+
+[vars]
+ENVIRONMENT = "production"
+PUBLIC_ORIGIN = "https://pklavc.com"
+PUBLIC_ACCOUNT_URL = "https://pklavc.com/Autotrader/account/"
+SESSION_COOKIE_PATH = "/autotrader"
+PAPER_ORDER_SUBMISSION_ENABLED = "false"
+MAX_SIGNAL_AGE_DAYS = "7"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "autotrader-fleet"
+database_id = "704cbd50-2f47-4487-975a-f8d82741f419"
+
+[[queues.producers]]
+binding = "REBALANCE_QUEUE"
+queue = "autotrader-fleet-paper"
+
+[[queues.consumers]]
+queue = "autotrader-fleet-paper"
+max_batch_size = 5
+max_batch_timeout = 5
+max_retries = 3
+dead_letter_queue = "autotrader-fleet-dead"
+
+[observability]
+enabled = true

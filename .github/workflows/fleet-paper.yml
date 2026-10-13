@@ -1,0 +1,66 @@
+name: Multi-account paper execution
+
+on:
+  workflow_dispatch:
+    inputs:
+      submit_orders:
+        description: Request paper order submission instead of dry-run plans
+        required: true
+        type: boolean
+        default: false
+  schedule:
+    - cron: "40 9 * * 1-5"
+      timezone: "America/New_York"
+
+concurrency:
+  group: autotrader-fleet-paper
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  enqueue:
+    if: vars.AUTOTRADER_FLEET_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      FLEET_API_URL: https://api.pklavc.com/autotrader/v1/internal/rebalance
+      FLEET_SERVICE_TOKEN: ${{ secrets.AUTOTRADER_FLEET_SERVICE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Validate fleet configuration and signal
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$FLEET_SERVICE_TOKEN"
+          jq -e '.market_session and (.targets | type == "array")' data/latest.json >/dev/null
+
+      - name: Queue one isolated job per account
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXECUTE=false
+          if { [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.submit_orders }}" = "true" ]; } \
+             && [ "${{ vars.AUTOTRADER_FLEET_ORDER_SUBMISSION_ENABLED }}" = "true" ]; then
+            EXECUTE=true
+          fi
+          jq -n --slurpfile signal data/latest.json --argjson execute "$EXECUTE" \
+            '{signal: $signal[0], execute: $execute}' > request.json
+          curl --fail-with-body --silent --show-error \
+            --retry 2 --retry-all-errors \
+            -H "Authorization: Bearer $FLEET_SERVICE_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @request.json \
+            "$FLEET_API_URL" | tee fleet-enqueue.json
+
+      - name: Upload non-sensitive dispatch receipt
+        uses: actions/upload-artifact@v7
+        with:
+          name: fleet-enqueue-receipt
+          path: fleet-enqueue.json
+          retention-days: 30
+          if-no-files-found: error

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080a0d">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="no-referrer">
+  <title>Minha conta | Autotrader</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon-64.png">
+  <link rel="stylesheet" href="../assets/account.css?v=1">
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="../">
+      <img src="../assets/autotrader-logo.png" alt="Autotrader" width="42" height="42">
+      <span><strong>AUTOTRADER</strong><small>área privada</small></span>
+    </a>
+    <div class="actions">
+      <span id="modeBadge" class="badge" hidden>PAPER</span>
+      <button id="refreshButton" type="button" hidden>Atualizar</button>
+      <button id="logoutButton" type="button" hidden>Sair</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="loadingView" class="center-card" aria-live="polite">
+      <span class="loader" aria-hidden="true"></span>
+      <p>Validando seu acesso…</p>
+    </section>
+
+    <section id="errorView" class="center-card" hidden>
+      <p class="kicker">ACESSO PRIVADO</p>
+      <h1>Este link não pode ser usado.</h1>
+      <p id="errorMessage" class="muted">Peça um novo convite ao administrador do Autotrader.</p>
+      <a class="button-link" href="../">Voltar ao painel público</a>
+    </section>
+
+    <div id="accountView" hidden>
+      <section class="hero">
+        <div>
+          <p class="kicker">CONTA CONECTADA</p>
+          <h1 id="accountName">Minha conta</h1>
+          <p class="muted">Dados isolados desta conta. Nenhuma outra conta da frota é exibida aqui.</p>
+        </div>
+        <dl class="account-meta">
+          <div><dt>Corretora</dt><dd id="brokerName">—</dd></div>
+          <div><dt>Ambiente</dt><dd id="brokerMode">—</dd></div>
+          <div><dt>Última sincronização</dt><dd id="updatedAt">—</dd></div>
+        </dl>
+      </section>
+
+      <section class="kpis" aria-label="Resumo da conta">
+        <article class="kpi primary"><span>Patrimônio</span><strong id="equityValue">—</strong><small id="dayReturn">—</small></article>
+        <article class="kpi"><span>Caixa</span><strong id="cashValue">—</strong><small id="cashShare">—</small></article>
+        <article class="kpi"><span>Poder de compra</span><strong id="buyingPower">—</strong><small>informado pela corretora</small></article>
+        <article class="kpi"><span>Posições</span><strong id="positionCount">—</strong><small>ativos em carteira</small></article>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <div class="panel-head"><div><p class="kicker">CARTEIRA</p><h2>Posições atuais</h2></div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Ativo</th><th>Quantidade</th><th>Preço</th><th>Valor</th><th>Resultado</th></tr></thead>
+              <tbody id="positionsBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head"><div><p class="kicker">AUTOMAÇÃO</p><h2>Estado operacional</h2></div></div>
+          <dl class="status-list">
+            <div><dt>Conta ativa</dt><dd id="accountActive">—</dd></div>
+            <div><dt>Envio de ordens</dt><dd id="executionEnabled">—</dd></div>
+            <div><dt>Bloqueio da corretora</dt><dd id="tradingBlocked">—</dd></div>
+            <div><dt>Limite por ordem</dt><dd id="orderLimit">—</dd></div>
+            <div><dt>Limite por execução</dt><dd id="runLimit">—</dd></div>
+          </dl>
+          <p class="notice">Todas as contas recebem o mesmo sinal, mas saldo, posições, limites, ordens e falhas são tratados separadamente.</p>
+        </article>
+      </section>
+
+      <section class="panel section-gap">
+        <div class="panel-head"><div><p class="kicker">ORDENS</p><h2>Ordens recentes</h2></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Ativo</th><th>Lado</th><th>Status</th><th>Quantidade</th><th>Preço médio</th><th>Data</th></tr></thead>
+            <tbody id="ordersBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel section-gap">
+        <div class="panel-head"><div><p class="kicker">AUDITORIA</p><h2>Execuções do robô</h2></div></div>
+        <div id="runsList" class="runs-list"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <span>Autotrader · acesso privado por convite</span>
+    <span>Credenciais e dados de outras contas nunca são enviados a esta página.</span>
+  </footer>
+  <script src="../assets/account.js?v=1" defer></script>
+</body>
+</html>

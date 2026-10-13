@@ -4,5 +4,7 @@ __pycache__/
 .venv/
 venv/
 .env
+.wrangler/
+fleet-worker/node_modules/
 vendor/
 .DS_Store
