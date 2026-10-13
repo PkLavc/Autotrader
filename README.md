@@ -44,6 +44,7 @@ partial fills, or delayed jobs cannot rewrite the research history.
 
 - A signal generated from a session close is not filled retroactively at that close.
 - Each market session is processed at most once, including manual retries and holidays.
+- Same-day daily candles are rejected until 16:15 New York time so partial bars cannot become signals.
 - Forecast sampling is seeded by symbol and market session for repeatability.
 - Regular NYSE holidays are excluded from forecast timestamps; downloaded sessions remain authoritative.
 - Splits adjust held quantities and dividends credit paper cash exactly once.

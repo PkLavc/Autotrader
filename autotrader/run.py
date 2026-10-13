@@ -5,6 +5,7 @@ from datetime import date, datetime, timezone
 import json
 from pathlib import Path
 
+from .calendar import is_completed_market_session
 from .config import StrategyConfig
 from .data import load_daily_history
 from .forecast import KronosEngine
@@ -31,6 +32,11 @@ def main() -> int:
     state = load_state(args.state, cfg.initial_cash)
     benchmark_history = load_daily_history(cfg.benchmark_symbol, cfg.lookback)
     market_date = benchmark_history.index[-1].date().isoformat()
+    if not is_completed_market_session(market_date):
+        raise RuntimeError(
+            f"latest daily candle for {market_date} is still in progress; "
+            "retry after 16:15 America/New_York"
+        )
 
     migrated = False
     if state.last_market_date is None:

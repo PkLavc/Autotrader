@@ -38,6 +38,7 @@ def test_pipeline_defers_close_signal_until_next_session_open(tmp_path, monkeypa
     report = tmp_path / "latest.json"
     current_session = {"value": "2026-10-12"}
     monkeypatch.setattr(run, "load_daily_history", lambda symbol, lookback: _history(current_session["value"]))
+    monkeypatch.setattr(run, "is_completed_market_session", lambda session: True)
     monkeypatch.setattr(run, "KronosEngine", FakeEngine)
     monkeypatch.setattr(sys, "argv", ["autotrader", "--state", str(state), "--report", str(report)])
 
@@ -60,6 +61,7 @@ def test_pipeline_skips_duplicate_market_session(tmp_path, monkeypatch):
     state = tmp_path / "state.json"
     report = tmp_path / "latest.json"
     monkeypatch.setattr(run, "load_daily_history", lambda symbol, lookback: _history("2026-10-12"))
+    monkeypatch.setattr(run, "is_completed_market_session", lambda session: True)
     monkeypatch.setattr(run, "KronosEngine", FakeEngine)
     monkeypatch.setattr(sys, "argv", ["autotrader", "--state", str(state), "--report", str(report)])
     run.main()
@@ -83,6 +85,7 @@ def test_legacy_state_migrates_without_new_observation_or_trade(tmp_path, monkey
         "mode": "paper", "nav": 1000.0, "cash": 1000.0, "positions": {},
     }), encoding="utf-8")
     monkeypatch.setattr(run, "load_daily_history", lambda symbol, lookback: _history("2026-10-12"))
+    monkeypatch.setattr(run, "is_completed_market_session", lambda session: True)
     monkeypatch.setattr(sys, "argv", ["autotrader", "--state", str(state), "--report", str(report)])
 
     assert run.main() == 0
