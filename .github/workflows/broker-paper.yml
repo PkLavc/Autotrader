@@ -1,0 +1,89 @@
+name: Broker paper execution
+
+on:
+  workflow_dispatch:
+    inputs:
+      submit_orders:
+        description: Submit orders instead of generating a dry-run plan
+        required: true
+        type: boolean
+        default: false
+  schedule:
+    - cron: "35 9 * * 1-5"
+      timezone: "America/New_York"
+
+concurrency:
+  group: autotrader-broker-execution
+  cancel-in-progress: false
+
+jobs:
+  rebalance:
+    if: vars.AUTOTRADER_BROKER_ENABLED == 'true'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+      ALPACA_API_SECRET: ${{ secrets.ALPACA_API_SECRET }}
+      AUTOTRADER_BROKER_MODE: ${{ vars.AUTOTRADER_BROKER_MODE || 'paper' }}
+      AUTOTRADER_ALLOW_LIVE: ${{ vars.AUTOTRADER_ALLOW_LIVE || 'false' }}
+      AUTOTRADER_LIVE_CONFIRMATION: ${{ secrets.AUTOTRADER_LIVE_CONFIRMATION }}
+      AUTOTRADER_MAX_ORDER_NOTIONAL: ${{ vars.AUTOTRADER_MAX_ORDER_NOTIONAL || '100' }}
+      AUTOTRADER_MAX_TOTAL_NOTIONAL: ${{ vars.AUTOTRADER_MAX_TOTAL_NOTIONAL || '500' }}
+      AUTOTRADER_MAX_TARGET_WEIGHT: ${{ vars.AUTOTRADER_MAX_TARGET_WEIGHT || '0.18' }}
+      AUTOTRADER_MAX_GROSS_TARGET: ${{ vars.AUTOTRADER_MAX_GROSS_TARGET || '0.90' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Validate broker configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$ALPACA_API_KEY"
+          test -n "$ALPACA_API_SECRET"
+          if [ "$AUTOTRADER_BROKER_MODE" = "live" ] && [ "${{ vars.AUTOTRADER_LIVE_EXECUTION_ENABLED }}" != "true" ]; then
+            echo "Live execution is not enabled by repository policy"
+            exit 1
+          fi
+
+      - name: Build or execute broker plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXECUTE=""
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.submit_orders }}" = "true" ]; then
+            if [ "${{ vars.AUTOTRADER_ORDER_SUBMISSION_ENABLED }}" = "true" ]; then
+              EXECUTE="--execute"
+            fi
+          fi
+          python -m autotrader.broker_run --signal data/latest.json --output data/broker-latest.json $EXECUTE
+
+      - name: Upload broker audit
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: broker-audit
+          path: data/broker-latest.json
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Persist sanitized broker audit
+        if: always() && hashFiles('data/broker-latest.json') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "autotrader-broker-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/broker-latest.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: record broker paper execution"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi

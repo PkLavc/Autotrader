@@ -118,5 +118,6 @@ jobs:
             echo "Nothing to pin"
           else
             git commit -m "chore: pin validated Kronos revisions"
-            git push
+            git pull --rebase origin main
+            git push origin HEAD:main
           fi

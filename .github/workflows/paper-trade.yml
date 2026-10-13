@@ -3,7 +3,8 @@ name: Autotrader paper portfolio
 on:
   workflow_dispatch:
   schedule:
-    - cron: "15 22 * * 1-5"
+    - cron: "17 18 * * 1-5"
+      timezone: "America/New_York"
 concurrency:
   group: autotrader-paper-portfolio
   cancel-in-progress: false
@@ -54,6 +55,9 @@ jobs:
       - name: Run paper portfolio
         run: python -m autotrader.run --state data/state.json --report data/latest.json
 
+      - name: Validate generated state
+        run: python scripts/audit_state.py data/state.json data/latest.json --require-v2
+
       - name: Upload generated state
         uses: actions/upload-artifact@v7
         with:
@@ -97,5 +101,6 @@ jobs:
             echo "No state change"
           else
             git commit -m "chore: update Autotrader paper portfolio"
-            git push
+            git pull --rebase origin main
+            git push origin HEAD:main
           fi

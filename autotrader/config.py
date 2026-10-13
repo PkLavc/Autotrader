@@ -29,6 +29,7 @@ class StrategyConfig:
     sample_count: int = 3
     top_p: float = 0.9
     temperature: float = 1.0
+    random_seed: int = 20_261_013
     initial_cash: float = 10_000.0
     max_positions: int = 5
     max_weight_per_position: float = 0.18
@@ -36,6 +37,12 @@ class StrategyConfig:
     min_forecast_return: float = 0.01
     rebalance_threshold: float = 0.03
     slippage_bps: float = 10.0
+    commission_per_share: float = 0.0035
+    minimum_commission: float = 0.35
+    maximum_commission_rate: float = 0.01
+    max_abs_forecast_return: float = 0.30
+    max_signal_age_calendar_days: int = 7
+    minimum_history_for_metrics: int = 20
     benchmark_symbol: str = "SPY"
     symbols: tuple[str, ...] = field(default_factory=lambda: (
         "SPY", "QQQ", "IWM", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL",

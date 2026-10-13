@@ -15,3 +15,15 @@ def test_targets_respect_caps():
     assert [t.symbol for t in targets] == ["A", "B", "C"]
     assert all(t.weight <= 0.2 for t in targets)
     assert sum(t.weight for t in targets) <= 0.9
+
+
+def test_targets_reject_implausible_forecasts_and_rank_by_risk():
+    cfg = StrategyConfig(max_positions=2, max_abs_forecast_return=0.30)
+    forecasts = [
+        Forecast("WILD", 100, 150, 0.50, 0.20),
+        Forecast("CALM", 100, 106, 0.06, 0.10),
+        Forecast("RISKY", 100, 108, 0.08, 0.80),
+    ]
+    targets = choose_targets(forecasts, cfg)
+    assert [target.symbol for target in targets] == ["CALM", "RISKY"]
+    assert "WILD" not in [target.symbol for target in targets]

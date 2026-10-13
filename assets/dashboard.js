@@ -93,6 +93,12 @@
       $('tradesValue').textContent=metrics.trade_count ?? (state.trades||[]).length;
       setSigned($('drawdownValue'),Number(metrics.max_drawdown));
       setSigned($('benchmarkValue'),metrics.benchmark_return==null?NaN:Number(metrics.benchmark_return));
+      setSigned($('excessValue'),metrics.excess_return==null?NaN:Number(metrics.excess_return));
+      setSigned($('volatilityValue'),metrics.annualized_volatility==null?NaN:Number(metrics.annualized_volatility));
+      $('sharpeValue').textContent=metrics.sharpe_ratio==null?'—':Number(metrics.sharpe_ratio).toFixed(2);
+      const costs=metrics.cumulative_costs||{};
+      $('costsValue').textContent=money.format((Number(costs.slippage)||0)+(Number(costs.commissions)||0));
+      $('marketSession').textContent=latest.market_session||'Legacy record';
       $('lastRun').textContent=new Date(latest.generated_at).toLocaleString();
       $('modelName').textContent=String(latest.model||'Kronos-base').replace('NeoQuasar/','');
       renderForecasts(latest.forecasts);

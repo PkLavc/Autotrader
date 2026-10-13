@@ -13,7 +13,7 @@
   <meta property="og:url" content="https://pklavc.com/Autotrader/">
   <meta property="og:type" content="website">
   <title>Autotrader | Live Dashboard</title>
-  <link rel="stylesheet" href="./assets/dashboard.css?v=1">
+  <link rel="stylesheet" href="./assets/dashboard.css?v=2">
 </head>
 <body>
   <div class="noise" aria-hidden="true"></div>
@@ -38,14 +38,15 @@
       </div>
       <div class="hero-meta">
         <div><span>Model</span><strong id="modelName">Kronos-base</strong></div>
-        <div><span>Mode</span><strong>Paper</strong></div>
-        <div><span>Last run</span><strong id="lastRun">Loading…</strong></div>
+        <div><span>Mode</span><strong>Research paper</strong></div>
+        <div><span>Market session</span><strong id="marketSession">Loading…</strong></div>
+        <div><span>Report generated</span><strong id="lastRun">Loading…</strong></div>
       </div>
     </section>
 
     <section class="kpis" aria-label="Portfolio summary">
       <article class="kpi primary"><span>Portfolio value</span><strong id="navValue">—</strong><small id="navDelta">—</small></article>
-      <article class="kpi"><span>Total return</span><strong id="returnValue">—</strong><small>since simulation start</small></article>
+      <article class="kpi"><span>Total return</span><strong id="returnValue">—</strong><small>net simulated return</small></article>
       <article class="kpi"><span>Cash</span><strong id="cashValue">—</strong><small id="cashShare">—</small></article>
       <article class="kpi"><span>Positions</span><strong id="positionsValue">—</strong><small>current holdings</small></article>
       <article class="kpi"><span>Trades</span><strong id="tradesValue">—</strong><small>recorded executions</small></article>
@@ -70,7 +71,12 @@
         <div class="metric-list">
           <div><span>Max drawdown</span><strong id="drawdownValue">—</strong></div>
           <div><span>SPY benchmark</span><strong id="benchmarkValue">—</strong></div>
+          <div><span>Excess return</span><strong id="excessValue">—</strong></div>
+          <div><span>Annualized volatility</span><strong id="volatilityValue">—</strong></div>
+          <div><span>Sharpe ratio</span><strong id="sharpeValue">—</strong></div>
+          <div><span>Modeled costs</span><strong id="costsValue">—</strong></div>
           <div><span>Forecast horizon</span><strong>5 sessions</strong></div>
+          <div><span>Execution</span><strong>Next open</strong></div>
           <div><span>Max position</span><strong>18%</strong></div>
           <div><span>Cash buffer</span><strong>10%</strong></div>
         </div>
@@ -110,7 +116,7 @@
     <section class="method">
       <div>
         <p class="panel-kicker">HOW IT RUNS</p>
-        <h2>Forecast → rank → constrain → rebalance → record.</h2>
+        <h2>Forecast → rank → constrain → next-open execution → audit.</h2>
       </div>
       <p>This dashboard reports a software research experiment using simulated capital. It is not investment advice and it does not currently execute real-money broker orders.</p>
     </section>
@@ -121,6 +127,6 @@
     <span>Forecasting engine: <a href="https://github.com/shiyu-coder/Kronos" target="_blank" rel="noopener">Kronos by ShiYu</a> · MIT</span>
   </footer>
 
-  <script src="./assets/dashboard.js?v=1" defer></script>
+  <script src="./assets/dashboard.js?v=2" defer></script>
 </body>
 </html>
