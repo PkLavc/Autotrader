@@ -57,7 +57,7 @@ function orderId(signalDate, symbol, side) {
   return `at3-${signalDate.replaceAll("-", "")}-${symbol.toLowerCase()}-${side[0]}`.slice(0, 48);
 }
 
-export function planRebalance({ equity, cash, positions, targets, signalDate, limits: rawLimits }) {
+export function planRebalance({ equity, cash, positions, targets, signalDate, limits: rawLimits, executionCost = {} }) {
   const limits = validateLimits(rawLimits);
   if (!(Number(equity) > 0) || !(Number(cash) >= 0)) throw new Error("invalid broker equity or cash");
   const weights = validateTargets(targets, limits);
@@ -68,6 +68,7 @@ export function planRebalance({ equity, cash, positions, targets, signalDate, li
       qty: Number(raw.qty),
       marketValue: Number(raw.marketValue),
       currentPrice: Number(raw.currentPrice),
+      avgEntryPrice: Number(raw.avgEntryPrice || 0),
     };
     if (held.has(position.symbol)) throw new Error("broker returned duplicate positions");
     if (position.qty < 0 || position.marketValue < 0) throw new Error("short positions are not supported");
@@ -88,8 +89,20 @@ export function planRebalance({ equity, cash, positions, targets, signalDate, li
     const qty = Math.min(position.qty, notional / position.currentPrice);
     if (qty <= 0) continue;
     const estimatedNotional = qty * position.currentPrice;
+    const commission = qty > 0 ? Math.min(
+      Math.max(qty * Number(executionCost.commissionPerShare ?? 0), Number(executionCost.minimumCommission ?? 0)),
+      estimatedNotional * 0.01,
+    ) : 0;
+    const feeRoundUpCent = value => Math.ceil(value * 100 - 1e-10) / 100;
+    const secFee = feeRoundUpCent(estimatedNotional * Number(executionCost.secFeeRate ?? 0.0000206));
+    const tafFee = feeRoundUpCent(Math.min(qty * Number(executionCost.tafFeePerShare ?? 0.000195), Number(executionCost.tafFeeCap ?? 9.79)));
+    const catFee = feeRoundUpCent(qty * Number(executionCost.catFeePerShare ?? 0.000003));
+    const estimatedRealizedGain = position.avgEntryPrice > 0
+      ? qty * (position.currentPrice - position.avgEntryPrice) - commission - secFee - tafFee - catFee
+      : null;
     orders.push({
-      symbol, side: "sell", qty, estimatedNotional,
+      symbol, side: "sell", qty, estimatedNotional, commission, secFee, tafFee, catFee,
+      estimatedRealizedGain, costBasisKnown: position.avgEntryPrice > 0,
       clientOrderId: orderId(signalDate, symbol, "sell"),
     });
     remaining -= estimatedNotional;
@@ -102,10 +115,28 @@ export function planRebalance({ equity, cash, positions, targets, signalDate, li
     const current = held.get(symbol)?.marketValue || 0;
     const delta = Number(equity) * weight - current;
     if (delta <= 0 || delta / Number(equity) < limits.rebalanceThreshold) continue;
-    const notional = Math.floor(Math.min(delta, limits.maxOrderNotional, remaining, availableCash) * 100) / 100;
+    let notional = Math.floor(Math.min(delta, limits.maxOrderNotional, remaining, availableCash) * 100) / 100;
+    if (notional < 1) continue;
+    const referencePrice = Number(executionCost.prices?.[symbol] || 0);
+    if (referencePrice <= 0) continue;
+    let qty = notional / referencePrice;
+    let commission = Math.min(
+      Math.max(qty * Number(executionCost.commissionPerShare ?? 0), Number(executionCost.minimumCommission ?? 0)),
+      notional * 0.01,
+    );
+    while (notional + commission > availableCash && notional >= 1) {
+      notional = Math.floor((notional - 1) * 100) / 100;
+      qty = notional / referencePrice;
+      commission = Math.min(
+        Math.max(qty * Number(executionCost.commissionPerShare ?? 0), Number(executionCost.minimumCommission ?? 0)),
+        notional * 0.01,
+      );
+    }
     if (notional < 1) continue;
     orders.push({
-      symbol, side: "buy", notional, estimatedNotional: notional,
+      symbol, side: "buy", notional, estimatedNotional: notional, qty, commission,
+      secFee: 0, tafFee: 0,
+      catFee: Math.ceil(qty * Number(executionCost.catFeePerShare ?? 0.000003) * 100 - 1e-10) / 100,
       clientOrderId: orderId(signalDate, symbol, "buy"),
     });
     remaining -= notional;
@@ -123,9 +154,67 @@ export function orderPayload(order) {
     time_in_force: "day",
     client_order_id: order.clientOrderId,
   };
-  if (order.qty != null) payload.qty = Number(order.qty).toFixed(6).replace(/\.?0+$/, "");
-  if (order.notional != null) payload.notional = Number(order.notional).toFixed(2);
+  if (order.side === "buy" && order.notional != null) payload.notional = Number(order.notional).toFixed(2);
+  else if (order.qty != null) payload.qty = Number(order.qty).toFixed(6).replace(/\.?0+$/, "");
   return payload;
+}
+
+export function estimateCostsAndTax({ orders, taxProfile, priorLossCarry = 0, taxRate = 0.15 }) {
+  let commissions = 0;
+  let secFees = 0;
+  let tafFees = 0;
+  let grossRealized = 0;
+  let taxWithheldEstimate = 0;
+  let catFees = 0;
+  let missingCostBasis = false;
+  for (const order of orders) {
+    const qty = Number(order.qty || 0);
+    const notional = Number(order.estimatedNotional || order.notional || 0);
+    const variable = qty * Number(order.commissionPerShare ?? 0);
+    const minimum = Number(order.minimumCommission ?? 0);
+    const maxRate = 0.01;
+    const commission = Number(order.commission ?? (qty > 0 && notional > 0 ? Math.min(Math.max(variable, minimum), notional * maxRate) : 0));
+    const secFee = order.side === "sell" && notional > 0
+      ? Number(order.secFee ?? Math.ceil(notional * Number(order.secFeeRate ?? 0.0000206) * 100 - 1e-10) / 100)
+      : 0;
+    const tafFee = order.side === "sell"
+      ? Number(order.tafFee ?? Math.ceil(Math.min(qty * Number(order.tafFeePerShare ?? 0.000195), Number(order.tafFeeCap ?? 9.79)) * 100 - 1e-10) / 100)
+      : 0;
+    const catFee = Number(order.catFee ?? Math.ceil(qty * Number(order.catFeePerShare ?? 0.000003) * 100 - 1e-10) / 100);
+    commissions += commission;
+    secFees += secFee;
+    tafFees += tafFee;
+    catFees += catFee;
+    if (order.side === "sell") {
+      if (order.estimatedRealizedGain == null) missingCostBasis = true;
+      else grossRealized += Number(order.estimatedRealizedGain);
+    }
+  }
+
+  return {
+    commissions,
+    secFees,
+    tafFees,
+    catFees,
+    regulatoryFees: secFees + tafFees + catFees,
+    grossRealized,
+    priorLossCarry: Number(priorLossCarry || 0),
+    taxReferenceRate: taxProfile === "brazil_foreign_investments_estimate" ? taxRate : null,
+    taxCurrency: taxProfile === "brazil_foreign_investments_estimate" ? "BRL" : null,
+    taxNote: taxProfile === "brazil_foreign_investments_estimate"
+      ? "Brazil tax due is not calculated. The 15% reference applies to the annual BRL tax base; event-date exchange rates and reconciled tax lots are required."
+      : "US tax due is not calculated; it depends on taxpayer residence, holding period, income, and broker tax documents.",
+    estimatedTax: null,
+    estimatedTaxWithheld: taxWithheldEstimate,
+    estimatedTaxDue: null,
+    taxProfile,
+    taxStatus: taxProfile === "us_personal_no_local_tax"
+      ? "not_calculated_user_specific"
+      : missingCostBasis ? "pending_complete_cost_basis_and_brl_fx" : "pending_brl_fx_and_annual_tax_reconciliation",
+    assumptions: taxProfile === "us_personal_no_local_tax"
+      ? ["US federal/state tax varies by taxpayer; not estimated", "Broker tax forms, dividends, and wash-sale adjustments are not included"]
+      : ["Brazil foreign-investment tax requires complete tax lots and event-date BRL conversion; this run reports USD gains only"],
+  };
 }
 
 export function parseCookies(header) {

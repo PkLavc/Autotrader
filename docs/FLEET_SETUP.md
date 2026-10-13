@@ -34,6 +34,23 @@ invite URL. Send it directly to its intended user.
 5. A failed or blocked account is audited without stopping any other account.
 6. The account's private snapshot is refreshed for its dashboard.
 
+## Cost and tax simulation limits
+
+The portfolio is limited to Alpaca US equities in paper mode. Standard self-directed
+equity commissions are modeled as $0, with SEC/FINRA TAF/CAT pass-through estimates based
+on the current published schedule. Alpaca aggregates and rounds several fee totals per
+account/day, so per-order figures are estimates, not broker-confirmed charges. Compare
+them with the broker's activity ledger and statements. The model excludes routing-specific
+fees, FX conversion, margin interest, ADR pass-through fees, and tax withholding on
+dividends. It credits gross cash dividends in local historical simulation and labels them
+as gross/unwithheld.
+
+US tax is marked not calculated because liability is taxpayer-specific. For a Brazilian
+resident using a US account, the dashboard reports realized USD gains and a 15% reference
+rate, but does not claim tax due until complete tax lots and event-date BRL conversion are
+reconciled. This is not a tax filing calculation. Brazilian B3 rules are not selectable
+for the Alpaca US equities integration.
+
 There are three independent paper-order gates: repository variable
 `AUTOTRADER_FLEET_ORDER_SUBMISSION_ENABLED`, the account's `execution_enabled` flag, and
 Worker variable `PAPER_ORDER_SUBMISSION_ENABLED`. All default to false.

@@ -73,8 +73,9 @@
     const body=$('tradesBody'), rows=(trades||[]).slice().reverse().slice(0,100);
     body.innerHTML=rows.map(t=>{
       const buy=String(t.side).toUpperCase()==='BUY', q=Number(t.qty)||0,p=Number(t.price)||0;
-      return '<tr><td><span class="trade-action '+(buy?'positive':'negative')+'"><b class="trade-arrow">'+(buy?'↗':'↘')+'</b>'+safe(t.side)+'</span></td><td><strong>'+safe(t.symbol)+'</strong></td><td>'+num.format(q)+'</td><td>'+money.format(p)+'</td><td>'+money.format(q*p)+'</td><td>'+new Date(t.timestamp).toLocaleString()+'</td></tr>';
-    }).join('') || '<tr><td colspan="6" class="loading-cell">No trades recorded yet.</td></tr>';
+      const totalCosts=(Number(t.commission)||0)+(Number(t.regulatory_fees)||0)+(Number(t.slippage_cost)||0);
+      return '<tr><td><span class="trade-action '+(buy?'positive':'negative')+'"><b class="trade-arrow">'+(buy?'↗':'↘')+'</b>'+safe(t.side)+'</span></td><td><strong>'+safe(t.symbol)+'</strong></td><td>'+num.format(q)+'</td><td>'+money.format(p)+'</td><td>'+money.format(Number(t.gross_value)||q*p)+'</td><td>'+money.format(totalCosts)+'</td><td>'+money.format(Number(t.realized_gain)||0)+'</td><td>'+new Date(t.timestamp).toLocaleString()+'</td></tr>';
+    }).join('') || '<tr><td colspan="8" class="loading-cell">No trades recorded yet.</td></tr>';
   }
 
   async function load(){
@@ -97,7 +98,11 @@
       setSigned($('volatilityValue'),metrics.annualized_volatility==null?NaN:Number(metrics.annualized_volatility));
       $('sharpeValue').textContent=metrics.sharpe_ratio==null?'—':Number(metrics.sharpe_ratio).toFixed(2);
       const costs=metrics.cumulative_costs||{};
-      $('costsValue').textContent=money.format((Number(costs.slippage)||0)+(Number(costs.commissions)||0));
+      $('costsValue').textContent=money.format((Number(costs.slippage)||0)+(Number(costs.commissions)||0)+(Number(costs.regulatory_fees)||0));
+      $('costsDetail').textContent='Slippage '+money.format(Number(costs.slippage)||0)+' · broker fees est. '+money.format((Number(costs.commissions)||0)+(Number(costs.regulatory_fees)||0))+' · taxes not calculated';
+      const tax=metrics.tax_estimate||{};
+      $('taxValue').textContent=tax.estimated_tax_usd==null?'Not calculated':money.format(Number(tax.estimated_tax_usd)||0);
+      $('taxDetail').textContent='Realized '+money.format(Number(tax.realized_gain_usd)||0)+' · '+safe(tax.status||'not calculated')+' · '+safe(tax.note||'');
       $('marketSession').textContent=latest.market_session||'Legacy record';
       $('lastRun').textContent=new Date(latest.generated_at).toLocaleString();
       $('modelName').textContent=String(latest.model||'Kronos-base').replace('NeoQuasar/','');
@@ -108,7 +113,7 @@
       window.addEventListener('resize',()=>drawEquity(history),{passive:true});
     }catch(err){
       console.error(err);
-      $('tradesBody').innerHTML='<tr><td colspan="6" class="loading-cell">Dashboard data is temporarily unavailable.</td></tr>';
+      $('tradesBody').innerHTML='<tr><td colspan="8" class="loading-cell">Dashboard data is temporarily unavailable.</td></tr>';
     }
   }
   load();

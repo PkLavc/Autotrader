@@ -1,4 +1,4 @@
-import { orderPayload, parseCookies, planRebalance, validateLimits, validateSignal } from "./core.js";
+import { estimateCostsAndTax, orderPayload, parseCookies, planRebalance, validateLimits, validateSignal } from "./core.js";
 
 const API_PREFIXES = ["/autotrader", "/Autotrader/api"];
 const SESSION_COOKIE = "at_session";
@@ -166,12 +166,25 @@ function limitsFromAccount(account) {
   };
 }
 
+function executionCostFromAccount(account) {
+  return {
+    commissionPerShare: Number(account.commission_per_share ?? 0),
+    minimumCommission: Number(account.minimum_commission ?? 0),
+    secFeeRate: Number(account.sec_fee_rate ?? 0.0000206),
+    secFeeMinimum: Number(account.sec_fee_minimum ?? 0),
+    tafFeePerShare: Number(account.taf_fee_per_share ?? 0.000195),
+    tafFeeCap: Number(account.taf_fee_cap ?? 9.79),
+    catFeePerShare: Number(account.cat_fee_per_share ?? 0.000003),
+  };
+}
+
 function brokerPositions(rows) {
   return rows.map(row => ({
     symbol: String(row.symbol).toUpperCase(),
     qty: Number(row.qty),
     marketValue: Number(row.market_value),
     currentPrice: Number(row.current_price),
+    avgEntryPrice: Number(row.avg_entry_price),
   }));
 }
 
@@ -240,6 +253,7 @@ function accountView(account) {
     broker: account.broker,
     broker_mode: account.broker_mode,
     auth_type: account.auth_type,
+    tax_profile: account.tax_profile,
     active: Boolean(account.active),
     execution_enabled: Boolean(account.execution_enabled),
     limits: limitsFromAccount(account),
@@ -252,10 +266,14 @@ async function createAccount(request, env) {
   const body = await readJson(request);
   const displayName = String(body.display_name || "").trim();
   const authType = String(body.auth_type || "api_key");
+  const taxProfile = String(body.tax_profile || "us_personal_no_local_tax");
   const mode = String(body.broker_mode || "paper");
   if (!displayName || displayName.length > 100) throw new HttpError(400, "display_name is required");
   if (mode !== "paper") throw new HttpError(400, "fleet v1 accepts paper accounts only");
   if (!['api_key', 'oauth'].includes(authType)) throw new HttpError(400, "unsupported auth_type");
+  if (!['us_personal_no_local_tax', 'brazil_foreign_investments_estimate'].includes(taxProfile)) {
+    throw new HttpError(400, "unsupported tax_profile");
+  }
   const credentials = body.credentials || {};
   if (authType === "api_key" && (!credentials.key_id || !credentials.secret_key)) {
     throw new HttpError(400, "key_id and secret_key are required");
@@ -280,12 +298,12 @@ async function createAccount(request, env) {
   const createdAt = nowIso();
   await env.DB.prepare(`
     INSERT INTO accounts (
-      id, display_name, broker, broker_mode, auth_type, credentials_ciphertext, credentials_iv,
+      id, display_name, broker, broker_mode, auth_type, tax_profile, credentials_ciphertext, credentials_iv,
       active, execution_enabled, max_order_notional, max_total_notional, rebalance_threshold,
       max_target_weight, max_gross_target, created_at, updated_at
-    ) VALUES (?, ?, 'alpaca', ?, ?, ?, ?, 1, 0, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, 'alpaca', ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
-    id, displayName, mode, authType, encrypted.ciphertext, encrypted.iv,
+    id, displayName, mode, authType, taxProfile, encrypted.ciphertext, encrypted.iv,
     limits.maxOrderNotional,
     limits.maxTotalNotional,
     limits.rebalanceThreshold,
@@ -317,6 +335,13 @@ async function patchAccount(request, env, id) {
     display_name: value => String(value).trim().slice(0, 100),
     active: value => value ? 1 : 0,
     execution_enabled: value => value ? 1 : 0,
+    tax_profile: value => {
+      const profile = String(value);
+      if (!['us_personal_no_local_tax', 'brazil_foreign_investments_estimate'].includes(profile)) {
+        throw new HttpError(400, "unsupported tax_profile");
+      }
+      return profile;
+    },
     max_order_notional: Number,
     max_total_notional: Number,
     rebalance_threshold: Number,
@@ -476,9 +501,13 @@ async function enqueueRebalance(request, env) {
   const signal = body.signal || body;
   const execute = Boolean(body.execute);
   const { signalDate, targets } = validateSignal(signal, Number(env.MAX_SIGNAL_AGE_DAYS || 7));
+  const prices = Array.isArray(signal.forecasts)
+    ? signal.forecasts.map(row => ({ symbol: String(row.symbol || "").toUpperCase(), price: Number(row.current_close) }))
+      .filter(row => row.symbol && Number.isFinite(row.price) && row.price > 0)
+    : [];
   const accounts = await env.DB.prepare("SELECT id FROM accounts WHERE active = 1 ORDER BY created_at").all();
   if (!accounts.results.length) throw new HttpError(409, "no active fleet accounts");
-  const signalHash = await sha256(JSON.stringify({ signalDate, targets }));
+  const signalHash = await sha256(JSON.stringify({ signalDate, targets, prices }));
   const runId = crypto.randomUUID();
   const createdAt = nowIso();
   const statements = [env.DB.prepare(`
@@ -492,7 +521,7 @@ async function enqueueRebalance(request, env) {
   }
   await env.DB.batch(statements);
   const messages = accounts.results.map(account => ({
-    body: { runId, accountId: account.id, signalDate, targets, execute },
+    body: { runId, accountId: account.id, signalDate, targets, prices, execute },
     contentType: "json",
   }));
   for (let index = 0; index < messages.length; index += 100) {
@@ -523,6 +552,13 @@ async function executeAccountJob(env, job) {
     targets: job.targets,
     signalDate: job.signalDate,
     limits: limitsFromAccount(account),
+    executionCost: {
+      ...executionCostFromAccount(account),
+      prices: Object.fromEntries([
+        ...brokerPositions(positions).map(position => [position.symbol, position.currentPrice]),
+        ...(job.prices || []).map(item => [String(item.symbol).toUpperCase(), Number(item.price)]),
+      ]),
+    },
   });
   const execute = Boolean(job.execute)
     && Boolean(account.execution_enabled)
@@ -557,6 +593,12 @@ async function executeAccountJob(env, job) {
   }
   await syncSnapshot(env, account, credentials);
   const result = { execute_effective: execute, market_open: Boolean(clock.is_open), orders: results };
+  const costTax = estimateCostsAndTax({
+    orders,
+    taxProfile: account.tax_profile,
+    priorLossCarry: account.tax_loss_carryforward,
+  });
+  result.costs_and_tax = costTax;
   await env.DB.prepare(`
     UPDATE account_runs SET status = 'completed', order_count = ?, result_json = ?, finished_at = ?
     WHERE fleet_run_id = ? AND account_id = ?

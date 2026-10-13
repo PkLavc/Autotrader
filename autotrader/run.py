@@ -152,6 +152,17 @@ def main() -> int:
         "cash": state.cash,
         "positions": state.positions,
         "metrics": metrics,
+        "cost_model": {
+            "currency": "USD",
+            "mode": "illustrative_estimate_not_broker_ledger",
+            "slippage_bps_per_side": cfg.slippage_bps,
+            "commission_per_share_usd": cfg.commission_per_share,
+            "minimum_commission_usd": cfg.minimum_commission,
+            "regulatory_fees": "Estimated SEC/FINRA TAF/CAT pass-through; broker aggregates/rounds, actual statement is authoritative",
+            "broker_commission_schedule": "Alpaca US self-directed equities: typically commission-free; exceptions may apply",
+            "dividend_tax": "Dividend cash flow modeled gross; withholding tax not modeled",
+            "tax": metrics["tax_estimate"],
+        },
         "targets": [target.__dict__ for target in targets],
         "pending_execution": {
             "signal_date": market_date,

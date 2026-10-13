@@ -37,9 +37,17 @@ class StrategyConfig:
     min_forecast_return: float = 0.01
     rebalance_threshold: float = 0.03
     slippage_bps: float = 10.0
-    commission_per_share: float = 0.0035
-    minimum_commission: float = 0.35
+    # Alpaca self-directed US equities: standard commission-free schedule.
+    # Regulatory rates are estimates; actual charges are account/day aggregated.
+    commission_per_share: float = 0.0
+    minimum_commission: float = 0.0
     maximum_commission_rate: float = 0.01
+    sec_fee_rate: float = 0.0000206
+    sec_fee_minimum: float = 0.0
+    taf_fee_per_share: float = 0.000195
+    taf_fee_cap_per_order: float = 9.79
+    cat_fee_per_share: float = 0.000003
+    estimated_tax_rate: float = 0.0
     max_abs_forecast_return: float = 0.30
     max_signal_age_calendar_days: int = 7
     minimum_history_for_metrics: int = 20

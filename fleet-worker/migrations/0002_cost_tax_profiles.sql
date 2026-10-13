@@ -1,0 +1,9 @@
+ALTER TABLE accounts ADD COLUMN tax_profile TEXT NOT NULL DEFAULT 'us_personal_no_local_tax';
+ALTER TABLE accounts ADD COLUMN commission_per_share REAL NOT NULL DEFAULT 0;
+ALTER TABLE accounts ADD COLUMN minimum_commission REAL NOT NULL DEFAULT 0;
+ALTER TABLE accounts ADD COLUMN sec_fee_rate REAL NOT NULL DEFAULT 0.0000206;
+ALTER TABLE accounts ADD COLUMN sec_fee_minimum REAL NOT NULL DEFAULT 0;
+ALTER TABLE accounts ADD COLUMN taf_fee_per_share REAL NOT NULL DEFAULT 0.000195;
+ALTER TABLE accounts ADD COLUMN taf_fee_cap REAL NOT NULL DEFAULT 9.79;
+ALTER TABLE accounts ADD COLUMN cat_fee_per_share REAL NOT NULL DEFAULT 0.000003;
+ALTER TABLE accounts ADD COLUMN tax_loss_carryforward REAL NOT NULL DEFAULT 0;

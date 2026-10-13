@@ -56,8 +56,8 @@ def test_rebalance_records_execution_model_and_costs():
         cash_buffer=0.5,
         rebalance_threshold=0,
         slippage_bps=10,
-        commission_per_share=0.0035,
-        minimum_commission=0.35,
+        commission_per_share=0,
+        minimum_commission=0,
     )
     state = _state()
     trades = rebalance(
@@ -68,9 +68,31 @@ def test_rebalance_records_execution_model_and_costs():
     assert len(trades) == 1
     assert trades[0]["price_source"] == "session_open"
     assert trades[0]["signal_date"] == "2026-10-12"
-    assert trades[0]["commission"] == 0.35
+    assert trades[0]["commission"] == 0
     assert state.cumulative_costs["slippage"] > 0
     assert state.cash >= 0
+
+
+def test_sell_fee_estimate_uses_current_sec_taf_and_cat_schedule():
+    cfg = StrategyConfig(slippage_bps=0, rebalance_threshold=0)
+    state = _state()
+    state.positions = {"A": 10}
+    state.tax_state["cost_basis"] = {"A": {"qty": 10, "cost": 800}}
+    trades = rebalance(state, [], {"A": 100}, cfg, execution_date="2026-10-13")
+    trade = trades[0]
+    assert trade["sec_fee"] == 0.03
+    assert trade["taf_fee"] == 0.01
+    assert trade["cat_fee"] == 0.01
+    assert trade["realized_gain"] > 199
+    assert state.cash == 1999.95
+
+
+def test_metrics_do_not_report_unknown_tax_as_zero_tax_due():
+    cfg = StrategyConfig(initial_cash=1000)
+    state = _state()
+    metrics = performance_metrics(state, cfg, {})
+    assert metrics["tax_estimate"]["status"] == "not_calculated_user_specific"
+    assert "not modeled" in metrics["tax_estimate"]["note"]
 
 
 def test_corporate_actions_adjust_quantity_and_credit_dividend_once():

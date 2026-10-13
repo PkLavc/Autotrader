@@ -56,6 +56,7 @@ def create(args: argparse.Namespace) -> Any:
         "display_name": args.name,
         "broker_mode": "paper",
         "auth_type": auth_type,
+        "tax_profile": args.tax_profile,
         "credentials": credentials,
         "limits": {
             "max_order_notional": args.max_order,
@@ -86,6 +87,7 @@ def parser() -> argparse.ArgumentParser:
     add = commands.add_parser("create", help="Validate and register an Alpaca paper account")
     add.add_argument("--name", required=True)
     add.add_argument("--auth-type", choices=("api_key", "oauth"), default="api_key")
+    add.add_argument("--tax-profile", choices=("us_personal_no_local_tax", "brazil_foreign_investments_estimate"), default="us_personal_no_local_tax")
     add.add_argument("--max-order", type=float, default=100)
     add.add_argument("--max-run", type=float, default=500)
     add.add_argument("--max-weight", type=float, default=0.18)
