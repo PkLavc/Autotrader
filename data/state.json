@@ -1,6 +1,18 @@
 {
   "benchmark_start_price": 779.0900268554688,
+  "benchmark_value": 0.9987292209688177,
   "cash": 4643.316149859627,
+  "corporate_actions": [],
+  "cumulative_costs": {
+    "cat_fees": 0.0,
+    "commissions": 0.0,
+    "dividend_income": 0.0,
+    "regulatory_fees": 0.0,
+    "slippage": 0.0,
+    "tax_estimate": 0.0,
+    "taxes_withheld": 0.0
+  },
+  "last_market_date": "2026-10-12",
   "last_prices": {
     "AAPL": 340.9700012207031,
     "AMZN": 259.5299987792969,
@@ -50,10 +62,21 @@
       "timestamp": "2026-10-13T03:07:40.767835+00:00"
     }
   ],
+  "pending_signal_date": null,
+  "pending_targets": [],
   "positions": {
     "AVGO": 5.141250505866471,
     "HD": 6.2722863821151735,
     "NFLX": 26.178508287806444
+  },
+  "schema_version": 2,
+  "tax_state": {
+    "assumptions": [],
+    "estimated_tax_by_year": {},
+    "profile": "us_personal_no_local_tax",
+    "realized_gains_by_month": {},
+    "realized_gains_by_year": {},
+    "tax_currency": "USD"
   },
   "trades": [
     {
@@ -134,5 +157,5 @@
       "timestamp": "2026-10-13T03:07:40.767803+00:00"
     }
   ],
-  "updated_at": "2026-10-13T03:07:40.767835+00:00"
+  "updated_at": "2026-10-14T01:14:03.753760+00:00"
 }

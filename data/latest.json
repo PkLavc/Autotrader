@@ -1,6 +1,7 @@
 {
   "cash": 4643.316149859627,
   "errors": {},
+  "execution_model": "legacy_same_close_before_v2_migration",
   "forecasts": [
     {
       "current_close": 70.61000061035156,
@@ -124,6 +125,7 @@
     }
   ],
   "generated_at": "2026-10-13T03:07:40.768354+00:00",
+  "market_session": "2026-10-12",
   "metrics": {
     "benchmark_return": -0.0012707790311823342,
     "benchmark_symbol": "SPY",
@@ -143,6 +145,7 @@
     "HD": 6.2722863821151735,
     "NFLX": 26.178508287806444
   },
+  "schema_version": 2,
   "targets": [
     {
       "score": 0.2072281192186618,
