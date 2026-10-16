@@ -1,39 +1,39 @@
 {
   "benchmark_start_price": 779.0900268554688,
-  "benchmark_value": 0.9986137454560895,
-  "cash": 4643.316149859627,
+  "benchmark_value": 0.9878190569222987,
+  "cash": 6452.142481044408,
   "corporate_actions": [],
   "cumulative_costs": {
-    "cat_fees": 0.0,
+    "cat_fees": 0.01,
     "commissions": 0.0,
     "dividend_income": 0.0,
-    "regulatory_fees": 0.0,
-    "slippage": 0.0,
+    "regulatory_fees": 0.060000000000000005,
+    "slippage": 1.8106970282129935,
     "tax_estimate": 0.0,
     "taxes_withheld": 0.0
   },
-  "last_market_date": "2026-10-13",
+  "last_market_date": "2026-10-14",
   "last_prices": {
-    "AAPL": 341.2699890136719,
-    "AMZN": 258.5799865722656,
-    "AVGO": 357.30999755859375,
-    "COST": 954.6300048828125,
-    "GOOGL": 353.7799987792969,
-    "HD": 293.9200134277344,
-    "IWM": 276.70001220703125,
-    "JPM": 331.42999267578125,
-    "LLY": 1166.510009765625,
-    "MA": 604.7999877929688,
-    "META": 762.5,
-    "MSFT": 543.4500122070312,
-    "NFLX": 70.45999908447266,
-    "NVDA": 228.52000427246094,
-    "QQQ": 743.5700073242188,
-    "SPY": 778.010009765625,
-    "UNH": 377.760009765625,
-    "V": 396.05999755859375,
-    "WMT": 112.27999877929688,
-    "XOM": 174.0800018310547
+    "AAPL": 342.9599914550781,
+    "AMZN": 254.0800018310547,
+    "AVGO": 346.25,
+    "COST": 982.0,
+    "GOOGL": 347.6400146484375,
+    "HD": 295.510009765625,
+    "IWM": 271.3699951171875,
+    "JPM": 335.2799987792969,
+    "LLY": 1208.739990234375,
+    "MA": 603.239990234375,
+    "META": 737.5399780273438,
+    "MSFT": 533.6900024414062,
+    "NFLX": 70.56999969482422,
+    "NVDA": 221.3000030517578,
+    "QQQ": 728.9500122070312,
+    "SPY": 769.5999755859375,
+    "UNH": 395.6199951171875,
+    "V": 391.42999267578125,
+    "WMT": 116.16000366210938,
+    "XOM": 177.00999450683594
   },
   "nav_history": [
     {
@@ -66,30 +66,40 @@
       "market_date": "2026-10-13",
       "nav": 10168.424523204485,
       "timestamp": "2026-10-15T00:34:09.954858+00:00"
+    },
+    {
+      "cash": 6452.142481044408,
+      "market_date": "2026-10-14",
+      "nav": 10153.083212957514,
+      "timestamp": "2026-10-16T00:27:53.044997+00:00"
     }
   ],
-  "pending_signal_date": "2026-10-13",
+  "pending_signal_date": "2026-10-14",
   "pending_targets": [
     {
-      "score": 4.440402040664803,
+      "score": 3.7786230424828,
       "symbol": "NFLX",
       "weight": 0.18
     },
     {
-      "score": 2.8206499620157452,
+      "score": 2.4505733415330813,
       "symbol": "HD",
       "weight": 0.18
     }
   ],
   "positions": {
-    "AVGO": 5.141250505866471,
     "HD": 6.2722863821151735,
     "NFLX": 26.178508287806444
   },
   "schema_version": 2,
   "tax_state": {
-    "assumptions": [],
-    "estimated_tax_by_year": {},
+    "assumptions": [
+      "initial_positions_cost_basis_unknown"
+    ],
+    "cost_basis": {},
+    "estimated_tax_by_year": {
+      "2026": 0.0
+    },
     "profile": "us_personal_no_local_tax",
     "realized_gains_by_month": {},
     "realized_gains_by_year": {},
@@ -172,7 +182,26 @@
       "side": "BUY",
       "symbol": "AVGO",
       "timestamp": "2026-10-13T03:07:40.767803+00:00"
+    },
+    {
+      "cat_fee": 0.01,
+      "commission": 0.0,
+      "execution_date": "2026-10-14",
+      "gross_value": 1808.8863311847804,
+      "price": 351.8378124389648,
+      "price_source": "session_open",
+      "qty": 5.141250505866471,
+      "realized_gain": 0.0,
+      "reference_price": 352.19000244140625,
+      "regulatory_fees": 0.060000000000000005,
+      "sec_fee": 0.04,
+      "side": "SELL",
+      "signal_date": "2026-10-13",
+      "slippage_cost": 1.8106970282129935,
+      "symbol": "AVGO",
+      "taf_fee": 0.01,
+      "timestamp": "2026-10-16T00:27:53.044927+00:00"
     }
   ],
-  "updated_at": "2026-10-15T00:34:09.954939+00:00"
+  "updated_at": "2026-10-16T00:27:53.045070+00:00"
 }
