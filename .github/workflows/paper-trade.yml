@@ -53,7 +53,7 @@ jobs:
         run: pytest -q
 
       - name: Run paper portfolio
-        run: python -m autotrader.run --state data/state.json --report data/latest.json
+        run: python -m autotrader.run --state data/state.json --report data/latest.json --learning data/learning.json
 
       - name: Validate generated state
         run: python scripts/audit_state.py data/state.json data/latest.json --require-v2
@@ -65,6 +65,7 @@ jobs:
           path: |
             data/state.json
             data/latest.json
+            data/learning.json
           retention-days: 3
           if-no-files-found: error
 
@@ -90,13 +91,16 @@ jobs:
           set -euo pipefail
           STATE_FILE="$(find generated -type f -name state.json -print -quit)"
           LATEST_FILE="$(find generated -type f -name latest.json -print -quit)"
+          LEARNING_FILE="$(find generated -type f -name learning.json -print -quit)"
           test -n "$STATE_FILE"
           test -n "$LATEST_FILE"
+          test -n "$LEARNING_FILE"
           cp "$STATE_FILE" data/state.json
           cp "$LATEST_FILE" data/latest.json
+          cp "$LEARNING_FILE" data/learning.json
           git config user.name "autotrader-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/state.json data/latest.json
+          git add data/state.json data/latest.json data/learning.json
           if git diff --cached --quiet; then
             echo "No state change"
           else
