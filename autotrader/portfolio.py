@@ -48,6 +48,8 @@ def choose_targets(
     cfg: StrategyConfig,
     *,
     held_symbols: Iterable[str] = (),
+    sector_map: dict[str, str] | None = None,
+    sector_multipliers: dict[str, float] | None = None,
 ) -> list[Target]:
     """Diversify new targets and give *eligible* existing holdings modest inertia.
 
@@ -55,6 +57,8 @@ def choose_targets(
     profitability floor, plausibility limit or portfolio cash/position caps.
     """
     held = set(held_symbols)
+    sector_map = sector_map or {}
+    sector_multipliers = sector_multipliers or {}
     eligible = [
         f for f in forecasts
         if cfg.min_forecast_return <= f.expected_return <= cfg.max_abs_forecast_return
@@ -66,13 +70,14 @@ def choose_targets(
         risk_adjusted = forecast.expected_return / max(horizon_vol, 0.01)
         if forecast.symbol in held:
             risk_adjusted *= (1.0 + cfg.holding_score_bonus)
-        return risk_adjusted
+        sector = sector_map.get(forecast.symbol, sector_of(forecast.symbol))
+        return risk_adjusted * min(1.05, max(0.95, sector_multipliers.get(sector, 1.0)))
 
     eligible.sort(key=lambda f: (-score(f), f.symbol))
     chosen: list[Forecast] = []
     counts: dict[str, int] = {}
     for forecast in eligible:
-        sector = sector_of(forecast.symbol)
+        sector = sector_map.get(forecast.symbol, sector_of(forecast.symbol))
         if counts.get(sector, 0) >= cfg.max_positions_per_sector:
             continue
         chosen.append(forecast)

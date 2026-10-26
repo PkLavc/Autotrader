@@ -111,6 +111,37 @@ insufficient to conclude that diversification or anti-churn improves profits.
 Third-party research optimizers (e.g. PyPortfolioOpt/vectorbt) have **not**
 been added to the production dependency chain without such validation.
 
+## Adaptive market discovery and evidence-based learning
+
+The research paper lane now downloads a validated **current S&P 500 constituent roster**
+from a publicly maintained daily-updated CSV and rotates through **20 additional stocks
+per completed market session** in addition to the 49 curated baseline securities.
+It does *not* pretend to download 500 full price histories daily. Discovery fails
+closed to the baseline watchlist if the external source becomes unavailable.
+The actual number of complete histories is logged on each run; the CPU-only
+Kronos model remains limited to **28** forecasts, including up to three
+liquid exploration candidates and existing/pending positions.
+
+The next market sessions generate new daily candidates automatically; their
+sector mapping is taken from current GICS metadata, so dynamically discovered
+stocks count toward the existing two-per-sector limit. Existing cash,
+position caps and next-session-open execution remain unchanged.
+
+A separate `data/learning.json` archive stores selected forecast predictions
+and grades them only **after five subsequent market sessions** using observed
+adjusted close returns compared with SPY. With fewer than 40 completed signals
+or fewer than 12 observations for a sector, **no adaptation** is applied.
+After reaching both thresholds, Bayesian-smoothed outperformance frequency can
+change a sector's *ranking* weight by **at most 5%**. The Kronos weights are
+never rewritten or retrained, and the learning archive never authorizes trades.
+Each new paper run persists the archive alongside state/report as one Actions artifact.
+
+This does not guarantee an increased return. Small or biased samples, changing
+index membership, and market regime changes can still cause losses. The current
+constituents file is unsuitable for historical backtests due to survivorship bias;
+store dated memberships and use walk-forward validation before increasing risk.
+No live broker authorization is enabled by this feature.
+
 ## Automated workflows
 
 ### Research portfolio

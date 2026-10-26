@@ -8,6 +8,8 @@ from pathlib import Path
 from .calendar import is_completed_market_session
 from .config import StrategyConfig
 from .data import load_daily_history
+from .discovery import discover_market
+from .learning import load_journal, record_signals, resolve_outcomes, save_journal, sector_factors
 from .forecast import KronosEngine
 from .paper import (
     apply_corporate_actions,
@@ -20,13 +22,14 @@ from .paper import (
 )
 from .portfolio import choose_targets
 from .portfolio import Target
-from .universe import select_forecast_symbols
+from .universe import _liquidity, select_forecast_symbols
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--state", default="data/state.json")
     parser.add_argument("--report", default="data/latest.json")
+    parser.add_argument("--learning", default="data/learning.json")
     args = parser.parse_args()
 
     cfg = StrategyConfig()
@@ -66,6 +69,8 @@ def main() -> int:
         }, indent=2))
         return 0
 
+    monitored, sector_map, discovery = discover_market(market_date, cfg)
+    journal = load_journal(args.learning)
     forecasts = []
     close_prices: dict[str, float] = {}
     open_prices: dict[str, float] = {}
@@ -73,7 +78,8 @@ def main() -> int:
     errors: dict[str, str] = {}
 
     symbols_to_load = list(dict.fromkeys(
-        [*cfg.symbols, *state.positions, *(row.get("symbol", "") for row in state.pending_targets)]
+        [*monitored, *state.positions, *(row.get("symbol", "") for row in state.pending_targets),
+         *(row.get("symbol", "") for row in journal["pending"])]
     ))
     for symbol in symbols_to_load:
         if not symbol:
@@ -93,9 +99,20 @@ def main() -> int:
     if forecast_history_count < max(3, cfg.max_positions):
         raise RuntimeError(f"Too few current market histories: {forecast_history_count}; errors={errors}")
 
+    learning_update = resolve_outcomes(journal, histories, benchmark_history, market_date, cfg)
+    adaptive_weights = sector_factors(journal, cfg)
+    # Guarantee limited exploration without bypassing minimum data/liquidity checks.
+    discoveries = [s for s in discovery["discovered_today"] if s in histories
+                   and float(histories[s]["close"].iloc[-1]) >= 5
+                   and _liquidity(histories[s]) >= 20_000_000]
+    discoveries.sort(key=lambda symbol: (-_liquidity(histories[symbol]), symbol))
+    exploration = discoveries[: cfg.discovery_forecast_slots]
+    held_or_pending = (*state.positions, *(row.get("symbol", "") for row in state.pending_targets))
     candidates = select_forecast_symbols(
         histories, cfg,
-        priority_symbols=(*state.positions, *(row.get("symbol", "") for row in state.pending_targets)),
+        priority_symbols=(*held_or_pending, *exploration),
+        sector_map=sector_map,
+        universe_symbols=(*monitored, *held_or_pending),
     )
     engine = KronosEngine(cfg)
     for symbol in candidates:
@@ -112,7 +129,8 @@ def main() -> int:
     if len(forecasts) < max(3, cfg.max_positions):
         raise RuntimeError(f"Too few successful forecasts: {len(forecasts)}; errors={errors}")
 
-    targets = choose_targets(forecasts, cfg, held_symbols=state.positions)
+    targets = choose_targets(forecasts, cfg, held_symbols=state.positions,
+                             sector_map=sector_map, sector_multipliers=adaptive_weights)
     actions = apply_corporate_actions(state, histories, state.last_market_date, market_date)
 
     pending_targets = [Target(**row) for row in state.pending_targets]
@@ -133,6 +151,8 @@ def main() -> int:
                 price_source="session_open",
             )
 
+    learning_update["new_signals"] = record_signals(journal, targets, forecasts,
+                                                     market_date, sector_map)
     state.pending_targets = [target.__dict__ for target in targets]
     state.pending_signal_date = market_date
     benchmark_session_return = (
@@ -144,6 +164,7 @@ def main() -> int:
         benchmark_session_return=benchmark_session_return,
     )
     metrics = performance_metrics(state, cfg, close_prices)
+    save_journal(journal, args.learning)
 
     report = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -175,13 +196,20 @@ def main() -> int:
             "expected_execution": "next_market_session_open",
         },
         "forecasts": [f.__dict__ for f in sorted(forecasts, key=lambda x: x.expected_return, reverse=True)],
+        "learning": {
+            **learning_update,
+            "sector_rank_multipliers": adaptive_weights,
+            "policy": "rank_only_after_five_completed_sessions",
+        },
         "universe": {
             "configured": len(cfg.symbols),
-            "available": sum(symbol in histories for symbol in cfg.symbols),
+            "available": sum(symbol in histories for symbol in monitored),
+            "discovery": discovery,
+            "exploration_forecasts": exploration,
             "model_capacity": cfg.max_forecast_assets,
             "screened_for_model": candidates,
             "model_forecasts_completed": len(forecasts),
-            "screened_out": sorted(set(cfg.symbols) - set(candidates)),
+            "screened_out": sorted(set(monitored) - set(candidates)),
         },
         "trades": trades,
         "corporate_actions": actions,

@@ -1,3 +1,5 @@
+import pytest
+
 import json
 import sys
 
@@ -25,6 +27,18 @@ def _history(session: str) -> pd.DataFrame:
     )
 
 
+@pytest.fixture(autouse=True)
+def fixed_discovery(monkeypatch):
+    # Unit tests must never depend on the remote S&P 500 constituent service.
+    monkeypatch.setattr(run, "discover_market",
+                        lambda market_date, cfg: (
+                            list(cfg.symbols), {}, {
+                                "status": "test", "discovered_today": [],
+                                "monitored_today": len(cfg.symbols),
+                            }
+                        ))
+
+
 class FakeEngine:
     def __init__(self, cfg):
         self.cfg = cfg
@@ -40,7 +54,7 @@ def test_pipeline_defers_close_signal_until_next_session_open(tmp_path, monkeypa
     monkeypatch.setattr(run, "load_daily_history", lambda symbol, lookback: _history(current_session["value"]))
     monkeypatch.setattr(run, "is_completed_market_session", lambda session: True)
     monkeypatch.setattr(run, "KronosEngine", FakeEngine)
-    monkeypatch.setattr(sys, "argv", ["autotrader", "--state", str(state), "--report", str(report)])
+    monkeypatch.setattr(sys, "argv", ["autotrader", "--state", str(state), "--report", str(report), "--learning", str(tmp_path / "learning.json")])
 
     assert run.main() == 0
     first_state = json.loads(state.read_text(encoding="utf-8"))
@@ -63,7 +77,7 @@ def test_pipeline_skips_duplicate_market_session(tmp_path, monkeypatch):
     monkeypatch.setattr(run, "load_daily_history", lambda symbol, lookback: _history("2026-10-12"))
     monkeypatch.setattr(run, "is_completed_market_session", lambda session: True)
     monkeypatch.setattr(run, "KronosEngine", FakeEngine)
-    monkeypatch.setattr(sys, "argv", ["autotrader", "--state", str(state), "--report", str(report)])
+    monkeypatch.setattr(sys, "argv", ["autotrader", "--state", str(state), "--report", str(report), "--learning", str(tmp_path / "learning.json")])
     run.main()
     before = state.read_text(encoding="utf-8")
     assert run.main() == 0
@@ -86,7 +100,7 @@ def test_legacy_state_migrates_without_new_observation_or_trade(tmp_path, monkey
     }), encoding="utf-8")
     monkeypatch.setattr(run, "load_daily_history", lambda symbol, lookback: _history("2026-10-12"))
     monkeypatch.setattr(run, "is_completed_market_session", lambda session: True)
-    monkeypatch.setattr(sys, "argv", ["autotrader", "--state", str(state), "--report", str(report)])
+    monkeypatch.setattr(sys, "argv", ["autotrader", "--state", str(state), "--report", str(report), "--learning", str(tmp_path / "learning.json")])
 
     assert run.main() == 0
     migrated_state = json.loads(state.read_text(encoding="utf-8"))
