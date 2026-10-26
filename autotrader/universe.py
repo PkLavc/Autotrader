@@ -33,6 +33,7 @@ def select_forecast_symbols(
     *,
     priority_symbols: Iterable[str] = (),
     sector_map: dict[str, str] | None = None,
+    universe_symbols: Iterable[str] | None = None,
 ) -> list[str]:
     """Preserve held/pending assets, then fill slots across sectors by liquidity.
 
@@ -43,7 +44,8 @@ def select_forecast_symbols(
     if limit < cfg.max_positions or limit < 1:
         raise ValueError("max_forecast_assets must cover at least max_positions")
 
-    available = set(histories)
+    allowed = set(universe_symbols) if universe_symbols is not None else set(cfg.symbols)
+    available = set(histories) & allowed
     sector_map = sector_map or {}
     result: list[str] = []
     for symbol in (cfg.benchmark_symbol, *priority_symbols):
