@@ -20,6 +20,7 @@ from .paper import (
 )
 from .portfolio import choose_targets
 from .portfolio import Target
+from .universe import select_forecast_symbols
 
 
 def main() -> int:
@@ -92,8 +93,12 @@ def main() -> int:
     if forecast_history_count < max(3, cfg.max_positions):
         raise RuntimeError(f"Too few current market histories: {forecast_history_count}; errors={errors}")
 
+    candidates = select_forecast_symbols(
+        histories, cfg,
+        priority_symbols=(*state.positions, *(row.get("symbol", "") for row in state.pending_targets)),
+    )
     engine = KronosEngine(cfg)
-    for symbol in cfg.symbols:
+    for symbol in candidates:
         history = histories.get(symbol)
         if history is None:
             continue
@@ -107,7 +112,7 @@ def main() -> int:
     if len(forecasts) < max(3, cfg.max_positions):
         raise RuntimeError(f"Too few successful forecasts: {len(forecasts)}; errors={errors}")
 
-    targets = choose_targets(forecasts, cfg)
+    targets = choose_targets(forecasts, cfg, held_symbols=state.positions)
     actions = apply_corporate_actions(state, histories, state.last_market_date, market_date)
 
     pending_targets = [Target(**row) for row in state.pending_targets]
@@ -170,6 +175,14 @@ def main() -> int:
             "expected_execution": "next_market_session_open",
         },
         "forecasts": [f.__dict__ for f in sorted(forecasts, key=lambda x: x.expected_return, reverse=True)],
+        "universe": {
+            "configured": len(cfg.symbols),
+            "available": sum(symbol in histories for symbol in cfg.symbols),
+            "model_capacity": cfg.max_forecast_assets,
+            "screened_for_model": candidates,
+            "model_forecasts_completed": len(forecasts),
+            "screened_out": sorted(set(cfg.symbols) - set(candidates)),
+        },
         "trades": trades,
         "corporate_actions": actions,
         "warnings": warnings,
