@@ -70,7 +70,7 @@ def walk_forward(records: Iterable[dict[str, Any]], cfg: StrategyConfig) -> dict
         })
 
         forecasts = [Forecast(**row) for row in record.get("forecasts", [])]
-        pending = choose_targets(forecasts, cfg)
+        pending = choose_targets(forecasts, cfg, held_symbols=state.positions)
         pending_date = market_date
         signal_history.append({
             "market_date": market_date,

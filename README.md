@@ -79,6 +79,38 @@ partial fills, or delayed jobs cannot rewrite the research history.
 Configuration lives in `autotrader/config.py`. These are research assumptions, not claims
 that the values are optimal.
 
+## Market universe and signal quality (2026-10)
+
+The monitored universe contains **49 liquid US stocks/ETFs** from technology,
+financials, healthcare, consumer, industrials, energy, utilities, materials,
+real estate, communication and broad-market ETFs. These are a fixed watchlist,
+not a survivorship-free index constituent database.
+
+To bound the CPU-only Kronos runtime, all 49 are downloaded/validated daily,
+but **at most 28** reach the forecast model. A deterministic sector-balanced,
+recent dollar-volume screen selects these candidates; existing holdings and
+pending-order symbols have priority. The screen has no predictive claim and
+must not be evaluated as if it were a trained alpha signal.
+
+Portfolio limits remain five positions, 18% per position and at least 10%
+cash. New targets are capped at two positions per broad sector, and already-held
+securities receive a modest 8% tie-breaking score bonus **only if their forecast
+remains eligible**. No fixed holding period or automatic stop-loss has been
+added; those need longer walk-forward evidence. These policies make execution
+more consistent, **not guaranteed more profitable**.
+
+The daily JSON report now includes `universe.configured`, `available`,
+`model_capacity`, `screened_for_model`, `model_forecasts_completed`, and
+`screened_out`. Do not confuse a security being downloaded with it being
+predicted by Kronos. Asset history is not reset and no broker live gate changes.
+
+Research before further changes: compare against the unmodified strategy,
+SPY and a simple momentum baseline using point-in-time data, realistic spreads,
+and multiple out-of-sample market regimes. A 13-observation portfolio is
+insufficient to conclude that diversification or anti-churn improves profits.
+Third-party research optimizers (e.g. PyPortfolioOpt/vectorbt) have **not**
+been added to the production dependency chain without such validation.
+
 ## Automated workflows
 
 ### Research portfolio

@@ -27,6 +27,11 @@ class StrategyConfig:
     lookback: int = 400
     prediction_days: int = 5
     sample_count: int = 3
+    # Fetch and validate the wider universe; bound expensive CPU predictions.
+    max_forecast_assets: int = 28
+    # Conservative portfolio-level diversification and anti-churn tie breaker.
+    max_positions_per_sector: int = 2
+    holding_score_bonus: float = 0.08
     top_p: float = 0.9
     temperature: float = 1.0
     random_seed: int = 20_261_013
@@ -56,4 +61,11 @@ class StrategyConfig:
         "SPY", "QQQ", "IWM", "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL",
         "META", "AVGO", "JPM", "V", "MA", "LLY", "COST", "WMT",
         "XOM", "UNH", "HD", "NFLX",
+        "AMD", "CRM", "ORCL", "ADBE", "TXN",
+        "BAC", "GS", "BRK-B",
+        "JNJ", "ABBV", "MRK",
+        "PG", "KO", "PEP", "MCD",
+        "CAT", "DE", "GE", "UNP",
+        "CVX", "COP", "NEE", "DUK",
+        "LIN", "SHW", "PLD", "AMT", "DIS", "T",
     ))
