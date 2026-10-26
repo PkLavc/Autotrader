@@ -1,0 +1,50 @@
+name: Validate Eulerpool data (read-only)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/validate_eulerpool.py"
+      - "tests/test_validate_eulerpool.py"
+      - ".github/workflows/validate-eulerpool.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eulerpool-validation
+  cancel-in-progress: false
+
+jobs:
+  compare-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install comparison dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Test normalizer and read-only safety checks
+        run: python -m pytest -q tests/test_validate_eulerpool.py
+      - name: Compare all 20 assets against Yahoo Finance
+        env:
+          EULERPOOL_API_KEY: ${{ secrets.EULERPOOL_API_KEY }}
+        run: python -m scripts.validate_eulerpool --output reports/eulerpool-comparison.json
+      - name: Publish aggregate comparison to run summary
+        if: always()
+        run: |
+          if [ -f reports/eulerpool-comparison.json.md ]; then
+            cat reports/eulerpool-comparison.json.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload aggregate results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eulerpool-validation-report
+          path: reports/eulerpool-comparison.json*
+          if-no-files-found: ignore
+          retention-days: 7
