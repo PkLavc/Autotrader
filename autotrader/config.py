@@ -29,9 +29,14 @@ class StrategyConfig:
     sample_count: int = 3
     # Fetch and validate the wider universe; bound expensive CPU predictions.
     max_forecast_assets: int = 28
+    # The index constituents change over time; only a bounded rotating slice is downloaded.
+    daily_discovery_count: int = 20
+    discovery_forecast_slots: int = 3
     # Conservative portfolio-level diversification and anti-churn tie breaker.
     max_positions_per_sector: int = 2
     holding_score_bonus: float = 0.08
+    adaptive_min_total_evaluations: int = 40
+    adaptive_min_sector_evaluations: int = 12
     top_p: float = 0.9
     temperature: float = 1.0
     random_seed: int = 20_261_013
