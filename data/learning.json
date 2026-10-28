@@ -1,6 +1,6 @@
 {
   "completed": [],
-  "last_evaluation_date": "2026-10-23",
+  "last_evaluation_date": "2026-10-26",
   "pending": [
     {
       "expected_return": 0.25124587378351126,
@@ -36,6 +36,41 @@
       "sector": "utilities",
       "signal_date": "2026-10-23",
       "symbol": "VST"
+    },
+    {
+      "expected_return": 0.08306765958598761,
+      "id": "2026-10-26:MCD",
+      "sector": "discretionary",
+      "signal_date": "2026-10-26",
+      "symbol": "MCD"
+    },
+    {
+      "expected_return": 0.08734187581483721,
+      "id": "2026-10-26:GE",
+      "sector": "industrials",
+      "signal_date": "2026-10-26",
+      "symbol": "GE"
+    },
+    {
+      "expected_return": 0.10093199272443609,
+      "id": "2026-10-26:AVGO",
+      "sector": "technology",
+      "signal_date": "2026-10-26",
+      "symbol": "AVGO"
+    },
+    {
+      "expected_return": 0.10310519004476215,
+      "id": "2026-10-26:VST",
+      "sector": "utilities",
+      "signal_date": "2026-10-26",
+      "symbol": "VST"
+    },
+    {
+      "expected_return": 0.010846226335740283,
+      "id": "2026-10-26:GOOG",
+      "sector": "communication",
+      "signal_date": "2026-10-26",
+      "symbol": "GOOG"
     }
   ],
   "schema_version": 1
