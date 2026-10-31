@@ -1,42 +1,68 @@
 {
-  "completed": [],
-  "last_evaluation_date": "2026-10-29",
-  "pending": [
+  "completed": [
     {
+      "actual_return": -0.0572512791256633,
+      "benchmark_return": -0.005592326228453293,
+      "direction_correct": false,
+      "excess_return": -0.05165895289721001,
       "expected_return": 0.25124587378351126,
       "id": "2026-10-23:NFLX",
+      "resolution_date": "2026-10-30",
       "sector": "communication",
       "signal_date": "2026-10-23",
       "symbol": "NFLX"
     },
     {
+      "actual_return": 0.03887944998103854,
+      "benchmark_return": -0.005592326228453293,
+      "direction_correct": true,
+      "excess_return": 0.04447177620949183,
       "expected_return": 0.09630975721723334,
       "id": "2026-10-23:MCD",
+      "resolution_date": "2026-10-30",
       "sector": "discretionary",
       "signal_date": "2026-10-23",
       "symbol": "MCD"
     },
     {
+      "actual_return": 0.0136781708426581,
+      "benchmark_return": -0.005592326228453293,
+      "direction_correct": true,
+      "excess_return": 0.019270497071111392,
       "expected_return": 0.1223425903701898,
       "id": "2026-10-23:AVGO",
+      "resolution_date": "2026-10-30",
       "sector": "technology",
       "signal_date": "2026-10-23",
       "symbol": "AVGO"
     },
     {
+      "actual_return": 0.056574612504556754,
+      "benchmark_return": -0.005592326228453293,
+      "direction_correct": true,
+      "excess_return": 0.062166938733010046,
       "expected_return": 0.0751998001677805,
       "id": "2026-10-23:GE",
+      "resolution_date": "2026-10-30",
       "sector": "industrials",
       "signal_date": "2026-10-23",
       "symbol": "GE"
     },
     {
+      "actual_return": -0.012771179353256445,
+      "benchmark_return": -0.005592326228453293,
+      "direction_correct": false,
+      "excess_return": -0.007178853124803153,
       "expected_return": 0.13157199707452794,
       "id": "2026-10-23:VST",
+      "resolution_date": "2026-10-30",
       "sector": "utilities",
       "signal_date": "2026-10-23",
       "symbol": "VST"
-    },
+    }
+  ],
+  "last_evaluation_date": "2026-10-30",
+  "pending": [
     {
       "expected_return": 0.08306765958598761,
       "id": "2026-10-26:MCD",
@@ -141,6 +167,41 @@
       "sector": "industrials",
       "signal_date": "2026-10-29",
       "symbol": "GE"
+    },
+    {
+      "expected_return": 0.1688572632129055,
+      "id": "2026-10-30:AVGO",
+      "sector": "technology",
+      "signal_date": "2026-10-30",
+      "symbol": "AVGO"
+    },
+    {
+      "expected_return": 0.07674144805508964,
+      "id": "2026-10-30:MCD",
+      "sector": "discretionary",
+      "signal_date": "2026-10-30",
+      "symbol": "MCD"
+    },
+    {
+      "expected_return": 0.13025304704128127,
+      "id": "2026-10-30:GOOGL",
+      "sector": "communication",
+      "signal_date": "2026-10-30",
+      "symbol": "GOOGL"
+    },
+    {
+      "expected_return": 0.07318494843273626,
+      "id": "2026-10-30:TT",
+      "sector": "industrials",
+      "signal_date": "2026-10-30",
+      "symbol": "TT"
+    },
+    {
+      "expected_return": 0.11371332575227577,
+      "id": "2026-10-30:VST",
+      "sector": "utilities",
+      "signal_date": "2026-10-30",
+      "symbol": "VST"
     }
   ],
   "schema_version": 1
