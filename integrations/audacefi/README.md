@@ -17,7 +17,11 @@ Python 3.11 is sufficient for preparation:
 
     python -m integrations.audacefi.prepare --signals data/latest.json
 
-This returns HOLD because the existing report covers US equities. To prepare a real crypto proposal, first produce independent, verified crypto signals in this format:
+This returns HOLD because the existing report covers US equities. You can generate a separate crypto-only signal feed from the existing Kronos model after installing its pinned upstream code and model (see root README). Run manually, never on the expensive daily stock workflow:
+
+    python -m integrations.audacefi.crypto_research --output integrations/audacefi/signals.local.json
+
+It examines BTC-USD, ETH-USD and SOL-USD with completed UTC daily bars and a seven-day-week forecast calendar, including weekends. This runs local CPU inference, is unscheduled, and does not prove profitable crypto trading. Feed those signals into the proposal builder with --signals integrations/audacefi/signals.local.json. Alternatively, use an independently vetted crypto research feed in this format:
 
     {"asset_class":"crypto","generated_at":"2026-11-03T20:00:00Z","signals":[{"symbol":"SOL","expected_return":0.06}]}
 
