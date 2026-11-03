@@ -174,6 +174,11 @@ The fleet is paper-only and all order gates default to disabled. See
 [Private fleet setup](docs/FLEET_SETUP.md). Live authorization for other people must use an
 approved broker OAuth/Broker integration; raw customer credentials do not belong in GitHub.
 
+
+### AudaceFi league (optional Solana devnet)
+
+The optional AudaceFi integration lives in [integrations/audacefi](integrations/audacefi/README.md). It includes isolated manual crypto research, a crypto-only risk-gated operation preparer, and a wiring layer for the official AudaceFi TypeScript kit. The existing equity portfolio and broker remain unchanged. No recurring workflow or execution is enabled; participation requires independent onboarding, a qualifying deployment profile, and an external wallet signer.
+
 ### Safe upstream updates
 
 `.github/workflows/upstream-sync.yml` validates upstream source/model candidates before
