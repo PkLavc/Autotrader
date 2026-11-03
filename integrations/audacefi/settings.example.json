@@ -1,0 +1,21 @@
+{
+  "seasonId": "REPLACE_WITH_AUDACEFI_SEASON_UUID",
+  "category": "degen",
+  "playerPublicKey": "REPLACE_WITH_PUBLIC_SOLANA_WALLET",
+  "usdcMainnet": "REPLACE_WITH_VERIFIED_MAINNET_USDC_MINT",
+  "buyAmountUsdc": "2.00",
+  "maxInputUsdc": "5.00",
+  "minExpectedReturn": "0.02",
+  "maxExpectedReturn": "0.30",
+  "maxSignalAgeSeconds": 3600,
+  "tokens": {
+    "SOL": "REPLACE_WITH_VERIFIED_MAINNET_SOL_MINT"
+  },
+  "journalDirectory": "/REPLACE/OUTSIDE_REPOSITORY/audacefi-journal",
+  "policy": {
+    "maxOperations": 5,
+    "inputBudgets": {
+      "REPLACE_WITH_VERIFIED_MAINNET_USDC_MINT": "25000000"
+    }
+  }
+}

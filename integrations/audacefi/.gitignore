@@ -1,0 +1,6 @@
+# Never publish account configuration, operations, credentials or local journals.
+*.local.json
+*.local.mjs
+.env
+.journal/
+node_modules/
