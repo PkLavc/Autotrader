@@ -89,3 +89,20 @@ def test_fractional_raw_unit_fails_closed():
 def test_future_timestamp_is_hold():
     now = datetime.now(timezone.utc)
     assert prepare(report(now + timedelta(hours=2)), settings(), now=now)["status"] == "HOLD"
+
+
+def test_crypto_future_horizon_includes_weekends():
+    from integrations.audacefi.crypto_research import crypto_future_dates
+    import pandas as pd
+    dates = crypto_future_dates(pd.Timestamp("2026-11-06"), 3)
+    assert [str(day.date()) for day in dates] == ["2026-11-07", "2026-11-08", "2026-11-09"]
+
+
+def test_incomplete_utc_crypto_bar_is_excluded():
+    from integrations.audacefi.crypto_research import completed_crypto_bars
+    import pandas as pd
+    now = datetime(2026, 11, 3, 17, tzinfo=timezone.utc)
+    history = pd.DataFrame({"close": [100, 105]}, index=pd.to_datetime(["2026-11-02", "2026-11-03"]))
+    closed = completed_crypto_bars(history, now)
+    assert len(closed) == 1
+    assert str(closed.index[0].date()) == "2026-11-02"
