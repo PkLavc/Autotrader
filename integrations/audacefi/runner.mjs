@@ -74,7 +74,17 @@ if (action === 'finalize') {
   console.log(JSON.stringify({ action, result }, null, 2));
 } else {
   const operation = await privateJson('AUDACEFI_OPERATION_PATH');
-  if (operation.seasonId !== settings.seasonId ||
+  const toUsdcRaw = (value) => {
+    const s = String(value);
+    if (!/^[0-9]+(?:[.][0-9]{1,6})?$/.test(s)) throw new Error('INVALID_USDC_LIMIT');
+    const parts = s.split('.');
+    return BigInt(parts[0] + (parts[1] || '').padEnd(6, '0'));
+  };
+  const amount = BigInt(operation.amountInRaw);
+  if (amount !== toUsdcRaw(settings.buyAmountUsdc) ||
+      amount > toUsdcRaw(settings.maxInputUsdc) ||
+      operation.amountIn !== Number(settings.buyAmountUsdc) ||
+      operation.seasonId !== settings.seasonId ||
       operation.category !== settings.category ||
       operation.playerPublicKey !== settings.playerPublicKey ||
       operation.tokenInMint !== settings.usdcMainnet ||
