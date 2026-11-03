@@ -59,45 +59,70 @@
       "sector": "utilities",
       "signal_date": "2026-10-23",
       "symbol": "VST"
-    }
-  ],
-  "last_evaluation_date": "2026-10-30",
-  "pending": [
+    },
     {
+      "actual_return": 0.05904402467515846,
+      "benchmark_return": -0.017338045149285164,
+      "direction_correct": true,
+      "excess_return": 0.07638206982444362,
       "expected_return": 0.08306765958598761,
       "id": "2026-10-26:MCD",
+      "resolution_date": "2026-11-02",
       "sector": "discretionary",
       "signal_date": "2026-10-26",
       "symbol": "MCD"
     },
     {
+      "actual_return": 0.09482372429367714,
+      "benchmark_return": -0.017338045149285164,
+      "direction_correct": true,
+      "excess_return": 0.1121617694429623,
       "expected_return": 0.08734187581483721,
       "id": "2026-10-26:GE",
+      "resolution_date": "2026-11-02",
       "sector": "industrials",
       "signal_date": "2026-10-26",
       "symbol": "GE"
     },
     {
+      "actual_return": -0.021083337358522303,
+      "benchmark_return": -0.017338045149285164,
+      "direction_correct": false,
+      "excess_return": -0.003745292209237139,
       "expected_return": 0.10093199272443609,
       "id": "2026-10-26:AVGO",
+      "resolution_date": "2026-11-02",
       "sector": "technology",
       "signal_date": "2026-10-26",
       "symbol": "AVGO"
     },
     {
+      "actual_return": -0.05023633198208044,
+      "benchmark_return": -0.017338045149285164,
+      "direction_correct": false,
+      "excess_return": -0.032898286832795276,
       "expected_return": 0.10310519004476215,
       "id": "2026-10-26:VST",
+      "resolution_date": "2026-11-02",
       "sector": "utilities",
       "signal_date": "2026-10-26",
       "symbol": "VST"
     },
     {
+      "actual_return": -0.11505774727261109,
+      "benchmark_return": -0.017338045149285164,
+      "direction_correct": false,
+      "excess_return": -0.09771970212332592,
       "expected_return": 0.010846226335740283,
       "id": "2026-10-26:GOOG",
+      "resolution_date": "2026-11-02",
       "sector": "communication",
       "signal_date": "2026-10-26",
       "symbol": "GOOG"
-    },
+    }
+  ],
+  "last_evaluation_date": "2026-11-02",
+  "pending": [
     {
       "expected_return": 0.11823240725580098,
       "id": "2026-10-28:MCD",
@@ -202,6 +227,41 @@
       "sector": "utilities",
       "signal_date": "2026-10-30",
       "symbol": "VST"
+    },
+    {
+      "expected_return": 0.13931467967863287,
+      "id": "2026-11-02:GOOGL",
+      "sector": "communication",
+      "signal_date": "2026-11-02",
+      "symbol": "GOOGL"
+    },
+    {
+      "expected_return": 0.17418710759855038,
+      "id": "2026-11-02:VST",
+      "sector": "utilities",
+      "signal_date": "2026-11-02",
+      "symbol": "VST"
+    },
+    {
+      "expected_return": 0.09849318598190515,
+      "id": "2026-11-02:UBER",
+      "sector": "industrials",
+      "signal_date": "2026-11-02",
+      "symbol": "UBER"
+    },
+    {
+      "expected_return": 0.12601004296592255,
+      "id": "2026-11-02:AVGO",
+      "sector": "technology",
+      "signal_date": "2026-11-02",
+      "symbol": "AVGO"
+    },
+    {
+      "expected_return": 0.0655131856057769,
+      "id": "2026-11-02:MCD",
+      "sector": "discretionary",
+      "signal_date": "2026-11-02",
+      "symbol": "MCD"
     }
   ],
   "schema_version": 1
