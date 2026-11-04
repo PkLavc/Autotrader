@@ -2,6 +2,7 @@
 from __future__ import annotations
 from datetime import datetime, timezone
 import json
+import http.client
 import os
 import sys
 import urllib.error
@@ -66,33 +67,34 @@ def classify(payload: object, *, now: datetime | None = None) -> str:
     return "SEASON_ACTIVE_DEPLOYMENT_PENDING"
 
 
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-
 def read_remote_state(api_key: str) -> object:
     if not api_key or len(api_key) > 512:
         raise ValueError("API key missing or oversized")
-    request = urllib.request.Request(
-        API_URL,
-        headers={"Authorization": "Bearer " + api_key, "Accept": "application/json"},
-        method="GET",
-    )
-    with urllib.request.build_opener(_NoRedirect()).open(request, timeout=15) as response:
-        if response.status != 200 or response.headers.get_content_type() != "application/json":
-            raise ValueError("unexpected response")
-        contents = response.read(MAX_RESPONSE + 1)
-        if len(contents) > MAX_RESPONSE:
+    connection = http.client.HTTPSConnection("sandbox.audacefi.app", timeout=15)
+    try:
+        connection.request(
+            "GET",
+            "/api/v1/me/state?category=crypto-bro",
+            headers={"Authorization": "Bearer " + api_key, "Accept": "application/json"},
+        )
+        response = connection.getresponse()
+        if response.status != 200:
+            raise ConnectionError("HTTP_" + str(response.status))
+        content = response.read(MAX_RESPONSE + 1)
+        if len(content) > MAX_RESPONSE:
             raise ValueError("oversized response")
-        return json.loads(contents)
+        return json.loads(content)
+    finally:
+        connection.close()
 
 
 def main() -> int:
     secret = os.environ.get("AUDACEFI_API_KEY", "")
     try:
         outcome = classify(read_remote_state(secret))
-    except (ValueError, OSError, urllib.error.URLError, json.JSONDecodeError):
+    except ConnectionError as exc:
+        outcome = "HOLD_" + str(exc)
+    except (ValueError, OSError, http.client.HTTPException, json.JSONDecodeError):
         outcome = "HOLD_API_READ_FAILED"
     print("AUDACEFI_SEASON=" + outcome)
     print("AUDACEFI_TRADING=DISABLED")

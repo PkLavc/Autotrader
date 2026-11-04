@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/audacefi-season-watch.yml'
+      - 'integrations/audacefi/season_gate.py'
+      - 'tests/test_audacefi_season_gate.py'
   schedule:
     # Four low-cost reads daily. Never passes the wallet recovery secret.
     - cron: '19 */6 * * *'
