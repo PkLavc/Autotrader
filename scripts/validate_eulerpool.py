@@ -24,8 +24,10 @@ from autotrader.config import StrategyConfig
 
 
 ROUTES = (
+    # The official Eulerpool Python SDK documents this endpoint.
+    "https://api.eulerpool.com/api/1/equity/candles/{symbol}",
+    # Kept only for comparison with the older public documentation.
     "https://api.eulerpool.com/api/1/equities/{symbol}/history",
-    "https://api.eulerpool.com/v1/equities/{symbol}/history",
 )
 FIELDS = ("open", "high", "low", "close", "volume")
 ADJUSTED_KEYS = ("adjustedClose", "adjClose", "adj_close", "adjusted_close", "adj close")
@@ -80,7 +82,7 @@ def normalize_eulerpool(payload: object, end_date: str) -> pd.DataFrame:
 
 
 def fetch_eulerpool(symbol: str, key: str, start: str, end: str) -> tuple[pd.DataFrame, str]:
-    query = urlencode({"from": start, "to": end, "interval": "1d"})
+    query = urlencode({"from": start, "to": end, "interval": "1d", "token": key})
     failures = []
     for route in ROUTES:
         endpoint = route.format(symbol=symbol)
@@ -224,7 +226,8 @@ def main() -> int:
             yahoo = fetch_yahoo(symbol, last_completed)
             rows.append(compare(symbol, yahoo, euler, config.lookback, endpoint))
         except Exception as exc:
-            # Never write or echo request headers / keys.
+            # Print only a short sanitized diagnostic; never log URLs/headers/keys.
+            print(f"Eulerpool {symbol} failed: {type(exc).__name__}: {str(exc)[:120]}", flush=True)
             rows.append({"symbol": symbol, "status": "ERROR",
                          "error": f"{type(exc).__name__}: {str(exc)[:180]}"})
     output = Path(args.output)
