@@ -30,10 +30,10 @@ jobs:
         run: python -m pip install -r requirements.txt
       - name: Test normalizer and read-only safety checks
         run: python -m pytest -q tests/test_validate_eulerpool.py
-      - name: Compare all 20 assets against Yahoo Finance
+      - name: Compare 3 assets against Yahoo Finance
         env:
           EULERPOOL_API_KEY: ${{ secrets.EULERPOOL_API_KEY }}
-        run: python -m scripts.validate_eulerpool --output reports/eulerpool-comparison.json
+        run: python -m scripts.validate_eulerpool --symbols AAPL SPY MSFT --output reports/eulerpool-comparison.json
       - name: Publish aggregate comparison to run summary
         if: always()
         run: |

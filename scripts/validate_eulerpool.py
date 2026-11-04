@@ -26,6 +26,7 @@ from autotrader.config import StrategyConfig
 ROUTES = (
     # The official Eulerpool Python SDK documents this endpoint.
     "https://api.eulerpool.com/api/1/equity/candles/{symbol}",
+    "https://api.eulerpool.com/api/1/charting/ohlcv/{symbol}",
     # Kept only for comparison with the older public documentation.
     "https://api.eulerpool.com/api/1/equities/{symbol}/history",
 )
@@ -102,7 +103,19 @@ def fetch_eulerpool(symbol: str, key: str, start: str, end: str) -> tuple[pd.Dat
                 continue
             raise RuntimeError(f"Eulerpool HTTP {exc.code} for {symbol}") from None
         except (ValueError, json.JSONDecodeError) as exc:
-            failures.append(f"{route.split('.com/')[-1]} unexpected response ({type(exc).__name__})")
+            # Only report schema keys/types, never values or request URLs with tokens.
+            shape = type(payload).__name__
+            if isinstance(payload, dict):
+                shape += " keys=" + ",".join(sorted(str(k) for k in payload)[:12])
+                for key in ("data", "results", "candles", "prices", "history"):
+                    nested = payload.get(key)
+                    if isinstance(nested, dict):
+                        shape += f" {key}.keys=" + ",".join(sorted(str(k) for k in nested)[:12])
+                    elif isinstance(nested, list):
+                        shape += f" {key}.rows={len(nested)}"
+            elif isinstance(payload, list):
+                shape += f" rows={len(payload)}"
+            failures.append(f"{route.split('.com/')[-1]} invalid-schema {shape[:200]}")
         except URLError as exc:
             raise RuntimeError(f"Eulerpool connection failed: {type(exc.reason).__name__}") from None
     raise RuntimeError("; ".join(failures) or "No working Eulerpool history route")
