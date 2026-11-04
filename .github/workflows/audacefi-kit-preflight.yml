@@ -1,0 +1,39 @@
+name: AudaceFi official SDK preflight (no credentials)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audacefi-kit-preflight.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  kit-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+      - name: Install qualified npm version
+        run: npm i --global npm@11.19.1
+      - name: Checkout pinned official integration kit
+        shell: bash
+        run: |
+          git clone --quiet https://github.com/AudaceFi/audacefi-integration-kit.git vendor/audacefi-integration-kit
+          git -C vendor/audacefi-integration-kit checkout --detach d2dc6c8d5c9359c1e143f8d41172dd279da934b5
+          test "$(git -C vendor/audacefi-integration-kit rev-parse HEAD)" = d2dc6c8d5c9359c1e143f8d41172dd279da934b5
+      - name: Run source checks without secrets
+        working-directory: vendor/audacefi-integration-kit
+        run: |
+          npm ci --ignore-scripts
+          npm run check
+      - name: Validate Autotrader signer and entrypoint
+        run: |
+          node --check integrations/audacefi/runner.mjs
+          node --check integrations/audacefi/wallet-signer.mjs
+          node --test integrations/audacefi/wallet-signer.test.mjs

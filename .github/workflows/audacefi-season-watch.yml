@@ -1,0 +1,46 @@
+name: AudaceFi Season 1 watch (read-only)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audacefi-season-watch.yml'
+  schedule:
+    # Four low-cost reads daily. Never passes the wallet recovery secret.
+    - cron: '19 */6 * * *'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: audacefi-season-watch
+  cancel-in-progress: false
+
+jobs:
+  season-watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Offline season-gate tests
+        run: python3 -m unittest discover -s tests -p 'test_audacefi_season_gate.py' -q
+      - name: Read season status
+        id: state
+        env:
+          AUDACEFI_API_KEY: ${{ secrets.AUDACEFI_API_KEY }}
+        run: python3 -m integrations.audacefi.season_gate
+      - name: Open an issue once if season is live but trading remains unqualified
+        if: steps.state.outputs.season_active == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          title="AudaceFi Season 1 - deployment qualification pending"
+          if ! gh issue list --repo "$GITHUB_REPOSITORY" --state all --limit 100 --json title --jq '.[].title' | grep -Fxq "$title"; then
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "$title" \
+              --body "The read-only season watcher found an active league season. This is not permission to trade. Before running an agent, qualify the official devnet bench profile, authorized API, league wallet, eligible mints, durable append-only journal, risk budget, and strategy. No secret or transaction was used by this check."
+          fi

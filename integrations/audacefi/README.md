@@ -1,6 +1,6 @@
 # AudaceFi integration — Autotrader
 
-Optional and isolated integration for the AudaceFi Solana devnet league. It does not alter the equity strategy, Alpaca broker, stock paper ledger, research schedule, or account fleet. No automatic orders or recurring Actions workflow are enabled.
+Optional and isolated integration for the AudaceFi Solana devnet league. It does not alter the equity strategy, Alpaca broker, stock paper ledger, research schedule, or account fleet. No automatic orders are enabled. A small scheduled read-only season watcher is enabled.
 
 ## Status
 
@@ -34,6 +34,12 @@ One-time operator setup:
 
 `runner.mjs` now defaults to `integrations/audacefi/wallet-signer.mjs` whenever an approved operation is later executed. The signer uses Node's standard crypto library (no wallet browser, no signing service, no paid dependencies), refuses a changed payer/mismatched address, requires an unsigned two-signer legacy message, and requires execution flags. The encrypted secret is not written to disk. This is **not yet an autonomous live execution workflow**: the AudaceFi season is not active, the league wallet has not been instantiated, and the official SDK reference profile and durable journal remain unqualified. Never use Actions cache or ephemeral runner directories as the only operation journal.
 
+## GitHub Actions season monitoring
+
+- The [Season 1 watcher](../../.github/workflows/audacefi-season-watch.yml) runs a read-only API check every six hours; it uses the API key but **never** the wallet recovery phrase.
+- When the season is closed, it reports WAITING_FOR_SEASON. When the league wallet and season are active, it marks DEPLOYMENT_PENDING and opens one GitHub issue identifying the remaining deployment requirements.
+- [Official SDK preflight](../../.github/workflows/audacefi-kit-preflight.yml) uses pinned source revision d2dc6c8d5c9359c1e143f8d41172dd279da934b5 and no secrets.
+- Trading remains disabled because the official season-specific wallet, qualified chain/API profile, token allowlist, durable journal (must persist across GitHub Actions runners), and budget policy have not been verified. Never treat a green CI result as permission to submit orders.
 ## 1. Prepare locally
 
 Python 3.11 is sufficient for preparation:
@@ -93,4 +99,4 @@ The reference kit's security limits and network qualification requirements still
 
     python -m pytest -q tests/test_audacefi.py
 
-There is no added scheduled workflow. The existing CI tests the Python proposal builder; the connected official SDK's own check must also pass before it is used.
+Only a read-only scheduled season watcher was added. The existing CI tests the Python proposal builder; the pinned official SDK is preflighted separately and no automated trading is scheduled.
