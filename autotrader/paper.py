@@ -25,6 +25,8 @@ class PaperState:
     pending_signal_date: str | None = None
     corporate_actions: list[dict] = field(default_factory=list)
     risk_events: list[dict] = field(default_factory=list)
+    position_risk: dict[str, dict] = field(default_factory=dict)
+    cooldowns: dict[str, str] = field(default_factory=dict)
     cumulative_costs: dict[str, float] = field(
         default_factory=lambda: {
             "slippage": 0.0,
@@ -76,6 +78,8 @@ def load_state(path: str, initial_cash: float) -> PaperState:
         pending_signal_date=raw.get("pending_signal_date"),
         corporate_actions=list(raw.get("corporate_actions", [])),
         risk_events=list(raw.get("risk_events", [])),
+        position_risk=dict(raw.get("position_risk", {})),
+        cooldowns=dict(raw.get("cooldowns", {})),
         cumulative_costs={
             "slippage": float(raw.get("cumulative_costs", {}).get("slippage", 0.0)),
             "commissions": float(raw.get("cumulative_costs", {}).get("commissions", 0.0)),
@@ -193,6 +197,10 @@ def rebalance(
     target_weights: dict[str, float] = {}
     chosen_issuers: set[str] = set()
     for target in sorted(targets, key=lambda t: (-t.score, t.symbol)):
+        if execution_date and target.symbol in state.cooldowns:
+            last_exit = state.cooldowns[target.symbol]
+            if 0 <= (date.fromisoformat(execution_date) - date.fromisoformat(last_exit)).days <= cfg.cooldown_calendar_days:
+                continue
         issuer = issuer_of(target.symbol)
         if issuer in chosen_issuers:
             continue
@@ -222,23 +230,34 @@ def rebalance(
             })
         if sym not in state.positions:
             continue
-        basis = state.tax_state.get("cost_basis", {}).get(sym, {})
-        basis_qty = float(basis.get("qty", 0.0))
-        if basis_qty <= 0:
-            continue  # Unknown historical basis: never invent a loss level.
-        average_cost = float(basis.get("cost", 0.0)) / basis_qty
-        if average_cost > 0 and opening_price / average_cost - 1.0 <= -cfg.max_position_loss_pct:
+        stop_price = float(state.position_risk.get(sym, {}).get("stop_price", 0.0))
+        if stop_price > 0 and opening_price <= stop_price:
             forced_exits.add(sym)
             blocked_entries.add(sym)
             state.risk_events.append({
-                "type": "position_loss_limit", "symbol": sym,
-                "observed_return": round(opening_price / average_cost - 1.0, 6),
+                "type": "volatility_trailing_stop", "symbol": sym,
+                "stop_price": stop_price, "opening_price": opening_price,
                 "execution_date": execution_date,
             })
+        # Previously opened positions keep audited cost-basis protection.
+        basis = state.tax_state.get("cost_basis", {}).get(sym, {})
+        basis_qty = float(basis.get("qty", 0.0))
+        if stop_price <= 0 and basis_qty > 0:
+            average_cost = float(basis.get("cost", 0.0)) / basis_qty
+            if average_cost > 0 and opening_price / average_cost - 1.0 <= -cfg.max_position_loss_pct:
+                forced_exits.add(sym)
+                blocked_entries.add(sym)
+                state.risk_events.append({
+                    "type": "position_loss_limit", "symbol": sym,
+                    "observed_return": round(opening_price / average_cost - 1.0, 6),
+                    "execution_date": execution_date,
+                })
 
     # No portfolio-wide trading halt: capital may rotate into other targets.
     for sym in forced_exits | blocked_entries:
         target_weights.pop(sym, None)
+        if execution_date:
+            state.cooldowns[sym] = execution_date
     all_symbols = set(state.positions) | set(target_weights)
     trades: list[dict] = []
     slip = cfg.slippage_bps / 10_000.0
@@ -271,6 +290,7 @@ def rebalance(
         state.positions[sym] = state.positions.get(sym, 0.0) - qty
         if state.positions[sym] <= 1e-12:
             state.positions.pop(sym, None)
+            state.position_risk.pop(sym, None)
         state.cash += notional - commission - fees["regulatory_fees"]
         slippage_cost = qty * prices[sym] * slip
         state.cumulative_costs["slippage"] += slippage_cost
@@ -322,6 +342,14 @@ def rebalance(
             "cost": basis_cost + notional + commission + fees["regulatory_fees"],
         }
         state.positions[sym] = state.positions.get(sym, 0.0) + qty
+        distance = next((t.stop_distance_pct for t in targets if t.symbol == sym), cfg.max_position_loss_pct)
+        distance = max(cfg.min_stop_distance_pct, min(cfg.max_stop_distance_pct, float(distance)))
+        prior = state.position_risk.get(sym)
+        new_stop = px * (1.0 - distance)
+        state.position_risk[sym] = {
+            "stop_distance_pct": distance,
+            "stop_price": max(new_stop, float(prior.get("stop_price", 0.0))) if prior else new_stop,
+        }
         state.cash -= notional + commission + fees["regulatory_fees"]
         slippage_cost = qty * prices[sym] * slip
         state.cumulative_costs["slippage"] += slippage_cost
@@ -360,6 +388,8 @@ def state_payload(state: PaperState) -> dict[str, Any]:
         "pending_signal_date": state.pending_signal_date,
         "corporate_actions": state.corporate_actions[-5000:],
         "risk_events": state.risk_events[-2000:],
+        "position_risk": state.position_risk,
+        "cooldowns": state.cooldowns,
         "cumulative_costs": state.cumulative_costs,
         "tax_state": state.tax_state,
         "nav_history": state.nav_history[-1500:],
@@ -385,6 +415,13 @@ def save_state(
     benchmark_session_return: float | None = None,
 ) -> float:
     state.last_prices.update({k: float(v) for k, v in prices.items() if math.isfinite(float(v))})
+    # Trail after completed close, trigger only at the next market-session open.
+    for sym, risk in state.position_risk.items():
+        if sym in state.positions and sym in prices:
+            risk["stop_price"] = max(
+                float(risk["stop_price"]),
+                float(prices[sym]) * (1.0 - float(risk["stop_distance_pct"])),
+            )
     if state.benchmark_start_price is None and cfg.benchmark_symbol in prices:
         state.benchmark_start_price = float(prices[cfg.benchmark_symbol])
     if state.benchmark_value is None:

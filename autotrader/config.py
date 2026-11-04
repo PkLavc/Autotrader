@@ -34,7 +34,8 @@ class StrategyConfig:
     discovery_forecast_slots: int = 3
     # Conservative portfolio-level diversification and anti-churn tie breaker.
     max_positions_per_sector: int = 2
-    holding_score_bonus: float = 0.08
+    holding_score_bonus: float = 0.30
+    cooldown_calendar_days: int = 5
     adaptive_min_total_evaluations: int = 40
     adaptive_min_sector_evaluations: int = 12
     top_p: float = 0.9
@@ -42,10 +43,15 @@ class StrategyConfig:
     random_seed: int = 20_261_013
     initial_cash: float = 10_000.0
     max_positions: int = 5
-    max_weight_per_position: float = 0.18
-    cash_buffer: float = 0.10
-    min_forecast_return: float = 0.01
-    rebalance_threshold: float = 0.03
+    max_weight_per_position: float = 0.12
+    cash_buffer: float = 0.40
+    risk_per_trade: float = 0.005
+    min_stop_distance_pct: float = 0.04
+    max_stop_distance_pct: float = 0.15
+    max_annualized_volatility: float = 0.65
+    min_risk_adjusted_signal: float = 0.50
+    min_forecast_return: float = 0.015
+    rebalance_threshold: float = 0.05
     # Opening-price paper safeguards; these are not intraday stop orders.
     max_overnight_gap_loss_pct: float = 0.06
     max_position_loss_pct: float = 0.08

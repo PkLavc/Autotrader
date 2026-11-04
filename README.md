@@ -70,11 +70,13 @@ partial fills, or delayed jobs cannot rewrite the research history.
 | Lookback | 400 market sessions |
 | Forecast horizon | 5 market sessions |
 | Maximum positions | 5 |
-| Maximum position | 18% |
-| Minimum cash | 10% |
-| Entry forecast floor | +1% |
+| Maximum position | 12% |
+| Minimum cash | 40% |
+| Planned risk budget per position | 0.5% NAV |
+| Adaptive stop distance | 4–15% |
+| Entry forecast floor | +1.5% |
 | Forecast plausibility ceiling | +30% |
-| Rebalance threshold | 3% of NAV |
+| Rebalance threshold | 5% of NAV |
 | Overnight gap risk exit (per symbol) | 6% down |
 | Position cost-basis risk exit (per symbol) | 8% down |
 | Slippage | 10 bps |
@@ -96,14 +98,20 @@ recent dollar-volume screen selects these candidates; existing holdings and
 pending-order symbols have priority. The screen has no predictive claim and
 must not be evaluated as if it were a trained alpha signal.
 
-Portfolio limits remain five positions, 18% per position and at least 10%
-cash. New targets are capped at two positions per broad sector and one share
-class per issuer; already-held securities receive a modest 8% tie-breaking
-score bonus **only if their forecast remains eligible**. Paper executions at
-the next session open enforce per-asset adverse-gap and average-cost loss limits
-without stopping new trades in unrelated assets. These are not intraday stops,
-do not prevent gap losses, and require walk-forward evaluation. These policies
-make execution more consistent, **not guaranteed more profitable**.
+The single active research strategy uses 0.5% of portfolio equity as an
+*estimated* risk budget per position, with no more than 12% in one name
+and a minimum 40% cash allocation. Completed-market-session OHLC bars
+supply 20/50-day trend confirmation, realized volatility and a 14-day
+ATR-based initial stop distance. Weak signals are discarded; five positions
+are not mandatory. Long-held names have a ranking preference to reduce churn.
+
+The simulator trails protective levels using completed closing prices,
+executes stop breaches only at a *subsequent session opening* and excludes
+those tickers for five calendar days. All other instruments continue trading.
+These are **not** broker-resident intraday stops, and an overnight gap can
+cause losses larger than the planned 0.5% budget. This is not a guaranteed
+profitable strategy. Existing research balance/history/tax lots are preserved;
+no parallel legacy strategy is executed.
 
 The daily JSON report now includes `universe.configured`, `available`,
 `model_capacity`, `screened_for_model`, `model_forecasts_completed`, and

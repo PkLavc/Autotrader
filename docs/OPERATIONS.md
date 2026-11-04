@@ -27,6 +27,21 @@ Disable `AUTOTRADER_ORDER_SUBMISSION_ENABLED` immediately when any of these occu
 Cancel open orders in the broker interface and reconcile statements before re-enabling. Never
 repair an account by deleting state history or manually editing quantities to hide a mismatch.
 
+## Target: production-readiness review by November 30, 2026
+
+This date is a review milestone, **not automatic activation**. The
+risk-budgeted research strategy remains in paper mode. Never start live trading
+before point-in-time walk-forward evaluation across distinct market regimes,
+baselines (cash/SPY/simple momentum), stressed fees and overnight gaps,
+broker-paper stop-order and reconciliation testing, and owner review of
+affordable losses and operational emergency stop.
+
+Current GitHub Actions executes daily research after the close and applies
+protective exits at the following open; it does NOT monitor ticks or submit
+intraday broker-resident stop orders. Validated broker-side protection is a
+separate prerequisite for any later live deployment. A live loss of zero
+cannot be guaranteed.
+
 ## Promotion gates: research to broker paper
 
 - Unit and integration tests pass.

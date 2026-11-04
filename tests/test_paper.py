@@ -166,3 +166,35 @@ def test_cost_basis_loss_limit_triggers_at_open_without_overnight_gap():
     assert trades[0]["side"] == "SELL"
     assert "GOOG" not in state.positions
     assert any(e["type"] == "position_loss_limit" for e in state.risk_events)
+
+
+def test_trailing_stop_only_rises_after_completed_close(tmp_path):
+    from autotrader.paper import save_state
+    state = _state(500)
+    state.positions = {"A": 5}
+    state.position_risk = {"A": {"stop_price": 95.0, "stop_distance_pct": .08}}
+    save_state(state, str(tmp_path / "state.json"), {"A": 110}, StrategyConfig())
+    assert round(state.position_risk["A"]["stop_price"], 4) == 101.2
+    save_state(state, str(tmp_path / "state.json"), {"A": 101}, StrategyConfig())
+    assert round(state.position_risk["A"]["stop_price"], 4) == 101.2
+
+
+def test_risk_exit_does_not_block_other_trades():
+    cfg = StrategyConfig(max_positions=2, max_weight_per_position=.5,
+                         cash_buffer=0, rebalance_threshold=0, slippage_bps=0)
+    state = _state(500)
+    state.positions = {"GOOG": 5}
+    state.last_prices = {"GOOG": 101}
+    state.position_risk = {"GOOG": {"stop_price": 100, "stop_distance_pct": .06}}
+    trades = rebalance(state, [Target("GOOG", .5, 1., .06),
+                               Target("MCD", .5, .9, .06)],
+                       {"GOOG": 99, "MCD": 100}, cfg, execution_date="2026-11-04")
+    assert ("GOOG", "SELL") in {(t["symbol"], t["side"]) for t in trades}
+    assert ("MCD", "BUY") in {(t["symbol"], t["side"]) for t in trades}
+    assert state.cooldowns["GOOG"] == "2026-11-04"
+    next_trades = rebalance(state,
+                           [Target("GOOG", .5, 1., .06),
+                            Target("MCD", .5, .9, .06)],
+                           {"GOOG": 110, "MCD": 100}, cfg,
+                           execution_date="2026-11-05")
+    assert not any(t["symbol"] == "GOOG" and t["side"] == "BUY" for t in next_trades)

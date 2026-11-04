@@ -130,9 +130,9 @@ def main() -> int:
     if len(forecasts) < max(3, cfg.max_positions):
         raise RuntimeError(f"Too few successful forecasts: {len(forecasts)}; errors={errors}")
 
-    targets = choose_targets(forecasts, cfg, held_symbols=state.positions,
-                             sector_map=sector_map, sector_multipliers=adaptive_weights)
     actions = apply_corporate_actions(state, histories, state.last_market_date, market_date)
+    if any(sym not in open_prices for sym in state.positions):
+        raise RuntimeError("current opening price missing for held asset; refusing to trade")
 
     pending_targets = [Target(**row) for row in state.pending_targets]
     pending_date = state.pending_signal_date
@@ -153,6 +153,11 @@ def main() -> int:
                 price_source="session_open",
             )
 
+    excluded = {symbol for symbol, last_exit in state.cooldowns.items()
+                if 0 <= (date.fromisoformat(market_date) - date.fromisoformat(last_exit)).days <= cfg.cooldown_calendar_days}
+    targets = choose_targets(forecasts, cfg, held_symbols=state.positions,
+                             sector_map=sector_map, sector_multipliers=adaptive_weights,
+                             histories=histories, excluded_symbols=excluded)
     learning_update["new_signals"] = record_signals(journal, targets, forecasts,
                                                      market_date, sector_map)
     state.pending_targets = [target.__dict__ for target in targets]
@@ -194,6 +199,12 @@ def main() -> int:
             "tax": metrics["tax_estimate"],
         },
         "targets": [target.__dict__ for target in targets],
+        "strategy": {"name": "risk_budgeted_trend_v1",
+                     "risk_per_trade": cfg.risk_per_trade,
+                     "max_position_weight": cfg.max_weight_per_position,
+                     "cash_buffer": cfg.cash_buffer,
+                     "cooldown_symbols": sorted(excluded),
+                     "status": "paper_validation_only"},
         "pending_execution": {
             "signal_date": market_date,
             "target_count": len(targets),
