@@ -30,21 +30,21 @@ jobs:
         run: python -m pip install -r requirements.txt
       - name: Test normalizer and read-only safety checks
         run: python -m pytest -q tests/test_validate_eulerpool.py
-      - name: Compare 3 assets against Yahoo Finance
+      - name: Verify live Eulerpool candles against Yahoo Finance
         env:
           EULERPOOL_API_KEY: ${{ secrets.EULERPOOL_API_KEY }}
-        run: python -m scripts.validate_eulerpool --symbols AAPL SPY MSFT --output reports/eulerpool-comparison.json
+        run: python -m scripts.validate_eulerpool --mode price-audit --symbols AAPL MSFT SPY --output reports/eulerpool-price-audit.json
       - name: Publish aggregate comparison to run summary
         if: always()
         run: |
-          if [ -f reports/eulerpool-comparison.json.md ]; then
-            cat reports/eulerpool-comparison.json.md >> "$GITHUB_STEP_SUMMARY"
+          if [ -f reports/eulerpool-price-audit.json.md ]; then
+            cat reports/eulerpool-price-audit.json.md >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload aggregate results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: eulerpool-validation-report
-          path: reports/eulerpool-comparison.json*
+          name: eulerpool-price-audit-report
+          path: reports/eulerpool-price-audit.json*
           if-no-files-found: ignore
           retention-days: 7

@@ -221,9 +221,39 @@ def report_markdown(rows: list[dict], date_limit: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--symbols", nargs="+", default=list(StrategyConfig().symbols))
+    parser.add_argument("--symbols", nargs="+", default=["AAPL", "MSFT", "SPY"])
+    parser.add_argument("--mode", choices=("price-audit", "historical-parity"), default="historical-parity")
     parser.add_argument("--output", default="reports/eulerpool-comparison.json")
     args = parser.parse_args()
+    if args.mode == "price-audit":
+        from types import SimpleNamespace
+        from autotrader.data import load_daily_history
+        from autotrader.eulerpool import audit_target_prices
+        cfg = StrategyConfig()
+        histories = {}
+        for symbol in args.symbols:
+            try:
+                histories[symbol] = load_daily_history(symbol, cfg.lookback)
+            except Exception:
+                # No need to print data-source exception bodies or tokens.
+                print(f"Yahoo history unavailable for {symbol}", flush=True)
+        if not histories:
+            raise SystemExit("No Yahoo reference histories available")
+        date_limit = max(frame.index[-1].date().isoformat() for frame in histories.values())
+        targets = [SimpleNamespace(symbol=symbol) for symbol in args.symbols]
+        audit = audit_target_prices(targets, histories, date_limit)
+        out = Path(args.output)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps({"market_session": date_limit, "eulerpool": audit},
+                                  indent=2) + "\n", encoding="utf-8")
+        summary = ("## Eulerpool price verification (read-only)\n\n"
+                   + f"Session: {date_limit} | verified: {audit.get('verified', 0)}"
+                   + f" / {audit.get('checked', 0)}\n\n"
+                   + "\n".join(f"- {row['symbol']}: {row['status']}"
+                                  for row in audit["results"]) + "\n")
+        Path(str(out) + ".md").write_text(summary, encoding="utf-8")
+        print(summary)
+        return 0 if audit.get("verified", 0) > 0 else 1
     key = os.environ.get("EULERPOOL_API_KEY", "").strip()
     if not key:
         raise SystemExit("Missing EULERPOOL_API_KEY GitHub Actions secret")
