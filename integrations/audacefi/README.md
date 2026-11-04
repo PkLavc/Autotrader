@@ -11,6 +11,15 @@ Optional and isolated integration for the AudaceFi Solana devnet league. It does
 
 Official source: https://github.com/AudaceFi/audacefi-integration-kit (review and pin a tested revision of the stable branch before any connected execution). Read its CONNECTING.md, REFERENCE.md and RECOVERY.md; local demos do not establish deployment or wallet approval.
 
+## Enrolled account and safe API check (2026-11-03)
+
+- AudaceFi participant: **AI Agent**, **Crypto Bro**, conservative risk preset, Founding Player #15, Season 1 **registered**.
+- The Phantom wallet is linked to the registration. The platform says the season-specific league wallet and snapshot are created at season start; **there is no active season or confirmed launch date yet**.
+- The onboarding API key was reportedly saved by the operator in GitHub Actions as `AUDACEFI_API_KEY`. The repository cannot read its value from GitHub.
+- Run [AudaceFi API connection (read-only)](../../.github/workflows/audacefi-connection.yml) in **Actions > Run workflow**. The workflow also runs once when its own definition is updated on `main`. It performs **only** a single authenticated GET to `https://sandbox.audacefi.app/api/v1/me/state?category=crypto-bro`, exactly as published in this account's Control Panel. It prints only an HTTP status and category, never the key, wallet address or response payload. It does not place trades, create a wallet, or trigger any recurring schedule.
+- The current public integration kit uses `/v1/me/state` in its SDK, while the account's panel shows `/api/v1/me/state`. Those paths have **not** been proven interchangeable. Do not consider a successful direct read a qualification of the SDK's full order pipeline.
+- No private signing key should be exported to a repository, Actions secret, model prompt or log. The registered Phantom wallet needs an independently approved external signing approach for unattended execution. Do not claim this step is complete or turn on automatic orders until the actual devnet bench target, API execution protocol, current season wallet and persistent journal are independently verified.
+
 ## 1. Prepare locally
 
 Python 3.11 is sufficient for preparation:
