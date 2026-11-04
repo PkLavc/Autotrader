@@ -115,6 +115,8 @@ def fetch_eulerpool(symbol: str, key: str, start: str, end: str) -> tuple[pd.Dat
                         shape += f" {key}.rows={len(nested)}"
             elif isinstance(payload, list):
                 shape += f" rows={len(payload)}"
+                if payload and isinstance(payload[0], dict):
+                    shape += " first.keys=" + ",".join(sorted(str(k) for k in payload[0])[:20])
             failures.append(f"{route.split('.com/')[-1]} invalid-schema {shape[:200]}")
         except URLError as exc:
             raise RuntimeError(f"Eulerpool connection failed: {type(exc.reason).__name__}") from None
