@@ -20,6 +20,20 @@ Official source: https://github.com/AudaceFi/audacefi-integration-kit (review an
 - The current public integration kit uses `/v1/me/state` in its SDK, while the account's panel shows `/api/v1/me/state`. Those paths have **not** been proven interchangeable. Do not consider a successful direct read a qualification of the SDK's full order pipeline.
 - No private signing key should be exported to a repository, Actions secret, model prompt or log. The registered Phantom wallet needs an independently approved external signing approach for unattended execution. Do not claim this step is complete or turn on automatic orders until the actual devnet bench target, API execution protocol, current season wallet and persistent journal are independently verified.
 
+## GitHub Actions only — Phantom signer (Season 1)
+
+**Run location:** GitHub Actions only. No personal PC, local background process or extra wallet is required.
+
+The existing registered Phantom account can be restored from its 12-word recovery phrase and derived in the ephemeral Action runner. The signer **must** match the exact public address already bound to AudaceFi, or it fails closed. The reference integration kit validates the exact devnet transaction before invoking the signing callback. Both automatic order submission and scheduled trading remain OFF until the official season wallet, network profile, persistent operation journal, and eligible token list exist.
+
+One-time operator setup:
+1. Open repository **Settings > Secrets and variables > Actions**.
+2. Under **Secrets**, add `AUDACEFI_WALLET_RECOVERY_PHRASE` with the 12 words separated by single spaces, in the correct order. **Never commit or paste the phrase into chat, issues or logs.** This gives the Actions runner temporary signing access; repository writers can change workflows to extract it, so restrict write access.
+3. Under **Variables**, add `AUDACEFI_WALLET_ADDRESS` with the **full Solana public address of the same registered Phantom account** (not the short `DBzs...4Sxi` display). No secret is needed for this public address.
+4. Run [AudaceFi Phantom wallet validation](../../.github/workflows/audacefi-wallet-validation.yml) manually once via **Actions > Run workflow**. It runs synthetic offline signing tests, then verifies that the recovery phrase derives the exact linked address. It will print only `PHANTOM_WALLET_ADDRESS_MATCHED` on success; it **never submits** a trade.
+
+`runner.mjs` now defaults to `integrations/audacefi/wallet-signer.mjs` whenever an approved operation is later executed. The signer uses Node's standard crypto library (no wallet browser, no signing service, no paid dependencies), refuses a changed payer/mismatched address, requires an unsigned two-signer legacy message, and requires execution flags. The encrypted secret is not written to disk. This is **not yet an autonomous live execution workflow**: the AudaceFi season is not active, the league wallet has not been instantiated, and the official SDK reference profile and durable journal remain unqualified. Never use Actions cache or ephemeral runner directories as the only operation journal.
+
 ## 1. Prepare locally
 
 Python 3.11 is sufficient for preparation:
@@ -62,9 +76,9 @@ This is an authenticated read-only query; API origin is an HTTPS origin verified
 
 Only after reviewing both the upstream kit and your authorized deployment:
 - Create private profile.local.json implementing the official BenchProfile (authorized genesis, program and ProgramData hash, USDC and devnet mint mappings, and an independently approved durable API capability). Do not copy source test-fixture values.
-- Configure a separately qualified private RPC endpoint and a wallet adapter module that exports wallet.publicKey() and wallet.signTransaction(unsignedBase64). Keep the private key in the wallet, never in GitHub, an env var or this repository.
+- Configure a separately qualified private RPC endpoint. On GitHub Actions, the default `wallet-signer.mjs` derives the *already registered* wallet only from the Actions secret, never from a tracked file. This means a workflow with access to that secret has signing authority; limit repository writers and keep it devoted to test funds.
 - Put the append-only journalDirectory outside the repository on durable storage with restricted owner-only access. The settings.policy inputBudgets contains raw-unit limits per mainnet input mint, and maxOperations; it persists across restarts. Do not reset budgets by changing directories. USDC has six decimals.
-- Set AUDACEFI_SETTINGS_PATH, AUDACEFI_PROFILE_PATH, AUDACEFI_OPERATION_PATH, AUDACEFI_SIGNER_MODULE, AUDACEFI_RPC_ENDPOINT in a private shell environment. Prepare an operation using step 1. Check the wallet, season, category, allowed mint and fixed budget.
+- Set AUDACEFI_SETTINGS_PATH, AUDACEFI_PROFILE_PATH, AUDACEFI_OPERATION_PATH, AUDACEFI_RPC_ENDPOINT in a private shell environment. Prepare an operation using step 1. Check the wallet, season, category, allowed mint and fixed budget.
 - Require all of: AUDACEFI_ENABLE_EXECUTION=true, AUDACEFI_DEVNET_ACK=true, and a final explicit --confirm argument. No schedules are registered.
 
     node integrations/audacefi/runner.mjs execute --confirm
