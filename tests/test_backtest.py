@@ -47,3 +47,17 @@ def test_walk_forward_rejects_duplicate_sessions():
     record = _session("2026-10-12", 100, 101, 0.05)
     with pytest.raises(ValueError, match="unique and increasing"):
         walk_forward([record, record], StrategyConfig())
+
+
+def test_walk_forward_trails_stops_without_future_close_lookahead():
+    cfg = StrategyConfig(initial_cash=1000, max_positions=1, max_weight_per_position=.5,
+                         cash_buffer=.5, rebalance_threshold=0, slippage_bps=0)
+    records = [
+        _session("2026-10-12", 100, 101, .10),
+        _session("2026-10-13", 102, 120, .10),
+        _session("2026-10-14", 108, 108, .10),
+    ]
+    result = walk_forward(records, cfg)
+    assert any(t["side"] == "SELL" and t["execution_date"] == "2026-10-14"
+               for t in result["trades"])
+    assert result["validation_level"] == "execution_only_without_point_in_time_ohlc_filters"

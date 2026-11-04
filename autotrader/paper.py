@@ -405,6 +405,16 @@ def write_state(state: PaperState, path: str) -> None:
     p.write_text(json.dumps(state_payload(state), indent=2, sort_keys=True), encoding="utf-8")
 
 
+def update_trailing_stops(state: PaperState, prices: dict[str, float]) -> None:
+    """Ratchet reference stops using only completed session closes."""
+    for sym, risk in state.position_risk.items():
+        if sym in state.positions and sym in prices:
+            risk["stop_price"] = max(
+                float(risk["stop_price"]),
+                float(prices[sym]) * (1.0 - float(risk["stop_distance_pct"])),
+            )
+
+
 def save_state(
     state: PaperState,
     path: str,
@@ -415,13 +425,7 @@ def save_state(
     benchmark_session_return: float | None = None,
 ) -> float:
     state.last_prices.update({k: float(v) for k, v in prices.items() if math.isfinite(float(v))})
-    # Trail after completed close, trigger only at the next market-session open.
-    for sym, risk in state.position_risk.items():
-        if sym in state.positions and sym in prices:
-            risk["stop_price"] = max(
-                float(risk["stop_price"]),
-                float(prices[sym]) * (1.0 - float(risk["stop_distance_pct"])),
-            )
+    update_trailing_stops(state, prices)
     if state.benchmark_start_price is None and cfg.benchmark_symbol in prices:
         state.benchmark_start_price = float(prices[cfg.benchmark_symbol])
     if state.benchmark_value is None:
@@ -547,6 +551,11 @@ def apply_corporate_actions(
                 basis = state.tax_state.get("cost_basis", {}).get(symbol)
                 if basis:
                     basis["qty"] = float(basis.get("qty", 0.0)) * split
+                risk = state.position_risk.get(symbol)
+                if risk:
+                    risk["stop_price"] = float(risk["stop_price"]) / split
+                if symbol in state.last_prices:
+                    state.last_prices[symbol] = float(state.last_prices[symbol]) / split
                 action = {
                     "id": split_id, "market_date": session, "symbol": symbol,
                     "type": "SPLIT", "ratio": split, "quantity_before": before,

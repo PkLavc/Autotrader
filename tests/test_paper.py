@@ -198,3 +198,19 @@ def test_risk_exit_does_not_block_other_trades():
                            {"GOOG": 110, "MCD": 100}, cfg,
                            execution_date="2026-11-05")
     assert not any(t["symbol"] == "GOOG" and t["side"] == "BUY" for t in next_trades)
+
+
+def test_split_adjusts_existing_stop_and_prior_mark_once():
+    state = _state(100)
+    state.positions = {"A": 2}
+    state.last_prices = {"A": 200}
+    state.position_risk = {"A": {"stop_price": 180, "stop_distance_pct": .1}}
+    history = pd.DataFrame(
+        {"stock_splits": [0.0, 2.0], "dividends": [0.0, 0.0]},
+        index=pd.to_datetime(["2026-11-03", "2026-11-04"]),
+    )
+    apply_corporate_actions(state, {"A": history}, "2026-11-03", "2026-11-04")
+    apply_corporate_actions(state, {"A": history}, "2026-11-03", "2026-11-04")
+    assert state.positions["A"] == 4
+    assert state.position_risk["A"]["stop_price"] == 90
+    assert state.last_prices["A"] == 100

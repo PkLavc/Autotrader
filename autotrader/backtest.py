@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import date
 import json
 from pathlib import Path
 from typing import Any, Iterable
 
 from .config import StrategyConfig
 from .forecast import Forecast
-from .paper import PaperState, mark_to_market, performance_metrics, rebalance
+from .paper import PaperState, mark_to_market, performance_metrics, rebalance, update_trailing_stops
 from .portfolio import Target, choose_targets
 
 
@@ -53,6 +54,7 @@ def walk_forward(records: Iterable[dict[str, Any]], cfg: StrategyConfig) -> dict
         ) if pending else []
 
         state.last_prices.update(close_prices)
+        update_trailing_stops(state, close_prices)
         if state.benchmark_start_price is None:
             state.benchmark_start_price = close_prices[cfg.benchmark_symbol]
             state.benchmark_value = 1.0
@@ -70,7 +72,16 @@ def walk_forward(records: Iterable[dict[str, Any]], cfg: StrategyConfig) -> dict
         })
 
         forecasts = [Forecast(**row) for row in record.get("forecasts", [])]
-        pending = choose_targets(forecasts, cfg, held_symbols=state.positions)
+        # Historical records without full point-in-time OHLC history can test
+        # next-open execution, but cannot validate the 20/50-day trend filter.
+        pending = choose_targets(
+            forecasts, cfg, held_symbols=state.positions,
+            excluded_symbols={
+                symbol for symbol, last_exit in state.cooldowns.items()
+                if 0 <= (date.fromisoformat(market_date) -
+                         __import__("datetime").date.fromisoformat(last_exit)).days <= cfg.cooldown_calendar_days
+            },
+        )
         pending_date = market_date
         signal_history.append({
             "market_date": market_date,
@@ -88,4 +99,5 @@ def walk_forward(records: Iterable[dict[str, Any]], cfg: StrategyConfig) -> dict
         "trades": state.trades,
         "signals": signal_history,
         "pending_targets_not_executed": [asdict(target) for target in pending],
+        "validation_level": "execution_only_without_point_in_time_ohlc_filters",
     }
