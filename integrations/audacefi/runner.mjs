@@ -9,10 +9,10 @@ const action = process.argv[2] || 'state';
 const allowed = new Set(['state', 'execute', 'finalize']);
 if (!allowed.has(action)) throw new Error('UNSUPPORTED_ACTION');
 const kit = await import(pathToFileURL(kitPath).href);
-const { AudaceFiClient, SolanaRpcReader, createReferenceAdapters, FileJournal, runTradingBot, finalizeOperation } = kit;
+const { AudaceFiClient, SolanaRpcReader, createReferenceAdapters, FileJournal, runAiAgent, finalizeOperation } = kit;
 const key = process.env.AUDACEFI_API_KEY;
 const origin = process.env.AUDACEFI_API_ORIGIN;
-const category = process.env.AUDACEFI_CATEGORY || 'degen';
+const category = process.env.AUDACEFI_CATEGORY || 'crypto-bro';
 if (!key || !origin) throw new Error('AUDACEFI_ONBOARDING_KEY_AND_ORIGIN_REQUIRED');
 const client = new AudaceFiClient({
   origin,
@@ -96,6 +96,6 @@ if (action === 'finalize') {
   if (await wallet.publicKey() !== operation.playerPublicKey) {
     throw new Error('WALLET_MISMATCH');
   }
-  const result = await runTradingBot({ client, journal, operation, ports: adapters.ports });
+  const result = await runAiAgent({ client, journal, operation, ports: adapters.ports });
   console.log(JSON.stringify({ action, result }, null, 2));
 }
