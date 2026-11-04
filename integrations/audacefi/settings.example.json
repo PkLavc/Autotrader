@@ -1,6 +1,6 @@
 {
   "seasonId": "REPLACE_WITH_AUDACEFI_SEASON_UUID",
-  "category": "degen",
+  "category": "crypto-bro",
   "playerPublicKey": "REPLACE_WITH_PUBLIC_SOLANA_WALLET",
   "usdcMainnet": "REPLACE_WITH_VERIFIED_MAINNET_USDC_MINT",
   "buyAmountUsdc": "2.00",
