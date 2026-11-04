@@ -54,8 +54,8 @@ if (journalDir === repoRoot || journalDir.startsWith(repoRoot + sep)) {
 if (!settings.policy?.inputBudgets || !settings.policy?.maxOperations) {
   throw new Error('DURABLE_JOURNAL_POLICY_REQUIRED');
 }
-const signerPath = process.env.AUDACEFI_SIGNER_MODULE;
-if (!signerPath) throw new Error('EXTERNAL_SIGNER_REQUIRED');
+// GitHub Actions uses the registered Phantom address signer; no local PC needed.
+const signerPath = process.env.AUDACEFI_SIGNER_MODULE || 'integrations/audacefi/wallet-signer.mjs';
 const { wallet } = await import(pathToFileURL(resolve(signerPath)).href);
 if (!wallet || typeof wallet.publicKey !== 'function' ||
     typeof wallet.signTransaction !== 'function') {
