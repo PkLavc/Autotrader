@@ -8,6 +8,7 @@ from pathlib import Path
 from .calendar import is_completed_market_session
 from .config import StrategyConfig
 from .data import load_daily_history
+from .eulerpool import audit_target_prices
 from .discovery import discover_market
 from .learning import load_journal, record_signals, resolve_outcomes, save_journal, sector_factors
 from .forecast import KronosEngine
@@ -166,7 +167,9 @@ def main() -> int:
     metrics = performance_metrics(state, cfg, close_prices)
     save_journal(journal, args.learning)
 
+    eulerpool_audit = audit_target_prices(targets, histories, market_date)
     report = {
+        "eulerpool": eulerpool_audit,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "market_session": market_date,
         "mode": "paper",
@@ -220,7 +223,7 @@ def main() -> int:
     report_path = Path(args.report)
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
-    print(json.dumps({"nav": nav, "metrics": metrics, "targets": report["targets"], "trades": trades, "errors": errors}, indent=2))
+    print(json.dumps({"nav": nav, "metrics": metrics, "targets": report["targets"], "trades": trades, "errors": errors, "eulerpool": eulerpool_audit}, indent=2))
     return 0
 
 

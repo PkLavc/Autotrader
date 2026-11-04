@@ -53,6 +53,8 @@ jobs:
         run: pytest -q
 
       - name: Run paper portfolio
+        env:
+          EULERPOOL_API_KEY: ${{ secrets.EULERPOOL_API_KEY }}
         run: python -m autotrader.run --state data/state.json --report data/latest.json --learning data/learning.json
 
       - name: Validate generated state

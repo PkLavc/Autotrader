@@ -246,3 +246,7 @@ and risk model.
 
 Autotrader is maintained by Patrick Araujo (PkLavc). Kronos was created by ShiYu and
 contributors and is distributed under the MIT License. See [third-party notices](THIRD_PARTY_NOTICES.md).
+
+### Eulerpool data verification
+
+When the GitHub Actions secret `EULERPOOL_API_KEY` is present, the scheduled paper run queries the official `equity/candles/{ticker}` API for the five portfolio targets and writes a per-symbol price comparison to `data/latest.json` under `eulerpool`. The key is never logged. Missing or divergent responses are reported without interrupting paper trading. Yahoo Finance remains the source for Kronos inputs because current Eulerpool candle responses have fewer than the required 400 sessions and omit volume and adjusted OHLCV; this avoids silently mixing incompatible data. This integration is **verification-only** until full historical parity is established.
