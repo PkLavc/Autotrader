@@ -46,3 +46,16 @@ def test_price_audit_does_not_accept_stale_or_divergent_response(monkeypatch):
 def test_price_audit_skips_if_key_is_missing(monkeypatch):
     monkeypatch.delenv("EULERPOOL_API_KEY", raising=False)
     assert eulerpool.audit_target_prices([], {}, "2026-11-02")["status"] == "disabled_missing_secret"
+
+def test_price_audit_can_verify_recent_historical_data_without_claiming_freshness(monkeypatch):
+    monkeypatch.setenv("EULERPOOL_API_KEY", "test-key")
+    monkeypatch.setattr(eulerpool, "fetch_candles",
+                        lambda symbol, key: {"2026-11-02": {"close": 101.0}})
+    frame = pd.DataFrame({"close": [101.0, 102.0]},
+                         index=pd.to_datetime(["2026-11-02", "2026-11-03"]))
+    result = eulerpool.audit_target_prices([SimpleNamespace(symbol="AAPL")],
+                                           {"AAPL": frame}, "2026-11-03")
+    assert result["status"] == "delayed_data_only"
+    assert result["verified"] == 0
+    assert result["stale_verified"] == 1
+    assert result["results"][0]["status"] == "stale_verified"

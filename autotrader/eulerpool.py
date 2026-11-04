@@ -87,16 +87,38 @@ def audit_target_prices(targets: list, histories: dict[str, DataFrame], market_d
         yahoo_close = float(frame["close"].iloc[-1])
         try:
             prices = fetch_candles(symbol, key)
-            if market_date not in prices:
+            if market_date in prices:
+                euler_close = prices[market_date]["close"]
+                difference_pct = round(abs(euler_close / yahoo_close - 1.0) * 100.0, 4)
+                rows.append({"symbol": symbol,
+                             "status": "verified" if difference_pct <= 2.0 else "divergent",
+                             "market_session": market_date,
+                             "yahoo_close": round(yahoo_close, 4),
+                             "eulerpool_close": round(euler_close, 4),
+                             "difference_pct": difference_pct})
+                continue
+            # A previous-session candle can validate connectivity, but is
+            # explicitly not accepted as fresh trading data.
+            last_session = max((day for day in prices if day <= market_date), default=None)
+            if not last_session:
                 rows.append({"symbol": symbol, "status": "missing_market_session",
                              "last_eulerpool_session": max(prices)})
                 continue
-            euler_close = prices[market_date]["close"]
-            difference_pct = round(abs(euler_close / yahoo_close - 1.0) * 100.0, 4)
+            calendar_age = (datetime.fromisoformat(market_date) -
+                            datetime.fromisoformat(last_session)).days
+            reference = frame.loc[frame.index.strftime("%Y-%m-%d") == last_session]
+            if calendar_age > 5 or reference.empty:
+                rows.append({"symbol": symbol, "status": "missing_market_session",
+                             "last_eulerpool_session": last_session})
+                continue
+            historical_yahoo_close = float(reference["close"].iloc[-1])
+            euler_close = prices[last_session]["close"]
+            difference_pct = round(abs(euler_close / historical_yahoo_close - 1.0) * 100.0, 4)
             rows.append({"symbol": symbol,
-                         "status": "verified" if difference_pct <= 2.0 else "divergent",
+                         "status": "stale_verified" if difference_pct <= 2.0 else "stale_divergent",
                          "market_session": market_date,
-                         "yahoo_close": round(yahoo_close, 4),
+                         "last_eulerpool_session": last_session,
+                         "yahoo_close": round(historical_yahoo_close, 4),
                          "eulerpool_close": round(euler_close, 4),
                          "difference_pct": difference_pct})
         except (RuntimeError, ValueError, TypeError) as exc:
@@ -109,6 +131,9 @@ def audit_target_prices(targets: list, histories: dict[str, DataFrame], market_d
                 message = "Eulerpool response invalid"
             rows.append({"symbol": symbol, "status": "unavailable", "reason": message})
     verified = sum(row["status"] == "verified" for row in rows)
-    return {"status": "active" if verified else "no_verified_prices",
+    stale_verified = sum(row["status"] == "stale_verified" for row in rows)
+    return {"status": "active" if verified else
+            "delayed_data_only" if stale_verified else "no_verified_prices",
             "mode": "verification_only",
-            "checked": len(rows), "verified": verified, "results": rows}
+            "checked": len(rows), "verified": verified,
+            "stale_verified": stale_verified, "results": rows}

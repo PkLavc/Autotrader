@@ -247,13 +247,18 @@ def main() -> int:
         out.write_text(json.dumps({"market_session": date_limit, "eulerpool": audit},
                                   indent=2) + "\n", encoding="utf-8")
         summary = ("## Eulerpool price verification (read-only)\n\n"
-                   + f"Session: {date_limit} | verified: {audit.get('verified', 0)}"
+                   + f"Session: {date_limit} | fresh verified: {audit.get('verified', 0)}"
+                   + f" | delayed verified: {audit.get('stale_verified', 0)}"
                    + f" / {audit.get('checked', 0)}\n\n"
                    + "\n".join(f"- {row['symbol']}: {row['status']}"
+                                  + (f" (last session: {row['last_eulerpool_session']})"
+                                     if row.get('last_eulerpool_session') else "")
+                                  + (f" (difference: {row['difference_pct']}%)"
+                                     if row.get('difference_pct') is not None else "")
                                   for row in audit["results"]) + "\n")
         Path(str(out) + ".md").write_text(summary, encoding="utf-8")
         print(summary)
-        return 0 if audit.get("verified", 0) > 0 else 1
+        return 0 if audit.get("verified", 0) + audit.get("stale_verified", 0) > 0 else 1
     key = os.environ.get("EULERPOOL_API_KEY", "").strip()
     if not key:
         raise SystemExit("Missing EULERPOOL_API_KEY GitHub Actions secret")
