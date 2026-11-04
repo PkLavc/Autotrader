@@ -30,7 +30,11 @@ def build_plan(context: dict, portfolio: dict, report: dict,
     verified_mints = context.get("approved_token_mints")
     if not isinstance(verified_mints, dict):
         return hold("VERIFIED_TOKEN_MINTS_REQUIRED")
-    if any(settings.get("tokens", {}).get(symbol) != verified_mints.get(symbol)
+    configured_tokens = settings.get("tokens")
+    if not isinstance(configured_tokens, dict):
+        return hold("VERIFIED_TOKEN_MINT_MISMATCH")
+    if any(not isinstance(verified_mints.get(symbol), str) or
+           configured_tokens.get(symbol) != verified_mints[symbol]
            for symbol in context.get("eligible_symbols", [])):
         return hold("VERIFIED_TOKEN_MINT_MISMATCH")
     if settings.get("usdcMainnet") != context.get("approved_usdc_mint"):
@@ -51,7 +55,10 @@ def build_plan(context: dict, portfolio: dict, report: dict,
             signal for signal in report.get("signals", [])
             if signal.get("symbol") == symbol
         ]}
-        result = prepare(guarded_report, guarded_settings, now=now)
+        try:
+            result = prepare(guarded_report, guarded_settings, now=now)
+        except (ValueError, KeyError):
+            continue
         if result.get("status") != "PREPARED":
             continue
         return {

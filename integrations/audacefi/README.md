@@ -71,6 +71,27 @@ point-in-time five-day league backtests, execution/slippage stress tests and
 an official devnet end-to-end rehearsal before autonomous trading is enabled.
 No password, seed phrase or real crypto is needed for these read-only tests.
 
+
+### Offline five-day season replay
+
+`league_backtest.py` performs a **point-in-time** replay over timestamped
+market quotes and already-existing crypto forecasts. Each entry must contain
+`timestamp`, `prices_usdc`, and a crypto `report` whose `generated_at`
+does not exceed that timestamp. It applies separate fee and slippage estimates
+on both sides of a spot trade, marks the start/end snapshots, and reports
+net USDC-equivalent return, maximum drawdown and trade count.
+
+    python -m integrations.audacefi.league_backtest \
+      /private/season-replay.json --start-utc 2026-11-09T00:00:00Z \
+      --end-utc 2026-11-14T00:00:00Z --eligible SOL BTC
+
+The dates above are **illustrative fixtures**, not the confirmed schedule of
+Season 1. A replay cannot validate the strategy unless it uses genuinely
+as-of forecasts and the actual eligible universe/season dates. This tool
+never queries the wallet, signs, submits, or claims an official league result.
+Backtest results must be compared with USDC-only, buy-and-hold and simple
+momentum baselines before using them for live decisions.
+
 ## Status
 
 - Equity reports from data/latest.json intentionally result in HOLD, not a crypto trade. Stock tickers must never be reinterpreted as tokens.

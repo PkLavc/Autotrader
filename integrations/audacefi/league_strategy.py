@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import math
+import re
 from pathlib import Path
 from typing import Any
 
@@ -108,8 +109,9 @@ def decide(context: dict, portfolio: dict, report: dict, *,
         if start >= end or (end-start).total_seconds() > 10*86400:
             return _hold("SEASON_TIME_INVALID")
         eligible = context.get("eligible_symbols")
-        if not isinstance(eligible, list) or not eligible or any(
-            not isinstance(symbol, str) or symbol not in {"BTC", "ETH", "SOL"}
+        if not isinstance(eligible, list) or not eligible or len(eligible) > 30 or any(
+            not isinstance(symbol, str) or
+            re.fullmatch(r"[A-Z][A-Z0-9]{1,11}", symbol) is None
             for symbol in eligible
         ):
             return _hold("OFFICIAL_ALLOWLIST_NOT_SUPPORTED")
@@ -165,24 +167,26 @@ def decide(context: dict, portfolio: dict, report: dict, *,
                 "stop_reference_usdc": round(stop, 8),
             })
 
-    # A stale model must never cause new exposure. Existing risk exits remain valid.
-    if not isinstance(report, dict) or report.get("asset_class") != "crypto":
-        return _hold("CRYPTO_SIGNALS_REQUIRED", phase="active", actions=exits)
-    try:
-        age = (now-_utc(report.get("generated_at"))).total_seconds()/3600
-    except ValueError:
-        return _hold("SIGNAL_TIMESTAMP_INVALID", phase="active", actions=exits)
-    if not 0 <= age <= p.maximum_signal_age_hours:
-        return _hold("SIGNALS_STALE", phase="active", actions=exits)
-    signals = report.get("signals")
-    if not isinstance(signals, list) or len(signals) > 20:
-        return _hold("SIGNAL_FORMAT_INVALID", phase="active", actions=exits)
+    # Protective exits never depend on the availability of the forecast model.
     if exits:
         return {
             "status": "EXIT_REQUIRED", "reason": "POSITION_PROTECTIVE_EXIT",
             "phase": "active", "actions": exits, "executionAuthorized": False,
             "requires_wallet_confirmation": True,
         }
+
+    # A stale model must never cause new exposure.
+    if not isinstance(report, dict) or report.get("asset_class") != "crypto":
+        return _hold("CRYPTO_SIGNALS_REQUIRED", phase="active")
+    try:
+        age = (now-_utc(report.get("generated_at"))).total_seconds()/3600
+    except ValueError:
+        return _hold("SIGNAL_TIMESTAMP_INVALID", phase="active")
+    if not 0 <= age <= p.maximum_signal_age_hours:
+        return _hold("SIGNALS_STALE", phase="active")
+    signals = report.get("signals")
+    if not isinstance(signals, list) or len(signals) > 20:
+        return _hold("SIGNAL_FORMAT_INVALID", phase="active")
     if remaining_hours <= p.new_entry_cutoff_hours:
         return _hold("NEW_ENTRIES_CLOSED_BEFORE_SNAPSHOT", phase="closing", remaining_hours=round(remaining_hours, 2))
 
