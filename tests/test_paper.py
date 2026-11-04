@@ -111,3 +111,58 @@ def test_corporate_actions_adjust_quantity_and_credit_dividend_once():
     assert second == []
     assert state.positions["A"] == 4.0
     assert state.cash == 505.0
+
+
+def test_old_pending_signals_cannot_buy_two_alphabet_share_classes():
+    cfg = StrategyConfig(
+        max_positions=2, max_weight_per_position=0.4,
+        cash_buffer=0.2, rebalance_threshold=0,
+    )
+    state = _state()
+    trades = rebalance(
+        state,
+        [Target("GOOG", 0.4, 1.0), Target("GOOGL", 0.4, 0.9)],
+        {"GOOG": 100, "GOOGL": 100}, cfg,
+    )
+    assert len(trades) == 1
+    assert trades[0]["symbol"] == "GOOG"
+    assert set(state.positions) == {"GOOG"}
+
+
+def test_loss_guard_exits_only_risky_asset_and_continues_other_buys():
+    cfg = StrategyConfig(
+        max_positions=2, max_weight_per_position=0.5,
+        cash_buffer=0, rebalance_threshold=0, slippage_bps=0,
+    )
+    state = _state(cash=1000)
+    state.positions = {"GOOG": 10.0}
+    state.last_prices = {"GOOG": 100.0}
+    state.tax_state["cost_basis"] = {"GOOG": {"qty": 10.0, "cost": 1000.0}}
+    state.nav_history = [{"timestamp": "yesterday", "nav": 2000.0}]
+    trades = rebalance(
+        state,
+        [Target("GOOG", 0.5, 1.0), Target("MCD", 0.5, 0.9)],
+        {"GOOG": 90, "MCD": 100}, cfg,
+        execution_date="2026-11-04", price_source="session_open",
+    )
+    assert ("GOOG", "SELL") in {(t["symbol"], t["side"]) for t in trades}
+    assert ("MCD", "BUY") in {(t["symbol"], t["side"]) for t in trades}
+    assert "GOOG" not in state.positions
+    assert "MCD" in state.positions
+    assert any(e["type"] == "overnight_gap_loss" for e in state.risk_events)
+
+
+def test_cost_basis_loss_limit_triggers_at_open_without_overnight_gap():
+    cfg = StrategyConfig(rebalance_threshold=0.03, slippage_bps=0)
+    state = _state(cash=0)
+    state.positions = {"GOOG": 10.0}
+    state.last_prices = {"GOOG": 95.0}
+    state.tax_state["cost_basis"] = {"GOOG": {"qty": 10.0, "cost": 1100.0}}
+    trades = rebalance(
+        state, [Target("GOOG", 0.18, 1.0)],
+        {"GOOG": 94.0}, cfg, execution_date="2026-11-04",
+    )
+    assert len(trades) == 1
+    assert trades[0]["side"] == "SELL"
+    assert "GOOG" not in state.positions
+    assert any(e["type"] == "position_loss_limit" for e in state.risk_events)

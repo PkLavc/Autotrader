@@ -15,7 +15,7 @@ SECTORS = {
     "AVGO": "technology", "AMD": "technology", "CRM": "technology",
     "ORCL": "technology", "ADBE": "technology", "TXN": "technology",
     "AMZN": "discretionary", "HD": "discretionary", "MCD": "discretionary",
-    "GOOGL": "communication", "META": "communication", "NFLX": "communication",
+    "GOOGL": "communication", "GOOG": "communication", "META": "communication", "NFLX": "communication",
     "DIS": "communication", "T": "communication",
     "JPM": "financials", "V": "financials", "MA": "financials",
     "BAC": "financials", "GS": "financials", "BRK-B": "financials",
@@ -30,6 +30,19 @@ SECTORS = {
     "LIN": "materials", "SHW": "materials",
     "PLD": "real_estate", "AMT": "real_estate",
 }
+
+
+# Dual share classes are one economic exposure, not separate companies.
+ISSUER_ALIASES = {
+    "GOOG": "ALPHABET", "GOOGL": "ALPHABET",
+    "FOX": "FOX_CORP", "FOXA": "FOX_CORP",
+    "NWS": "NEWS_CORP", "NWSA": "NEWS_CORP",
+    "BRK-A": "BERKSHIRE", "BRK-B": "BERKSHIRE",
+}
+
+
+def issuer_of(symbol: str) -> str:
+    return ISSUER_ALIASES.get(symbol, symbol)
 
 
 def sector_of(symbol: str) -> str:
@@ -75,12 +88,15 @@ def choose_targets(
 
     eligible.sort(key=lambda f: (-score(f), f.symbol))
     chosen: list[Forecast] = []
+    chosen_issuers: set[str] = set()
     counts: dict[str, int] = {}
     for forecast in eligible:
         sector = sector_map.get(forecast.symbol, sector_of(forecast.symbol))
-        if counts.get(sector, 0) >= cfg.max_positions_per_sector:
+        issuer = issuer_of(forecast.symbol)
+        if issuer in chosen_issuers or counts.get(sector, 0) >= cfg.max_positions_per_sector:
             continue
         chosen.append(forecast)
+        chosen_issuers.add(issuer)
         counts[sector] = counts.get(sector, 0) + 1
         if len(chosen) == cfg.max_positions:
             break

@@ -27,3 +27,20 @@ def test_targets_reject_implausible_forecasts_and_rank_by_risk():
     targets = choose_targets(forecasts, cfg)
     assert [target.symbol for target in targets] == ["CALM", "RISKY"]
     assert "WILD" not in [target.symbol for target in targets]
+
+
+def test_dual_share_classes_are_one_issuer_even_when_sector_map_differs():
+    cfg = StrategyConfig(max_positions=3, max_positions_per_sector=3)
+    forecasts = [
+        Forecast("GOOG", 100, 112, 0.12, 0.2),
+        Forecast("GOOGL", 100, 111, 0.11, 0.2),
+        Forecast("MCD", 100, 110, 0.10, 0.2),
+        Forecast("GE", 100, 109, 0.09, 0.2),
+    ]
+    targets = choose_targets(
+        forecasts, cfg,
+        sector_map={"GOOG": "tech_a", "GOOGL": "tech_b"},
+    )
+    symbols = {t.symbol for t in targets}
+    assert len(symbols & {"GOOG", "GOOGL"}) == 1
+    assert len(targets) == 3

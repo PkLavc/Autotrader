@@ -56,6 +56,8 @@ partial fills, or delayed jobs cannot rewrite the research history.
 - Paper fills include slippage and a conservative per-order commission model.
 - Implausible forecasts above the configured absolute-return ceiling are rejected.
 - Volatility-adjusted scores rank eligible signals while position and cash caps remain enforced.
+- Multiple share classes of one issuer (such as GOOG/GOOGL) count as one company, including at execution time for previously queued signals.
+- The paper ledger checks per-asset 6% overnight gaps and 8% average-cost losses at the next session's opening price. Triggered assets are exited or excluded from that opening's entries; all other candidates continue trading. These checks cannot protect against the gap itself and are not guaranteed stop fills.
 - Broker plans are long-only, cash-limited, notional-limited, and idempotent.
 - Live mode requires multiple independent opt-ins and never activates from credentials alone.
 
@@ -73,6 +75,8 @@ partial fills, or delayed jobs cannot rewrite the research history.
 | Entry forecast floor | +1% |
 | Forecast plausibility ceiling | +30% |
 | Rebalance threshold | 3% of NAV |
+| Overnight gap risk exit (per symbol) | 6% down |
+| Position cost-basis risk exit (per symbol) | 8% down |
 | Slippage | 10 bps |
 | Paper commission | US$0.0035/share, minimum US$0.35/order |
 
@@ -93,11 +97,13 @@ pending-order symbols have priority. The screen has no predictive claim and
 must not be evaluated as if it were a trained alpha signal.
 
 Portfolio limits remain five positions, 18% per position and at least 10%
-cash. New targets are capped at two positions per broad sector, and already-held
-securities receive a modest 8% tie-breaking score bonus **only if their forecast
-remains eligible**. No fixed holding period or automatic stop-loss has been
-added; those need longer walk-forward evidence. These policies make execution
-more consistent, **not guaranteed more profitable**.
+cash. New targets are capped at two positions per broad sector and one share
+class per issuer; already-held securities receive a modest 8% tie-breaking
+score bonus **only if their forecast remains eligible**. Paper executions at
+the next session open enforce per-asset adverse-gap and average-cost loss limits
+without stopping new trades in unrelated assets. These are not intraday stops,
+do not prevent gap losses, and require walk-forward evaluation. These policies
+make execution more consistent, **not guaranteed more profitable**.
 
 The daily JSON report now includes `universe.configured`, `available`,
 `model_capacity`, `screened_for_model`, `model_forecasts_completed`, and

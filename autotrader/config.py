@@ -46,6 +46,9 @@ class StrategyConfig:
     cash_buffer: float = 0.10
     min_forecast_return: float = 0.01
     rebalance_threshold: float = 0.03
+    # Opening-price paper safeguards; these are not intraday stop orders.
+    max_overnight_gap_loss_pct: float = 0.06
+    max_position_loss_pct: float = 0.08
     slippage_bps: float = 10.0
     # Alpaca self-directed US equities: standard commission-free schedule.
     # Regulatory rates are estimates; actual charges are account/day aggregated.

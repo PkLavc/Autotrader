@@ -138,6 +138,7 @@ def main() -> int:
     pending_date = state.pending_signal_date
     warnings: list[str] = []
     trades: list[dict] = []
+    risk_events_before = len(state.risk_events)
     if pending_targets and pending_date:
         signal_age = (date.fromisoformat(market_date) - date.fromisoformat(pending_date)).days
         if signal_age <= 0:
@@ -215,6 +216,7 @@ def main() -> int:
             "screened_out": sorted(set(monitored) - set(candidates)),
         },
         "trades": trades,
+        "risk_events": state.risk_events[risk_events_before:],
         "corporate_actions": actions,
         "warnings": warnings,
         "errors": errors,

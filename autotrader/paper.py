@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import StrategyConfig
-from .portfolio import Target
+from .portfolio import Target, issuer_of
 
 
 @dataclass
@@ -24,6 +24,7 @@ class PaperState:
     pending_targets: list[dict] = field(default_factory=list)
     pending_signal_date: str | None = None
     corporate_actions: list[dict] = field(default_factory=list)
+    risk_events: list[dict] = field(default_factory=list)
     cumulative_costs: dict[str, float] = field(
         default_factory=lambda: {
             "slippage": 0.0,
@@ -74,6 +75,7 @@ def load_state(path: str, initial_cash: float) -> PaperState:
         pending_targets=list(raw.get("pending_targets", [])),
         pending_signal_date=raw.get("pending_signal_date"),
         corporate_actions=list(raw.get("corporate_actions", [])),
+        risk_events=list(raw.get("risk_events", [])),
         cumulative_costs={
             "slippage": float(raw.get("cumulative_costs", {}).get("slippage", 0.0)),
             "commissions": float(raw.get("cumulative_costs", {}).get("commissions", 0.0)),
@@ -186,7 +188,57 @@ def rebalance(
     price_source: str = "close",
 ) -> list[dict]:
     nav = mark_to_market(state, prices)
-    target_weights = {t.symbol: t.weight for t in targets}
+    # Persisted pending targets may predate issuer-level selection rules.
+    # Deduplicate again at execution, retaining the stronger forecast.
+    target_weights: dict[str, float] = {}
+    chosen_issuers: set[str] = set()
+    for target in sorted(targets, key=lambda t: (-t.score, t.symbol)):
+        issuer = issuer_of(target.symbol)
+        if issuer in chosen_issuers:
+            continue
+        chosen_issuers.add(issuer)
+        target_weights[target.symbol] = min(max(0.0, target.weight), cfg.max_weight_per_position)
+
+    forced_exits: set[str] = set()
+    blocked_entries: set[str] = set()
+    for sym in set(state.positions) | set(target_weights):
+        opening_price = prices.get(sym)
+        if opening_price is None or opening_price <= 0:
+            continue
+        previous_close = state.last_prices.get(sym)
+        gap_return = (
+            opening_price / previous_close - 1.0
+            if previous_close is not None and previous_close > 0 else None
+        )
+        # Gap protection is per ticker. Other assets keep trading normally.
+        if gap_return is not None and gap_return <= -cfg.max_overnight_gap_loss_pct:
+            blocked_entries.add(sym)
+            if sym in state.positions:
+                forced_exits.add(sym)
+            state.risk_events.append({
+                "type": "overnight_gap_loss", "symbol": sym,
+                "observed_return": round(gap_return, 6),
+                "execution_date": execution_date,
+            })
+        if sym not in state.positions:
+            continue
+        basis = state.tax_state.get("cost_basis", {}).get(sym, {})
+        basis_qty = float(basis.get("qty", 0.0))
+        if basis_qty <= 0:
+            continue  # Unknown historical basis: never invent a loss level.
+        average_cost = float(basis.get("cost", 0.0)) / basis_qty
+        if average_cost > 0 and opening_price / average_cost - 1.0 <= -cfg.max_position_loss_pct:
+            forced_exits.add(sym)
+            blocked_entries.add(sym)
+            state.risk_events.append({
+                "type": "position_loss_limit", "symbol": sym,
+                "observed_return": round(opening_price / average_cost - 1.0, 6),
+                "execution_date": execution_date,
+            })
+
+    # No portfolio-wide trading halt: capital may rotate into other targets.
+    for sym in forced_exits | blocked_entries:
+        target_weights.pop(sym, None)
     all_symbols = set(state.positions) | set(target_weights)
     trades: list[dict] = []
     slip = cfg.slippage_bps / 10_000.0
@@ -204,7 +256,7 @@ def rebalance(
         delta = desired_values.get(sym, 0.0) - current_values.get(sym, 0.0)
         if delta >= 0:
             continue
-        if nav and abs(delta) / nav < cfg.rebalance_threshold:
+        if sym not in forced_exits and nav and abs(delta) / nav < cfg.rebalance_threshold:
             continue
         px = prices[sym] * (1.0 - slip)
         qty = min(state.positions.get(sym, 0.0), abs(delta) / px)
@@ -307,6 +359,7 @@ def state_payload(state: PaperState) -> dict[str, Any]:
         "pending_targets": state.pending_targets,
         "pending_signal_date": state.pending_signal_date,
         "corporate_actions": state.corporate_actions[-5000:],
+        "risk_events": state.risk_events[-2000:],
         "cumulative_costs": state.cumulative_costs,
         "tax_state": state.tax_state,
         "nav_history": state.nav_history[-1500:],
