@@ -98,7 +98,7 @@ def fetch_eulerpool(symbol: str, key: str, start: str, end: str) -> tuple[pd.Dat
             return normalize_eulerpool(payload, end), endpoint
         except HTTPError as exc:
             # The marketing pages document two distinct route prefixes.
-            if exc.code in (404, 405):
+            if exc.code in (400, 404, 405):
                 failures.append(f"{route.split('.com/')[-1]} HTTP {exc.code}")
                 continue
             raise RuntimeError(f"Eulerpool HTTP {exc.code} for {symbol}") from None
