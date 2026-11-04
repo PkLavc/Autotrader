@@ -75,13 +75,31 @@ def run_forecasts(now: datetime | None = None) -> dict:
             raise RuntimeError("INSUFFICIENT_COMPLETED_HISTORY:" + ticker)
         histories[symbol] = closed
     engine = CryptoKronosEngine(cfg)
-    signals = [
-        {"symbol": symbol, "expected_return": engine.predict_crypto(ticker, histories[symbol])}
-        for symbol, ticker in TICKERS.items()
-    ]
+    signals = []
+    for symbol, ticker in TICKERS.items():
+        history = histories[symbol]
+        close = history["close"].astype(float)
+        volume = history["volume"].astype(float)
+        daily_returns = close.pct_change().dropna().tail(30)
+        vol = float(daily_returns.std(ddof=1) * math.sqrt(365))
+        liquidity = float((close * volume).tail(20).median())
+        momentum_3d = float(close.iloc[-1] / close.iloc[-4] - 1)
+        momentum_7d = float(close.iloc[-1] / close.iloc[-8] - 1)
+        if not all(math.isfinite(v) for v in
+                   (vol, liquidity, momentum_3d, momentum_7d)):
+            raise RuntimeError("NONFINITE_CRYPTO_FEATURES:" + symbol)
+        signals.append({
+            "symbol": symbol,
+            "expected_return": engine.predict_crypto(ticker, history),
+            "momentum_3d": momentum_3d,
+            "momentum_7d": momentum_7d,
+            "volatility_annualized": vol,
+            "avg_dollar_volume_usd": liquidity,
+            "last_completed_candle_utc": history.index[-1].date().isoformat(),
+        })
     return {
         "asset_class": "crypto",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": now.astimezone(timezone.utc).isoformat(),
         "model": cfg.model_name,
         "data_source": "Yahoo Finance crypto daily UTC completed candles",
         "signals": signals,

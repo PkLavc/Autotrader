@@ -2,6 +2,75 @@
 
 Optional and isolated integration for the AudaceFi Solana devnet league. It does not alter the equity strategy, Alpaca broker, stock paper ledger, research schedule, or account fleet. No automatic orders are enabled. A small scheduled read-only season watcher is enabled.
 
+## Crypto Bro league strategy (v1, isolated from stock Autotrader)
+
+**Goal:** maximize **net percentage USDC return** during the official five-day
+season. The sandbox ranks performance first and maximum drawdown only as a
+tie-breaker. Being first is **not guaranteed**.
+
+AudaceFi's published [Rulebook](https://www.audacefi.com/rulebook) requires
+USDC-only holdings at both official snapshots (except the allowed SOL gas
+buffer), category-eligible tokens, and swaps through its supported interface
+or API. A standard season runs Monday 00:00 UTC to Saturday 00:00 UTC, but
+**the authenticated season state is authoritative**. Never assume Season 1
+uses those standard dates or that every BTC/ETH/SOL token is eligible.
+
+The new three-stage, read-only pipeline is:
+
+1. `crypto_research.py` computes completed daily crypto candles, 3/7-day
+   momentum, 30-day volatility, indicative dollar volume and an independent
+   5-session crypto Kronos forecast. It never uses an unfinished UTC candle.
+2. `league_strategy.py` validates **verified** season dates, token allowlist,
+   category limits, wallet/starting snapshot, and reconciled USDC equity. It
+   proposes spot exposure (up to 35% per token, 70% total, 1.25% planned
+   per-trade risk) only when momentum and conservative forecast agree after an
+   80-basis-point round-trip cost allowance. It checks protective exits and
+   15% season drawdown, rejects new entries inside the final 16 hours and
+   requires a USDC exit in the final 8 hours. A sell proposal does **not**
+   mean the tokens have been swapped.
+3. `league_plan.py` passes an eligible BUY proposal to the existing audited
+   crypto operation preparer, **only** if the verified season ID, league wallet,
+   token mints and USDC mint match the owner's explicit configuration. It
+   floors the proposed USDC input to the six-decimal limit. No automatic
+   submission, signing or wallet interaction occurs.
+
+Example read-only commands (after providing **independently verified** private
+context and a current reconciled wallet snapshot):
+
+    python -m integrations.audacefi.league_strategy \
+      --context /private/league-context.json \
+      --portfolio /private/league-portfolio.json \
+      --signals integrations/audacefi/signals.local.json
+
+    python -m integrations.audacefi.league_plan \
+      --context /private/league-context.json \
+      --portfolio /private/league-portfolio.json \
+      --signals integrations/audacefi/signals.local.json \
+      --settings /private/league-settings.json
+
+Those context files are **normalized adapters**, not raw AudaceFi API
+responses. The inputs require `verified=true`,
+`restrictions_verified=true`, `network=solana-devnet`,
+`category=crypto-bro`, `season_status`, real `start_utc/end_utc`,
+`start_snapshot_confirmed`, `wallet_ready`, official
+`eligible_symbols`, numeric `max_position_weight/max_total_exposure`,
+and (for BUY preparation) `season_id`, `wallet_address`,
+`approved_token_mints`, `approved_usdc_mint`. The portfolio supplies
+`equity_usdc`, `cash_usdc`, `peak_equity_usdc` and reconciled
+`positions` with `value_usdc`, `price_usdc`,
+`entry_price_usdc`, `peak_price_usdc`. Never fill these by guessing;
+the authenticated API/schema and actual official wallet must be validated.
+No test fixture authorizes a trade.
+
+**Deployment blockers:** The season watcher last returned
+`WAITING_FOR_SEASON` on 2026-11-04. There is no confirmed active season
+or qualified league wallet, and no verified durable trading journal or
+complete SELL-to-USDC execution adapter. The current daily forecast cadence
+cannot protect against intraday crypto moves; the paper strategy must undergo
+point-in-time five-day league backtests, execution/slippage stress tests and
+an official devnet end-to-end rehearsal before autonomous trading is enabled.
+No password, seed phrase or real crypto is needed for these read-only tests.
+
 ## Status
 
 - Equity reports from data/latest.json intentionally result in HOLD, not a crypto trade. Stock tickers must never be reinterpreted as tokens.

@@ -191,6 +191,16 @@ approved broker OAuth/Broker integration; raw customer credentials do not belong
 
 ### AudaceFi league (optional Solana devnet)
 
+The Crypto Bro league now has a separate `league_strategy.py` decision
+engine and `league_plan.py` guarded proposal adapter. They follow the
+five-day competition's **net USDC return** ranking, require verified
+category/season/wallet inputs, reject unsupported tokens, reserve time
+for the mandatory USDC-only snapshots and never authorize execution.
+The season remains read-only pending official wallet and API qualification.
+See [the league strategy](integrations/audacefi/README.md#crypto-bro-league-strategy-v1-isolated-from-stock-autotrader).
+
+
+
 The optional AudaceFi integration lives in [integrations/audacefi](integrations/audacefi/README.md). It includes isolated manual crypto research, a crypto-only risk-gated operation preparer, and a wiring layer for the official AudaceFi TypeScript kit. The existing equity portfolio and broker remain unchanged. No recurring workflow or execution is enabled; participation requires independent onboarding, a qualifying deployment profile, and an external wallet signer.
 
 ### Safe upstream updates
