@@ -1,0 +1,29 @@
+name: AudaceFi Phantom wallet validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audacefi-wallet-validation
+  cancel-in-progress: false
+
+jobs:
+  validate-signer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Offline signer tests (public synthetic wallet)
+        run: node --test integrations/audacefi/wallet-signer.test.mjs
+      - name: Validate registered Phantom address (never trade)
+        env:
+          AUDACEFI_WALLET_RECOVERY_PHRASE: ${{ secrets.AUDACEFI_WALLET_RECOVERY_PHRASE }}
+          AUDACEFI_WALLET_ADDRESS: ${{ vars.AUDACEFI_WALLET_ADDRESS }}
+        run: |
+          node --input-type=module -e "import {wallet} from './integrations/audacefi/wallet-signer.mjs'; await wallet.publicKey(); console.log('PHANTOM_WALLET_ADDRESS_MATCHED');"
