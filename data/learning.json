@@ -121,7 +121,7 @@
       "symbol": "GOOG"
     }
   ],
-  "last_evaluation_date": "2026-11-02",
+  "last_evaluation_date": "2026-11-03",
   "pending": [
     {
       "expected_return": 0.11823240725580098,
@@ -262,6 +262,41 @@
       "sector": "discretionary",
       "signal_date": "2026-11-02",
       "symbol": "MCD"
+    },
+    {
+      "expected_return": 0.2874614470154053,
+      "id": "2026-11-03:NFLX",
+      "sector": "communication",
+      "signal_date": "2026-11-03",
+      "symbol": "NFLX"
+    },
+    {
+      "expected_return": 0.14390428184410609,
+      "id": "2026-11-03:GOOGL",
+      "sector": "communication",
+      "signal_date": "2026-11-03",
+      "symbol": "GOOGL"
+    },
+    {
+      "expected_return": 0.09352824565734519,
+      "id": "2026-11-03:UBER",
+      "sector": "industrials",
+      "signal_date": "2026-11-03",
+      "symbol": "UBER"
+    },
+    {
+      "expected_return": 0.08062411605101483,
+      "id": "2026-11-03:TT",
+      "sector": "industrials",
+      "signal_date": "2026-11-03",
+      "symbol": "TT"
+    },
+    {
+      "expected_return": 0.1047898805098042,
+      "id": "2026-11-03:AVGO",
+      "sector": "technology",
+      "signal_date": "2026-11-03",
+      "symbol": "AVGO"
     }
   ],
   "schema_version": 1
