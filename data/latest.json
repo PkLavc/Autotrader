@@ -1,5 +1,5 @@
 {
-  "cash": 919.7100217728757,
+  "cash": 3984.7013225695323,
   "corporate_actions": [],
   "cost_model": {
     "broker_commission_schedule": "Alpaca US self-directed equities: typically commission-free; exceptions may apply",
@@ -14,7 +14,7 @@
       "estimated_tax_usd": null,
       "note": "Tax due is not calculated. US profile requires taxpayer-specific rules; Brazil profile requires complete tax lots and event-date BRL FX. Dividend withholding is not modeled.",
       "profile": "us_personal_no_local_tax",
-      "realized_gain_usd": -136.82824719075262,
+      "realized_gain_usd": -170.7033918281716,
       "status": "not_calculated_user_specific",
       "tax_currency": null,
       "tax_reference_rate": null,
@@ -23,385 +23,432 @@
   },
   "errors": {},
   "eulerpool": {
-    "checked": 5,
+    "checked": 0,
     "mode": "verification_only",
-    "results": [
-      {
-        "difference_pct": 0.1604,
-        "eulerpool_close": 62.24,
-        "last_eulerpool_session": "2026-11-02",
-        "market_session": "2026-11-03",
-        "status": "stale_verified",
-        "symbol": "NFLX",
-        "yahoo_close": 62.34
-      },
-      {
-        "difference_pct": 1.5054,
-        "eulerpool_close": 283.19,
-        "last_eulerpool_session": "2026-11-02",
-        "market_session": "2026-11-03",
-        "status": "stale_verified",
-        "symbol": "GOOGL",
-        "yahoo_close": 278.99
-      },
-      {
-        "difference_pct": 0.0,
-        "eulerpool_close": 66.6,
-        "market_session": "2026-11-03",
-        "status": "verified",
-        "symbol": "UBER",
-        "yahoo_close": 66.6
-      },
-      {
-        "difference_pct": 0.7258,
-        "eulerpool_close": 410.33,
-        "last_eulerpool_session": "2026-11-02",
-        "market_session": "2026-11-03",
-        "status": "stale_verified",
-        "symbol": "TT",
-        "yahoo_close": 413.33
-      },
-      {
-        "difference_pct": 2.6875,
-        "eulerpool_close": 330.89,
-        "last_eulerpool_session": "2026-11-02",
-        "market_session": "2026-11-03",
-        "status": "stale_divergent",
-        "symbol": "AVGO",
-        "yahoo_close": 322.23
-      }
-    ],
-    "stale_verified": 3,
-    "status": "active",
-    "verified": 1
+    "results": [],
+    "stale_verified": 0,
+    "status": "no_verified_prices",
+    "verified": 0
   },
   "execution_model": "signal_at_close_execute_next_session_open",
   "forecasts": [
     {
-      "annualized_volatility": 0.35021545317732944,
-      "current_close": 63.41999816894531,
-      "expected_return": 0.2874614470154053,
-      "predicted_close": 81.65080261230469,
-      "symbol": "NFLX"
-    },
-    {
-      "annualized_volatility": 0.3402794748363625,
-      "current_close": 280.0299987792969,
-      "expected_return": 0.14390428184410609,
-      "predicted_close": 320.3275146484375,
-      "symbol": "GOOGL"
-    },
-    {
-      "annualized_volatility": 0.38646302748624445,
-      "current_close": 332.1300048828125,
-      "expected_return": 0.1047898805098042,
-      "predicted_close": 366.9338684082031,
-      "symbol": "AVGO"
-    },
-    {
-      "annualized_volatility": 0.27772200762225513,
-      "current_close": 66.5999984741211,
-      "expected_return": 0.09352824565734519,
-      "predicted_close": 72.8289794921875,
-      "symbol": "UBER"
-    },
-    {
-      "annualized_volatility": 0.48313603828297486,
-      "current_close": 139.58999633789062,
-      "expected_return": 0.08836565127233098,
-      "predicted_close": 151.92495727539062,
+      "annualized_volatility": 0.559159711739531,
+      "current_close": 120.29000091552734,
+      "expected_return": 0.27929666230323735,
+      "predicted_close": 153.8865966796875,
       "symbol": "VST"
     },
     {
-      "annualized_volatility": 0.2704906265219973,
-      "current_close": 417.44000244140625,
-      "expected_return": 0.08062411605101483,
-      "predicted_close": 451.0957336425781,
+      "annualized_volatility": 0.36285301286918936,
+      "current_close": 66.38999938964844,
+      "expected_return": 0.22534087500732602,
+      "predicted_close": 81.35037994384766,
+      "symbol": "NFLX"
+    },
+    {
+      "annualized_volatility": 0.3872326162083561,
+      "current_close": 325.4800109863281,
+      "expected_return": 0.13447545781288128,
+      "predicted_close": 369.24908447265625,
+      "symbol": "AVGO"
+    },
+    {
+      "annualized_volatility": 0.26986402149079003,
+      "current_close": 410.4800109863281,
+      "expected_return": 0.09038884410363868,
+      "predicted_close": 447.58282470703125,
       "symbol": "TT"
     },
     {
-      "annualized_volatility": 0.4560507237067095,
-      "current_close": 164.42999267578125,
-      "expected_return": 0.062154953506301513,
-      "predicted_close": 174.65013122558594,
-      "symbol": "QCOM"
+      "annualized_volatility": 0.29667909510264207,
+      "current_close": 69.87000274658203,
+      "expected_return": 0.0824457215062544,
+      "predicted_close": 75.63048553466797,
+      "symbol": "UBER"
     },
     {
-      "annualized_volatility": 0.6700230082759423,
-      "current_close": 347.3500061035156,
-      "expected_return": 0.05116981118813846,
-      "predicted_close": 365.12384033203125,
-      "symbol": "WDC"
+      "annualized_volatility": 0.3402206294036683,
+      "current_close": 288.92999267578125,
+      "expected_return": 0.0571764421570784,
+      "predicted_close": 305.4499816894531,
+      "symbol": "GOOGL"
     },
     {
-      "annualized_volatility": 0.21478552006707707,
-      "current_close": 263.0400085449219,
-      "expected_return": 0.045924057594037615,
-      "predicted_close": 275.119873046875,
-      "symbol": "MCD"
-    },
-    {
-      "annualized_volatility": 0.3693430327714901,
-      "current_close": 623.9400024414062,
-      "expected_return": 0.03790178127298516,
-      "predicted_close": 647.5884399414062,
+      "annualized_volatility": 0.38122199044373667,
+      "current_close": 591.2999877929688,
+      "expected_return": 0.049787264657753516,
+      "predicted_close": 620.7391967773438,
       "symbol": "CAT"
     },
     {
-      "annualized_volatility": 0.6355156154437157,
-      "current_close": 126.13999938964844,
-      "expected_return": 0.015828907046587126,
-      "predicted_close": 128.13665771484375,
-      "symbol": "GLW"
+      "annualized_volatility": 0.2535759362358863,
+      "current_close": 280.2200012207031,
+      "expected_return": 0.0014961476213506408,
+      "predicted_close": 280.6392517089844,
+      "symbol": "MCD"
     },
     {
-      "annualized_volatility": 0.4476326810784199,
-      "current_close": 621.030029296875,
-      "expected_return": 0.007575167892617918,
-      "predicted_close": 625.7344360351562,
-      "symbol": "META"
-    },
-    {
-      "annualized_volatility": 0.3501790903474737,
-      "current_close": 206.69000244140625,
-      "expected_return": 0.007519986510784671,
-      "predicted_close": 208.2443084716797,
-      "symbol": "NVDA"
-    },
-    {
-      "annualized_volatility": 0.288688621781758,
-      "current_close": 250.69000244140625,
-      "expected_return": -0.010022691278100848,
-      "predicted_close": 248.1774139404297,
-      "symbol": "AMZN"
-    },
-    {
-      "annualized_volatility": 0.23379469207803485,
-      "current_close": 404.44000244140625,
-      "expected_return": -0.010190233077209232,
-      "predicted_close": 400.31866455078125,
-      "symbol": "UNH"
-    },
-    {
-      "annualized_volatility": 0.13176883726148853,
-      "current_close": 279.7900085449219,
-      "expected_return": -0.013064236778616123,
-      "predicted_close": 276.134765625,
+      "annualized_volatility": 0.13560887479252018,
+      "current_close": 284.0199890136719,
+      "expected_return": -0.003643477912362081,
+      "predicted_close": 282.98516845703125,
       "symbol": "IWM"
     },
     {
-      "annualized_volatility": 0.18623150896590532,
-      "current_close": 84.33000183105469,
-      "expected_return": -0.0156272759036169,
-      "predicted_close": 83.01215362548828,
-      "symbol": "NEE"
+      "annualized_volatility": 0.3559440620758752,
+      "current_close": 200.1300048828125,
+      "expected_return": -0.0045323474426108845,
+      "predicted_close": 199.2229461669922,
+      "symbol": "NVDA"
     },
     {
-      "annualized_volatility": 0.1787379964425392,
-      "current_close": 685.280029296875,
-      "expected_return": -0.017010271448252512,
-      "predicted_close": 673.6232299804688,
+      "annualized_volatility": 0.4483068423841623,
+      "current_close": 630.0,
+      "expected_return": -0.015619090246775769,
+      "predicted_close": 620.1599731445312,
+      "symbol": "META"
+    },
+    {
+      "annualized_volatility": 0.23267120947001788,
+      "current_close": 409.3800048828125,
+      "expected_return": -0.019520500256288598,
+      "predicted_close": 401.3887023925781,
+      "symbol": "UNH"
+    },
+    {
+      "annualized_volatility": 0.17993595554211075,
+      "current_close": 691.9500122070312,
+      "expected_return": -0.03447597577082073,
+      "predicted_close": 668.0943603515625,
       "symbol": "QQQ"
     },
     {
-      "annualized_volatility": 0.1000651100335315,
-      "current_close": 754.3499755859375,
-      "expected_return": -0.030836206345520423,
-      "predicted_close": 731.0886840820312,
-      "symbol": "SPY"
+      "annualized_volatility": 0.21000126805942704,
+      "current_close": 88.44999694824219,
+      "expected_return": -0.03860853294975608,
+      "predicted_close": 85.03507232666016,
+      "symbol": "NEE"
     },
     {
-      "annualized_volatility": 0.271953047284138,
-      "current_close": 1014.4000244140625,
-      "expected_return": -0.03389081662798821,
-      "predicted_close": 980.0211791992188,
-      "symbol": "EQIX"
-    },
-    {
-      "annualized_volatility": 0.1545376880322301,
-      "current_close": 511.54998779296875,
-      "expected_return": -0.03673808215615004,
-      "predicted_close": 492.7566223144531,
+      "annualized_volatility": 0.16250077166044924,
+      "current_close": 524.739990234375,
+      "expected_return": -0.060419967106104866,
+      "predicted_close": 493.03521728515625,
       "symbol": "LIN"
     },
     {
-      "annualized_volatility": 0.19642853061587853,
-      "current_close": 1019.260009765625,
-      "expected_return": -0.08703704457771211,
-      "predicted_close": 930.546630859375,
+      "annualized_volatility": 0.10566671051494513,
+      "current_close": 766.8099975585938,
+      "expected_return": -0.06091019042195134,
+      "predicted_close": 720.1034545898438,
+      "symbol": "SPY"
+    },
+    {
+      "annualized_volatility": 0.3009975256195005,
+      "current_close": 194.86000061035156,
+      "expected_return": -0.06421901679242026,
+      "predicted_close": 182.34628295898438,
+      "symbol": "AMT"
+    },
+    {
+      "annualized_volatility": 0.31317873271782043,
+      "current_close": 266.0299987792969,
+      "expected_return": -0.0777913753054138,
+      "predicted_close": 245.3351593017578,
+      "symbol": "AMZN"
+    },
+    {
+      "annualized_volatility": 0.202068897789711,
+      "current_close": 1046.469970703125,
+      "expected_return": -0.08022005248765784,
+      "predicted_close": 962.5220947265625,
       "symbol": "COST"
     },
     {
-      "annualized_volatility": 0.2981869699591691,
-      "current_close": 124.86000061035156,
-      "expected_return": -0.08719635333763098,
-      "predicted_close": 113.97266387939453,
+      "annualized_volatility": 0.8923972660782281,
+      "current_close": 200.39999389648438,
+      "expected_return": -0.08119929821750838,
+      "predicted_close": 184.12765502929688,
+      "symbol": "BE"
+    },
+    {
+      "annualized_volatility": 0.6820744697277051,
+      "current_close": 188.72000122070312,
+      "expected_return": -0.09295393563074372,
+      "predicted_close": 171.177734375,
+      "symbol": "DDOG"
+    },
+    {
+      "annualized_volatility": 0.2541389672271311,
+      "current_close": 1224.3699951171875,
+      "expected_return": -0.11456256550946609,
+      "predicted_close": 1084.10302734375,
+      "symbol": "BLK"
+    },
+    {
+      "annualized_volatility": 0.3055175725281274,
+      "current_close": 129.1699981689453,
+      "expected_return": -0.1342455097495241,
+      "predicted_close": 111.82950592041016,
       "symbol": "WMT"
     },
     {
-      "annualized_volatility": 0.13790344848102154,
-      "current_close": 557.0700073242188,
-      "expected_return": -0.11828485373398923,
-      "predicted_close": 491.17706298828125,
+      "annualized_volatility": 0.14940287633805724,
+      "current_close": 579.0900268554688,
+      "expected_return": -0.13968374791614213,
+      "predicted_close": 498.2005615234375,
       "symbol": "BRK-B"
     },
     {
-      "annualized_volatility": 0.19498609642781245,
-      "current_close": 331.8999938964844,
-      "expected_return": -0.15713114163972353,
-      "predicted_close": 279.7481689453125,
+      "annualized_volatility": 0.22030667152310973,
+      "current_close": 349.510009765625,
+      "expected_return": -0.1660318260846484,
+      "predicted_close": 291.480224609375,
       "symbol": "AAPL"
     },
     {
-      "annualized_volatility": 0.3048153675129419,
-      "current_close": 1409.3800048828125,
-      "expected_return": -0.19774934973294245,
-      "predicted_close": 1130.676025390625,
-      "symbol": "LLY"
+      "annualized_volatility": 0.26301805041508153,
+      "current_close": 169.27000427246094,
+      "expected_return": -0.18677254939680143,
+      "predicted_close": 137.65501403808594,
+      "symbol": "XOM"
     },
     {
-      "annualized_volatility": 0.1984560072191463,
-      "current_close": 420.4200134277344,
-      "expected_return": -0.20055061136414998,
-      "predicted_close": 336.1045227050781,
+      "annualized_volatility": 0.2114917755568779,
+      "current_close": 436.57000732421875,
+      "expected_return": -0.227413308675263,
+      "predicted_close": 337.2881774902344,
       "symbol": "V"
     },
     {
-      "annualized_volatility": 0.24383190797945836,
-      "current_close": 177.4600067138672,
-      "expected_return": -0.2152381694303337,
-      "predicted_close": 139.2638397216797,
-      "symbol": "XOM"
+      "annualized_volatility": 0.3030233055447434,
+      "current_close": 1417.989990234375,
+      "expected_return": -0.24679709515370551,
+      "predicted_close": 1068.0341796875,
+      "symbol": "LLY"
     }
   ],
-  "generated_at": "2026-11-04T03:03:51.873793+00:00",
+  "generated_at": "2026-11-05T03:34:21.333733+00:00",
   "learning": {
     "awaiting_horizon": 20,
-    "completed_total": 10,
-    "matured_today": 0,
-    "new_signals": 5,
+    "completed_total": 15,
+    "matured_today": 5,
+    "new_signals": 0,
     "policy": "rank_only_after_five_completed_sessions",
     "sector_rank_multipliers": {}
   },
-  "market_session": "2026-11-03",
+  "market_session": "2026-11-04",
   "metrics": {
-    "annualized_volatility": null,
-    "benchmark_return": -0.03715192403249934,
+    "annualized_volatility": 0.1516700166626642,
+    "benchmark_return": -0.02124802190329711,
     "benchmark_symbol": "SPY",
     "cumulative_costs": {
-      "cat_fees": 0.26000000000000006,
+      "cat_fees": 0.3300000000000001,
       "commissions": 0.0,
       "dividend_income": 0.0,
-      "regulatory_fees": 0.8800000000000003,
-      "slippage": 47.20327093449844,
+      "regulatory_fees": 1.1500000000000006,
+      "slippage": 55.0578748871967,
       "tax_estimate": 0.0,
       "taxes_withheld": 0.0
     },
-    "current_nav": 10074.017688519303,
-    "excess_return": 0.044553692884429674,
-    "gross_exposure": 9154.307666746428,
-    "gross_exposure_ratio": 0.9087047442033969,
-    "gross_traded": 67156.76219056605,
+    "current_nav": 10018.78996507064,
+    "excess_return": 0.023127018410361133,
+    "gross_exposure": 6034.088642501109,
+    "gross_exposure_ratio": 0.6022771875184793,
+    "gross_traded": 75008.29302735956,
     "initial_cash": 10000.0,
     "max_drawdown": -0.035369794728694615,
-    "observation_count": 20,
-    "sharpe_ratio": null,
+    "observation_count": 21,
+    "sharpe_ratio": 0.30284640002659846,
     "tax_estimate": {
       "estimated_tax_usd": null,
       "note": "Tax due is not calculated. US profile requires taxpayer-specific rules; Brazil profile requires complete tax lots and event-date BRL FX. Dividend withholding is not modeled.",
       "profile": "us_personal_no_local_tax",
-      "realized_gain_usd": -136.82824719075262,
+      "realized_gain_usd": -170.7033918281716,
       "status": "not_calculated_user_specific",
       "tax_currency": null,
       "tax_reference_rate": null,
       "year": "2026"
     },
-    "total_return": 0.007401768851930335,
-    "trade_count": 37,
-    "turnover_on_initial_capital": 6.715676219056605
+    "total_return": 0.0018789965070640235,
+    "trade_count": 44,
+    "turnover_on_initial_capital": 7.500829302735956
   },
   "mode": "paper",
   "model": "NeoQuasar/Kronos-base",
   "model_revision": "2b554741eca47781b64468546e77fef3e85130e6",
-  "nav": 10074.017688519303,
+  "nav": 10018.78996507064,
   "pending_execution": {
     "expected_execution": "next_market_session_open",
-    "signal_date": "2026-11-03",
-    "target_count": 5
+    "signal_date": "2026-11-04",
+    "target_count": 0
   },
   "positions": {
-    "AVGO": 5.506260154289358,
-    "GOOGL": 6.429010712583172,
-    "MCD": 7.318320674485057,
-    "UBER": 26.987853620068414,
-    "VST": 12.914932999842575
+    "AVGO": 3.6589476383013038,
+    "GOOGL": 4.218336547389363,
+    "NFLX": 18.51854307471911,
+    "TT": 2.852916496389563,
+    "UBER": 17.516231156842725
   },
-  "schema_version": 2,
-  "targets": [
+  "risk_events": [
     {
-      "score": 5.827195252565705,
-      "symbol": "NFLX",
-      "weight": 0.18
+      "execution_date": "2026-11-04",
+      "observed_return": -0.101655,
+      "symbol": "VST",
+      "type": "overnight_gap_loss"
     },
     {
-      "score": 3.242477613308044,
-      "symbol": "GOOGL",
-      "weight": 0.18
-    },
-    {
-      "score": 2.3908248454035195,
-      "symbol": "UBER",
-      "weight": 0.18
-    },
-    {
-      "score": 2.285344993414483,
-      "symbol": "TT",
-      "weight": 0.18
-    },
-    {
-      "score": 2.07898050604359,
-      "symbol": "AVGO",
-      "weight": 0.18
+      "execution_date": "2026-11-04",
+      "observed_return": -0.105185,
+      "symbol": "VST",
+      "type": "position_loss_limit"
     }
   ],
+  "schema_version": 2,
+  "strategy": {
+    "cash_buffer": 0.4,
+    "cooldown_symbols": [
+      "VST"
+    ],
+    "max_position_weight": 0.12,
+    "name": "risk_budgeted_trend_v1",
+    "risk_per_trade": 0.005,
+    "status": "paper_validation_only"
+  },
+  "targets": [],
   "tokenizer_revision": "0e0117387f39004a9016484a186a908917e22426",
   "trades": [
     {
       "cat_fee": 0.01,
       "commission": 0.0,
-      "execution_date": "2026-11-03",
-      "gross_value": 1822.243778266665,
-      "price": 418.57100024414063,
+      "execution_date": "2026-11-04",
+      "gross_value": 603.2087293736979,
+      "price": 326.5331253662109,
       "price_source": "session_open",
-      "qty": 4.353487884262889,
-      "realized_gain": 12.275067668726878,
-      "reference_price": 418.989990234375,
-      "regulatory_fees": 0.060000000000000005,
-      "sec_fee": 0.04,
+      "qty": 1.8473125159880543,
+      "realized_gain": -4.043229414486668,
+      "reference_price": 326.8599853515625,
+      "regulatory_fees": 0.04,
+      "sec_fee": 0.02,
       "side": "SELL",
-      "signal_date": "2026-11-02",
-      "slippage_cost": 1.8240678461127777,
-      "symbol": "TT",
+      "signal_date": "2026-11-03",
+      "slippage_cost": 0.6038125419156136,
+      "symbol": "AVGO",
       "taf_fee": 0.01,
-      "timestamp": "2026-11-04T03:03:50.392661+00:00"
+      "timestamp": "2026-11-05T03:34:21.329048+00:00"
     },
     {
       "cat_fee": 0.01,
       "commission": 0.0,
-      "execution_date": "2026-11-03",
-      "gross_value": 1803.1056683598156,
-      "price": 66.8117477493286,
+      "execution_date": "2026-11-04",
+      "gross_value": 626.1215059085489,
+      "price": 283.2264997558594,
       "price_source": "session_open",
-      "qty": 26.987853620068414,
-      "reference_price": 66.74500274658203,
+      "qty": 2.210674165193809,
+      "realized_gain": 3.9918920815383307,
+      "reference_price": 283.510009765625,
+      "regulatory_fees": 0.04,
+      "sec_fee": 0.02,
+      "side": "SELL",
+      "signal_date": "2026-11-03",
+      "slippage_cost": 0.6267482541627116,
+      "symbol": "GOOGL",
+      "taf_fee": 0.01,
+      "timestamp": "2026-11-05T03:34:21.329048+00:00"
+    },
+    {
+      "cat_fee": 0.01,
+      "commission": 0.0,
+      "execution_date": "2026-11-04",
+      "gross_value": 1965.1243851526879,
+      "price": 268.521218536377,
+      "price_source": "session_open",
+      "qty": 7.318320674485057,
+      "realized_gain": 145.06261531039053,
+      "reference_price": 268.7900085449219,
+      "regulatory_fees": 0.07,
+      "sec_fee": 0.05,
+      "side": "SELL",
+      "signal_date": "2026-11-03",
+      "slippage_cost": 1.967091476629317,
+      "symbol": "MCD",
+      "taf_fee": 0.01,
+      "timestamp": "2026-11-05T03:34:21.329048+00:00"
+    },
+    {
+      "cat_fee": 0.01,
+      "commission": 0.0,
+      "execution_date": "2026-11-04",
+      "gross_value": 646.0283630911536,
+      "price": 68.20672652435303,
+      "price_source": "session_open",
+      "qty": 9.471622463225689,
+      "realized_gain": 13.169202714081017,
+      "reference_price": 68.2750015258789,
+      "regulatory_fees": 0.04,
+      "sec_fee": 0.02,
+      "side": "SELL",
+      "signal_date": "2026-11-03",
+      "slippage_cost": 0.6466750381292828,
+      "symbol": "UBER",
+      "taf_fee": 0.01,
+      "timestamp": "2026-11-05T03:34:21.329048+00:00"
+    },
+    {
+      "cat_fee": 0.01,
+      "commission": 0.0,
+      "execution_date": "2026-11-04",
+      "gross_value": 1617.913085268996,
+      "price": 125.27460152435303,
+      "price_source": "session_open",
+      "qty": 12.914932999842575,
+      "realized_gain": -192.0556253289422,
+      "reference_price": 125.4000015258789,
+      "regulatory_fees": 0.060000000000000005,
+      "sec_fee": 0.04,
+      "side": "SELL",
+      "signal_date": "2026-11-03",
+      "slippage_cost": 1.6195326178868827,
+      "symbol": "VST",
+      "taf_fee": 0.01,
+      "timestamp": "2026-11-05T03:34:21.329048+00:00"
+    },
+    {
+      "cat_fee": 0.01,
+      "commission": 0.0,
+      "execution_date": "2026-11-04",
+      "gross_value": 1196.567383999214,
+      "price": 64.61455305480956,
+      "price_source": "session_open",
+      "qty": 18.51854307471911,
+      "reference_price": 64.55000305175781,
       "regulatory_fees": 0.01,
       "sec_fee": 0.0,
       "side": "BUY",
-      "signal_date": "2026-11-02",
-      "slippage_cost": 1.8013043639958202,
-      "symbol": "UBER",
+      "signal_date": "2026-11-03",
+      "slippage_cost": 1.1953720119872269,
+      "symbol": "NFLX",
       "taf_fee": 0.0,
-      "timestamp": "2026-11-04T03:03:50.392661+00:00"
+      "timestamp": "2026-11-05T03:34:21.329048+00:00"
+    },
+    {
+      "cat_fee": 0.01,
+      "commission": 0.0,
+      "execution_date": "2026-11-04",
+      "gross_value": 1196.567383999214,
+      "price": 419.4189999999999,
+      "price_source": "session_open",
+      "qty": 2.852916496389563,
+      "reference_price": 419.0,
+      "regulatory_fees": 0.01,
+      "sec_fee": 0.0,
+      "side": "BUY",
+      "signal_date": "2026-11-03",
+      "slippage_cost": 1.1953720119872269,
+      "symbol": "TT",
+      "taf_fee": 0.0,
+      "timestamp": "2026-11-05T03:34:21.329048+00:00"
     }
   ],
   "universe": {
@@ -411,35 +458,35 @@
       "candidate_pool_size": 506,
       "constituents": 503,
       "discovered_today": [
-        "CB",
-        "QCOM",
-        "CMS",
-        "EQIX",
-        "STZ",
-        "XEL",
-        "WDC",
-        "KHC",
-        "DHI",
-        "NXPI",
-        "O",
-        "AIG",
-        "HLT",
-        "RDDT",
-        "PODD",
-        "WEC",
-        "GLW",
-        "HCA",
-        "AMGN",
-        "LULU"
+        "DDOG",
+        "HUM",
+        "DOC",
+        "BLK",
+        "AWK",
+        "SKYD",
+        "PPL",
+        "ES",
+        "BX",
+        "HON",
+        "BSX",
+        "CARR",
+        "GDDY",
+        "NDAQ",
+        "TXT",
+        "WAT",
+        "AMP",
+        "BE",
+        "DVA",
+        "ADP"
       ],
       "monitored_today": 69,
       "source": "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv",
       "status": "fresh"
     },
     "exploration_forecasts": [
-      "WDC",
-      "QCOM",
-      "GLW"
+      "BE",
+      "DDOG",
+      "BLK"
     ],
     "model_capacity": 28,
     "model_forecasts_completed": 28,
@@ -448,12 +495,13 @@
       "AVGO",
       "GOOGL",
       "MCD",
-      "TT",
-      "VST",
       "UBER",
-      "WDC",
-      "QCOM",
-      "GLW",
+      "VST",
+      "NFLX",
+      "TT",
+      "BE",
+      "DDOG",
+      "BLK",
       "QQQ",
       "NVDA",
       "META",
@@ -465,10 +513,9 @@
       "XOM",
       "LIN",
       "NEE",
-      "EQIX",
+      "AMT",
       "AAPL",
       "IWM",
-      "NFLX",
       "BRK-B",
       "UNH",
       "COST"
@@ -476,48 +523,48 @@
     "screened_out": [
       "ABBV",
       "ADBE",
-      "AIG",
+      "ADP",
       "AMD",
-      "AMGN",
-      "AMT",
+      "AMP",
+      "AWK",
       "BAC",
-      "CB",
-      "CMS",
+      "BSX",
+      "BX",
+      "CARR",
       "COP",
       "CRM",
       "CVX",
       "DE",
-      "DHI",
       "DIS",
+      "DOC",
       "DUK",
+      "DVA",
+      "ES",
+      "GDDY",
       "GE",
       "GS",
-      "HCA",
       "HD",
-      "HLT",
+      "HON",
+      "HUM",
       "JNJ",
       "JPM",
-      "KHC",
       "KO",
-      "LULU",
       "MA",
       "MRK",
       "MSFT",
-      "NXPI",
-      "O",
+      "NDAQ",
       "ORCL",
       "PEP",
       "PG",
       "PLD",
-      "PODD",
-      "RDDT",
+      "PPL",
       "SHW",
-      "STZ",
+      "SKYD",
       "T",
       "TXN",
+      "TXT",
       "UNP",
-      "WEC",
-      "XEL"
+      "WAT"
     ]
   },
   "warnings": []
