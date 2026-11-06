@@ -179,45 +179,70 @@
       "sector": "technology",
       "signal_date": "2026-10-28",
       "symbol": "AVGO"
-    }
-  ],
-  "last_evaluation_date": "2026-11-04",
-  "pending": [
+    },
     {
+      "actual_return": 0.08027042998742684,
+      "benchmark_return": -0.04726004216991819,
+      "direction_correct": true,
+      "excess_return": 0.12753047215734503,
       "expected_return": 0.08934471985911974,
       "id": "2026-10-29:MCD",
+      "resolution_date": "2026-11-05",
       "sector": "discretionary",
       "signal_date": "2026-10-29",
       "symbol": "MCD"
     },
     {
+      "actual_return": -0.004404199731318004,
+      "benchmark_return": -0.04726004216991819,
+      "direction_correct": false,
+      "excess_return": 0.04285584243860019,
       "expected_return": 0.10252742571299978,
       "id": "2026-10-29:GOOGL",
+      "resolution_date": "2026-11-05",
       "sector": "communication",
       "signal_date": "2026-10-29",
       "symbol": "GOOGL"
     },
     {
+      "actual_return": -0.0020544668277003852,
+      "benchmark_return": -0.04726004216991819,
+      "direction_correct": false,
+      "excess_return": 0.04520557534221781,
       "expected_return": 0.07633761399502026,
       "id": "2026-10-29:GOOG",
+      "resolution_date": "2026-11-05",
       "sector": "communication",
       "signal_date": "2026-10-29",
       "symbol": "GOOG"
     },
     {
+      "actual_return": -0.1448122428192078,
+      "benchmark_return": -0.04726004216991819,
+      "direction_correct": false,
+      "excess_return": -0.0975522006492896,
       "expected_return": 0.06523763255364123,
       "id": "2026-10-29:CAT",
+      "resolution_date": "2026-11-05",
       "sector": "industrials",
       "signal_date": "2026-10-29",
       "symbol": "CAT"
     },
     {
+      "actual_return": 0.005366629161060565,
+      "benchmark_return": -0.04726004216991819,
+      "direction_correct": true,
+      "excess_return": 0.05262667133097876,
       "expected_return": 0.04040145361357195,
       "id": "2026-10-29:GE",
+      "resolution_date": "2026-11-05",
       "sector": "industrials",
       "signal_date": "2026-10-29",
       "symbol": "GE"
-    },
+    }
+  ],
+  "last_evaluation_date": "2026-11-05",
+  "pending": [
     {
       "expected_return": 0.1688572632129055,
       "id": "2026-10-30:AVGO",
