@@ -239,45 +239,70 @@
       "sector": "industrials",
       "signal_date": "2026-10-29",
       "symbol": "GE"
-    }
-  ],
-  "last_evaluation_date": "2026-11-05",
-  "pending": [
+    },
     {
+      "actual_return": -0.0993314078283094,
+      "benchmark_return": -0.027033813406800777,
+      "direction_correct": false,
+      "excess_return": -0.07229759442150863,
       "expected_return": 0.1688572632129055,
       "id": "2026-10-30:AVGO",
+      "resolution_date": "2026-11-06",
       "sector": "technology",
       "signal_date": "2026-10-30",
       "symbol": "AVGO"
     },
     {
+      "actual_return": 0.07128465149757468,
+      "benchmark_return": -0.027033813406800777,
+      "direction_correct": true,
+      "excess_return": 0.09831846490437546,
       "expected_return": 0.07674144805508964,
       "id": "2026-10-30:MCD",
+      "resolution_date": "2026-11-06",
       "sector": "discretionary",
       "signal_date": "2026-10-30",
       "symbol": "MCD"
     },
     {
+      "actual_return": 0.0176529534950447,
+      "benchmark_return": -0.027033813406800777,
+      "direction_correct": true,
+      "excess_return": 0.044686766901845476,
       "expected_return": 0.13025304704128127,
       "id": "2026-10-30:GOOGL",
+      "resolution_date": "2026-11-06",
       "sector": "communication",
       "signal_date": "2026-10-30",
       "symbol": "GOOGL"
     },
     {
+      "actual_return": -0.020097537157012235,
+      "benchmark_return": -0.027033813406800777,
+      "direction_correct": false,
+      "excess_return": 0.006936276249788542,
       "expected_return": 0.07318494843273626,
       "id": "2026-10-30:TT",
+      "resolution_date": "2026-11-06",
       "sector": "industrials",
       "signal_date": "2026-10-30",
       "symbol": "TT"
     },
     {
+      "actual_return": -0.09807033709827817,
+      "benchmark_return": -0.027033813406800777,
+      "direction_correct": false,
+      "excess_return": -0.0710365236914774,
       "expected_return": 0.11371332575227577,
       "id": "2026-10-30:VST",
+      "resolution_date": "2026-11-06",
       "sector": "utilities",
       "signal_date": "2026-10-30",
       "symbol": "VST"
-    },
+    }
+  ],
+  "last_evaluation_date": "2026-11-06",
+  "pending": [
     {
       "expected_return": 0.13931467967863287,
       "id": "2026-11-02:GOOGL",
@@ -347,6 +372,13 @@
       "sector": "technology",
       "signal_date": "2026-11-03",
       "symbol": "AVGO"
+    },
+    {
+      "expected_return": 0.04600854763062867,
+      "id": "2026-11-06:CDNS",
+      "sector": "technology",
+      "signal_date": "2026-11-06",
+      "symbol": "CDNS"
     }
   ],
   "schema_version": 1
