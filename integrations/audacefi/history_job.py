@@ -70,11 +70,21 @@ def eligible_symbols(api_key: str) -> list[str]:
 
 def research_one(symbol: str, months: list[str]) -> dict:
     try:
-        bars = load_history(symbol, months)
+        quote = "USDT"
+        try:
+            bars = load_history(symbol, months, quote=quote)
+        except Exception as first:
+            # A missing or unsupported USDT market is not a trading signal.
+            # Only a 404 may trigger a fully reverified USDC spot history;
+            # corrupt data, missing checksums or outages fail closed.
+            if type(first).__name__ != "HTTPError" or getattr(first, "code", None) != 404:
+                raise
+            quote = "USDC"
+            bars = load_history(symbol, months, quote=quote)
         outcome = walk_forward(bars)
         calibration = stock_learning_calibration(bars, symbol)
         return {
-            "symbol": symbol,
+            "symbol": symbol, "proxyQuote": quote,
             "historyBars": len(bars),
             "bayesianPriorMultiplier": calibration,
             **outcome,
