@@ -17,7 +17,11 @@ const response = await fetch('https://sandbox.audacefi.app/api/v1/devnet/bench',
 if (response.status !== 200) throw Error(`BENCH_HTTP_${response.status}`);
 const bench = await response.json();
 const address = value => decode58(value, 32);
-if (bench.cluster !== 'devnet' || !Array.isArray(bench.mints) ||
+console.log('DIRECT_CLUSTER_KIND=' + (
+  bench.cluster === 'devnet' ? 'devnet' : bench.cluster === 'solana-devnet' ? 'solana-devnet' : 'other'
+));
+console.log('DIRECT_MINT_COUNT=' + (Array.isArray(bench.mints) ? bench.mints.length : 'invalid'));
+if (!['devnet', 'solana-devnet'].includes(bench.cluster) || !Array.isArray(bench.mints) ||
     bench.mints.length < 2 || bench.mints.length > 64) throw Error('BENCH_INVALID');
 for (const value of [bench.programId, bench.poster, bench.configPda,
   bench.vaultAuthority, bench.feeAuthority, bench.usdcMintMainnet, bench.usdcMintDevnet]) address(value);
