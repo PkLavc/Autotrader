@@ -15,6 +15,7 @@ Environment=AUDACEFI_ALLOWLIST_SNAPSHOT=/opt/autotrader/deploy/oracle/audacefi-s
 Environment=AUDACEFI_HISTORY_REPORT=/var/lib/autotrader/audacefi/audacefi-historical-qualification.json
 Environment=AUDACEFI_HISTORY_CACHE_DIR=/var/lib/autotrader/audacefi/history-cache
 Environment=AUDACEFI_STATE_DIR=/var/lib/autotrader/audacefi
+ExecStartPre=/usr/bin/git -C /opt/autotrader pull --ff-only origin main
 ExecStart=/opt/autotrader/.venv/bin/python -m integrations.audacefi.history_job
 StateDirectory=autotrader/audacefi
 StateDirectoryMode=0700
@@ -28,7 +29,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/autotrader/audacefi
+ReadWritePaths=/opt/autotrader /var/lib/autotrader/audacefi
 TimeoutStartSec=1200
 Restart=on-failure
 RestartSec=120s

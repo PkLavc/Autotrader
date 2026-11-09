@@ -74,7 +74,9 @@ assets, five-day predictions and realized comparisons against five-day
 momentum. The allowlist snapshot expires at the Season 1 end time and then the
 historical service safely stops without using stale symbols.
 
-Historical research runs every six hours at 00:00, 06:00, 12:00 and 18:00 UTC.
+Each research run fast-forwards the public checkout to `main`, then uses the
+verified monthly cache before evaluating. Historical research runs every six
+hours at 00:00, 06:00, 12:00 and 18:00 UTC.
 Kronos shadow runs every six hours at 03:00, 09:00, 15:00 and 21:00 UTC, so the
 CPU and memory intensive jobs do not overlap. Failed jobs retry after two
 minutes, up to three attempts per hour. Research is capped at 35% CPU and
