@@ -113,18 +113,27 @@ if (mode === 'reconcile') {
       console.log('DIRECT_PILOT_RPC_CONFIRMATION=' + (row.confirmationStatus ?? 'unknown'));
       console.log('DIRECT_PILOT_RPC_ERROR=' + strBoolean(row.err !== null));
     }
+    const tx = await rpc.call('getTransaction', [saved.txid, {
+      commitment: 'finalized', encoding: 'base64', maxSupportedTransactionVersion: 0,
+    }]);
+    console.log('DIRECT_PILOT_RPC_TRANSACTION_PRESENT=' + strBoolean(tx !== null));
+    if (tx) {
+      console.log('DIRECT_PILOT_RPC_TRANSACTION_VERSION=' + (tx.version ?? 'missing'));
+      console.log('DIRECT_PILOT_RPC_TRANSACTION_ERROR=' + strBoolean(tx.meta?.err !== null));
+      console.log('DIRECT_PILOT_RPC_TOKEN_BALANCES_PRESENT=' + strBoolean(
+        Array.isArray(tx.meta?.preTokenBalances) && Array.isArray(tx.meta?.postTokenBalances)
+      ));
+    }
+    try {
+      const evidence = await client.readRankedEvidence(saved.intentId);
+      console.log('DIRECT_PILOT_RANKED_EVIDENCE=' + (
+        evidence?.evidence?.trade?.txid === saved.txid ? 'matched' : 'pending'
+      ));
+    } catch { console.log('DIRECT_PILOT_RANKED_EVIDENCE=unavailable'); }
     const final = await finalizeOperation(client, journal, OPERATION_KEY, adapters.verifyFinal);
     await checkpoint();
     console.log('DIRECT_PILOT_FINALITY=' + final);
     if (final !== 'confirmed') process.exitCode = 1;
-    else {
-      try {
-        const evidence = await client.readRankedEvidence(saved.intentId);
-        console.log('DIRECT_PILOT_RANKED_EVIDENCE=' + (
-          evidence?.evidence?.trade?.txid === saved.txid ? 'matched' : 'pending'
-        ));
-      } catch { console.log('DIRECT_PILOT_RANKED_EVIDENCE=unavailable'); }
-    }
   }
   process.exit();
 }
