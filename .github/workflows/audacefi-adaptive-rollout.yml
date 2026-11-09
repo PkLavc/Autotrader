@@ -8,6 +8,10 @@ on:
       - '.github/workflows/audacefi-adaptive-rollout.yml'
       - 'integrations/audacefi/direct-auto.mjs'
       - 'integrations/audacefi/adaptive_learning.py'
+      - 'integrations/audacefi/adaptive_feedback.py'
+      - 'integrations/audacefi/opportunity-ledger.mjs'
+      - 'integrations/audacefi/live_decision.py'
+      - 'integrations/audacefi/league_strategy.py'
 
 permissions:
   contents: read
