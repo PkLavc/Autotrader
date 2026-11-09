@@ -1,0 +1,29 @@
+name: AudaceFi direct bench chain qualification (read only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  direct-profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+      - name: Build pinned official bench verifier
+        run: |
+          git clone --quiet https://github.com/AudaceFi/audacefi-integration-kit.git vendor/audacefi-integration-kit
+          git -C vendor/audacefi-integration-kit checkout --detach 9abd82702795929722554906b3ac14a7c861181a
+          test "$(git -C vendor/audacefi-integration-kit rev-parse HEAD)" = 9abd82702795929722554906b3ac14a7c861181a
+          cd vendor/audacefi-integration-kit
+          npm ci --ignore-scripts
+          npm run build
+      - name: Compare live bench with finalized Solana Devnet program
+        env:
+          AUDACEFI_API_KEY: ${{ secrets.AUDACEFI_API_KEY }}
+        run: node integrations/audacefi/direct_profile_probe.mjs
