@@ -35,9 +35,11 @@ def stock_learning_calibration(bars: list[list], symbol: str) -> float:
         if not validate_candles(block):
             continue
         baseline = _simulate(block, PRESETS["baseline"], 96, len(block))
-        # Only *matured* outcomes from past completed blocks.
-        observations.append({"sector": symbol,
-                             "excess_return": baseline["net_return"]})
+        # Only matured, genuinely traded rounds are evidence. Windows with
+        # no entries are not losses and must not bias the posterior.
+        if baseline["trades"] > 0:
+            observations.append({"sector": symbol,
+                                 "excess_return": baseline["net_return"]})
     cfg = StrategyConfig(adaptive_min_total_evaluations=20,
                          adaptive_min_sector_evaluations=12)
     factors = sector_factors({"completed": observations}, cfg)
