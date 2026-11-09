@@ -2,7 +2,7 @@ name: AudaceFi Devnet operator watchdog
 
 on:
   schedule:
-    - cron: '23 * 9-13 11 *'
+    - cron: '7,23,39,55 * 9-13 11 *'
   workflow_dispatch:
 
 permissions:

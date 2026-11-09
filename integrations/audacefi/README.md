@@ -43,8 +43,8 @@ and one pending session are allowed. GitHub can delay or drop scheduled triggers
 continuous availability cannot be guaranteed.
 
 An [independent watchdog](../../.github/workflows/audacefi-watchdog.yml) runs
-hourly at minute 23. It checks the authenticated season, active workflow and
-encrypted-journal commit time. After a 12-minute stale heartbeat it requests
+at minutes 7, 23, 39 and 55 each hour. It checks the authenticated season,
+active workflow and encrypted-journal commit time. After a 12-minute stale heartbeat it requests
 cancelation and queues one replacement. It never reads the wallet recovery
 phrase, signs, or submits a trade.
 
