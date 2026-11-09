@@ -16,11 +16,13 @@ on:
       - 'integrations/audacefi/strategy_qualification.py'
       - 'integrations/audacefi/adaptive_feedback.py'
       - 'deploy/oracle/audacefi-research.service'
+      - 'deploy/oracle/audacefi-research-run.sh'
       - 'deploy/oracle/audacefi-research.timer'
       - 'deploy/oracle/audacefi-kronos-shadow.service'
       - 'deploy/oracle/audacefi-kronos-shadow.timer'
       - 'integrations/audacefi/oracle_publish.py'
       - 'tests/test_audacefi_history_research.py'
+      - 'tests/test_audacefi_oracle_services.py'
 
 permissions:
   contents: write

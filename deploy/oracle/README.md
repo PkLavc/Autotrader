@@ -82,7 +82,9 @@ evaluation. Bump `HISTORY_CACHE_SCHEMA` when changing the research algorithm.
 Historical research runs every six
 hours at 00:00, 06:00, 12:00 and 18:00 UTC.
 Kronos shadow runs every six hours at 03:00, 09:00, 15:00 and 21:00 UTC, so the
-CPU and memory intensive jobs do not overlap. Failed jobs retry after two
+CPU and memory intensive jobs are normally staggered. Both hold the same
+`flock` across their full execution, including repository update and publishing,
+so missed timer events cannot overlap them after a reboot. Failed jobs retry after two
 minutes, up to three attempts per hour. Research is capped at 35% CPU and
 1.5 GiB RAM; Kronos is capped at 25% CPU and 3 GiB RAM. These limits reserve
 capacity for Ark and the VM's other services.

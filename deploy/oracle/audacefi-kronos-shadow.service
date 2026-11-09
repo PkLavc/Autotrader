@@ -13,7 +13,7 @@ WorkingDirectory=/opt/autotrader
 Environment=PYTHONPATH=/opt/autotrader
 Environment=HF_HOME=/var/lib/autotrader/audacefi/huggingface
 Environment=AUDACEFI_KRONOS_SHADOW_FILE=/var/lib/autotrader/audacefi/kronos-shadow.json
-ExecStart=/opt/autotrader/.venv/bin/python -m integrations.audacefi.oracle_kronos_shadow
+ExecStart=/usr/bin/flock -w 3600 /var/lib/autotrader/audacefi/service.lock /opt/autotrader/.venv/bin/python -m integrations.audacefi.oracle_kronos_shadow
 StateDirectory=autotrader/audacefi
 StateDirectoryMode=0700
 UMask=0077

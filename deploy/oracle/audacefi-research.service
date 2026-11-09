@@ -16,8 +16,7 @@ Environment=AUDACEFI_HISTORY_REPORT=/var/lib/autotrader/audacefi/audacefi-histor
 Environment=AUDACEFI_HISTORY_CACHE_DIR=/var/lib/autotrader/audacefi/history-cache
 Environment=AUDACEFI_HISTORY_RESULT_CACHE=/var/lib/autotrader/audacefi/evaluations
 Environment=AUDACEFI_STATE_DIR=/var/lib/autotrader/audacefi
-ExecStartPre=/usr/bin/git -C /opt/autotrader pull --ff-only origin main
-ExecStart=/opt/autotrader/.venv/bin/python -m integrations.audacefi.history_job
+ExecStart=/usr/bin/flock -w 3600 /var/lib/autotrader/audacefi/service.lock /usr/bin/bash /opt/autotrader/deploy/oracle/audacefi-research-run.sh
 StateDirectory=autotrader/audacefi
 StateDirectoryMode=0700
 UMask=0077
@@ -31,7 +30,6 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/opt/autotrader /var/lib/autotrader/audacefi
-TimeoutStartSec=1200
+TimeoutStartSec=5400
 Restart=on-failure
 RestartSec=120s
-ExecStartPost=/opt/autotrader/.venv/bin/python -m integrations.audacefi.oracle_publish
