@@ -189,7 +189,7 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
       validation: result.adaptive?.status || 'NOT_AVAILABLE',
       ...(result.adaptive?.holdout ? { holdout: result.adaptive.holdout } : {}) });
     await writeFile(join(journalDirectory, 'adaptive-decisions.json'),
-      JSON.stringify(observations.slice(-192)) + '\\n', { mode: 0o600 });
+      JSON.stringify(observations.slice(-192)) + '\n', { mode: 0o600 });
     await save(journalDirectory, 'adaptive-state.json', nextState, checkpoint);
     console.log('AUDACEFI_ADAPTIVE_STATUS=' + (result.adaptive?.status || 'NOT_AVAILABLE'));
     console.log('AUDACEFI_ADAPTIVE_ACTIVE=' + nextState.active);
