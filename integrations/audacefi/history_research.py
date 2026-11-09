@@ -1,6 +1,6 @@
 """AudaceFi read-only historical strategy qualification from official Binance spot archives.
 
-Downloads exactly four completed calendar months of 15m SPOT candles, validates
+Downloads up to twelve completed calendar months of 15m SPOT candles, validates
 archive hashes and chronological integrity, and simulates non-overlapping
 walk-forward windows. It never signs, trades, changes the active strategy,
 or reads wallet material. Public USDT spot prices are only proxy observations,

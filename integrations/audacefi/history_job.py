@@ -9,7 +9,8 @@ Never sends a trade or changes the live wallet strategy.
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 import json
 import os
 import re
@@ -47,7 +48,54 @@ def stock_learning_calibration(bars: list[list], symbol: str) -> float:
     return factor if 0.95 <= factor <= 1.05 else 1.0
 
 
-def eligible_symbols(api_key: str) -> list[str]:
+def allowlist_snapshot(path: str | Path, *, now: datetime | None = None) -> dict:
+    """Read a time-bounded public allowlist snapshot for isolated research hosts."""
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        raise ValueError("HISTORY_SNAPSHOT_CLOCK_INVALID")
+    try:
+        raw = Path(path).read_bytes()
+        if len(raw) > 8192:
+            raise ValueError("HISTORY_SNAPSHOT_TOO_LARGE")
+        value = json.loads(raw)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("HISTORY_SNAPSHOT_UNREADABLE") from exc
+    if (not isinstance(value, dict) or value.get("schemaVersion") != 1 or
+            isinstance(value.get("schemaVersion"), bool) or
+            value.get("category") != "crypto-bro" or
+            value.get("seasonLabel") != "Season 1" or
+            value.get("allowlistFrozen") is not True or
+            not isinstance(value.get("sourceWorkflowRunId"), int) or
+            isinstance(value.get("sourceWorkflowRunId"), bool) or
+            value["sourceWorkflowRunId"] <= 0):
+        raise RuntimeError("HISTORY_SNAPSHOT_INVALID")
+    try:
+        verified = datetime.fromisoformat(value["verifiedAtUtc"].replace("Z", "+00:00"))
+        expires = datetime.fromisoformat(value["expiresAtUtc"].replace("Z", "+00:00"))
+    except (KeyError, AttributeError, TypeError, ValueError) as exc:
+        raise RuntimeError("HISTORY_SNAPSHOT_DATES_INVALID") from exc
+    current = now.astimezone(timezone.utc)
+    if (verified.tzinfo is None or expires.tzinfo is None or
+            verified > current.replace(microsecond=0) + timedelta(minutes=5) or
+            expires <= verified or expires - verified > timedelta(days=10)):
+        raise RuntimeError("HISTORY_SNAPSHOT_DATES_INVALID")
+    if current >= expires:
+        raise RuntimeError("HISTORY_ALLOWLIST_SNAPSHOT_EXPIRED")
+    symbols = value.get("symbols")
+    if (not isinstance(symbols, list) or not 1 <= len(symbols) <= 24 or
+            any(not isinstance(symbol, str) or
+                not re.fullmatch(r"[A-Z0-9]{2,12}", symbol) or symbol == "USDC"
+                for symbol in symbols) or len(set(symbols)) != len(symbols)):
+        raise RuntimeError("HISTORY_SNAPSHOT_SYMBOLS_INVALID")
+    return {**value, "symbols": sorted(symbols)}
+
+
+def eligible_symbols(api_key: str, *, snapshot_path: str | None = None,
+                     now: datetime | None = None) -> list[str]:
+    if not api_key:
+        if not snapshot_path:
+            raise RuntimeError("HISTORY_KEY_OR_SNAPSHOT_REQUIRED")
+        return allowlist_snapshot(snapshot_path, now=now)["symbols"]
     a_status, state = read_route(api_key, "/api/v1/me/state?category=crypto-bro&mode=real")
     b_status, allowed = read_route(api_key, "/api/v1/me/allowlist?category=crypto_bro&mode=real")
     active = state.get("season", {}).get("active") if isinstance(state, dict) else None
@@ -105,13 +153,26 @@ def research_one(symbol: str, months: list[str]) -> dict:
 
 def main() -> int:
     key = os.environ.get("AUDACEFI_API_KEY", "")
-    if not key or len(key) > 512 or "\r" in key or "\n" in key:
-        print("AUDACEFI_HISTORY=KEY_REQUIRED")
+    snapshot_path = os.environ.get("AUDACEFI_ALLOWLIST_SNAPSHOT", "")
+    if key and (len(key) > 512 or "\r" in key or "\n" in key):
+        print("AUDACEFI_HISTORY=KEY_INVALID")
         return 1
-    symbols = eligible_symbols(key)
-    months = complete_months(datetime.now(timezone.utc), count=4)
+    if not key and not snapshot_path:
+        print("AUDACEFI_HISTORY=KEY_OR_SNAPSHOT_REQUIRED")
+        return 1
+    try:
+        snapshot = allowlist_snapshot(snapshot_path) if not key else None
+    except RuntimeError as exc:
+        if str(exc) == "HISTORY_ALLOWLIST_SNAPSHOT_EXPIRED":
+            print("AUDACEFI_HISTORY=ALLOWLIST_SNAPSHOT_EXPIRED")
+            return 0
+        raise
+    symbols = (snapshot["symbols"] if snapshot else eligible_symbols(key))
+    allowlist_source = "VERIFIED_FROZEN_SNAPSHOT" if snapshot else "LIVE_API"
+    months = complete_months(datetime.now(timezone.utc), count=12)
     print("AUDACEFI_HISTORY_MONTHS=" + ",".join(months))
     print("AUDACEFI_HISTORY_ELIGIBLE_SYMBOL_COUNT=" + str(len(symbols)))
+    print("AUDACEFI_HISTORY_ALLOWLIST_SOURCE=" + allowlist_source)
     results = []
     with ThreadPoolExecutor(max_workers=3) as pool:
         futures = {pool.submit(research_one, symbol, months): symbol
@@ -126,16 +187,21 @@ def main() -> int:
         "schemaVersion": 1, "basis": "binance_verified_spot_monthly_15m_usdt_proxy",
         "readOnly": True, "liveExecutionAuthorized": False,
         "months": months, "eligibleSymbols": len(symbols),
+        "allowlistSource": allowlist_source,
+        "allowlistVerifiedAtUtc": snapshot.get("verifiedAtUtc") if snapshot else None,
+        "allowlistExpiresAtUtc": snapshot.get("expiresAtUtc") if snapshot else None,
         "historicalCoverage": checked, "validatedCandidates": qualified,
         "stockCalibrationMethod": "autotrader.learning.sector_factors",
         "results": results,
     }
-    with open("audacefi-historical-qualification.json", "w", encoding="utf-8") as f:
+    report_path = Path(os.environ.get(
+        "AUDACEFI_HISTORY_REPORT", "audacefi-historical-qualification.json"))
+    with report_path.open("w", encoding="utf-8") as f:
         json.dump(outcome, f, indent=2, sort_keys=True, allow_nan=False)
         f.write("\n")
     print("AUDACEFI_HISTORY_COVERED=" + str(checked))
     print("AUDACEFI_HISTORY_VALIDATED_CANDIDATES=" + str(qualified))
-    print("AUDACEFI_HISTORY_REPORT=audacefi-historical-qualification.json")
+    print("AUDACEFI_HISTORY_REPORT=" + str(report_path))
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
         with open(summary, "a", encoding="utf-8") as f:

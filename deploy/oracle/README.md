@@ -1,45 +1,84 @@
-# Oracle VM — optional AudaceFi research worker
+# Oracle VM — AudaceFi research and Kronos shadow workers
 
-This is **research only**. It does not alter the existing GitHub Actions
-trader, sign transactions or place orders. Hosting the backtester on the
-user's Oracle instance can reduce GitHub Actions compute usage. It is
-not required: the GitHub workflow already runs a validated historical scan.
+Both services are **research only**. They do not read wallet credentials,
+sign transactions, place orders, or change the active strategy. GitHub Actions
+remains the only trading executor until a separately verified cross-host
+single-writer handoff is implemented.
 
 ## Runtime prerequisites
 
-* Always Free or paid Oracle VM with supported Linux, network access and
-  a reliable clock; the correct Always Free shape depends on the account.
+* Oracle Ubuntu 24.04 VM with network access and a reliable clock. The current
+  instance was measured at 1 vCPU, about 5.8 GiB RAM and 45 GiB storage.
 * Read-only GitHub checkout of `PkLavc/Autotrader` at `/opt/autotrader`.
-* Python 3.11 or newer and dependencies from `requirements.txt` in
-  `/opt/autotrader/.venv`.
+* Python 3.11 or newer and the pinned Kronos source/model revisions from
+  `UPSTREAM_REF`, `MODEL_REF` and `TOKENIZER_REF`.
 * A dedicated nonprivileged `autotrader` Linux user.
-* `/etc/autotrader/audacefi-research.env` owned by root with permissions
-  0600, containing `AUDACEFI_API_KEY=<read-scoped API key>`. A read-only key
-  is preferable; never copy a wallet seed phrase to the research worker.
-* `/var/lib/autotrader/audacefi` owned by `autotrader`, mode 0700.
+* No AudaceFi API key, wallet address, signing key or recovery phrase is
+  needed. Historical research reads a public, time-bounded frozen allowlist
+  snapshot. Kronos uses public market candles.
+* `/var/lib/autotrader/audacefi` is created privately by systemd, mode 0700.
+
+Create the user and read-only checkout, then pin the already-qualified Kronos
+source revision:
+
+```bash
+sudo useradd --system --user-group --home-dir /var/lib/autotrader --create-home --shell /usr/sbin/nologin autotrader
+sudo install -d -o autotrader -g autotrader -m 0750 /opt/autotrader
+sudo -u autotrader git clone https://github.com/PkLavc/Autotrader.git /opt/autotrader
+sudo -u autotrader git -C /opt/autotrader checkout main
+sudo -u autotrader install -d /opt/autotrader/vendor/Kronos
+sudo -u autotrader git -C /opt/autotrader/vendor/Kronos init
+sudo -u autotrader git -C /opt/autotrader/vendor/Kronos remote add origin https://github.com/shiyu-coder/Kronos.git
+sudo -u autotrader git -C /opt/autotrader/vendor/Kronos fetch --depth 1 origin "$(cat /opt/autotrader/UPSTREAM_REF)"
+sudo -u autotrader git -C /opt/autotrader/vendor/Kronos checkout --detach FETCH_HEAD
+```
+
+Install the Python environment as the `autotrader` user. The CPU-only PyTorch
+wheel and Kronos packages are separate from the stock equity executor:
+
+```bash
+sudo -u autotrader python3 -m venv /opt/autotrader/.venv
+sudo -u autotrader /opt/autotrader/.venv/bin/pip install --upgrade pip
+sudo -u autotrader /opt/autotrader/.venv/bin/pip install --index-url https://download.pytorch.org/whl/cpu 'torch>=2.0'
+sudo -u autotrader /opt/autotrader/.venv/bin/pip install -r /opt/autotrader/vendor/Kronos/requirements.txt
+sudo -u autotrader /opt/autotrader/.venv/bin/pip install -r /opt/autotrader/requirements.txt
+```
 
 Install the service and timer using `sudo install`:
 
 ```bash
 sudo install -m 0644 deploy/oracle/audacefi-research.service /etc/systemd/system/
 sudo install -m 0644 deploy/oracle/audacefi-research.timer /etc/systemd/system/
+sudo install -m 0644 deploy/oracle/audacefi-kronos-shadow.service /etc/systemd/system/
+sudo install -m 0644 deploy/oracle/audacefi-kronos-shadow.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now audacefi-research.timer
+sudo systemctl enable --now audacefi-kronos-shadow.timer
 sudo systemctl start audacefi-research.service
+sudo systemctl start audacefi-kronos-shadow.service
 sudo systemctl status audacefi-research.service --no-pager
+sudo systemctl status audacefi-kronos-shadow.service --no-pager
 ```
 
-The read-only report is written to
+The historical report uses twelve completed calendar months and is written to
 `/var/lib/autotrader/audacefi/audacefi-historical-qualification.json`.
-It contains only historical research, not credentials or a live order key.
+The private Kronos shadow journal is
+`/var/lib/autotrader/audacefi/kronos-shadow.json`; it records three eligible
+assets, five-day predictions and realized comparisons against five-day
+momentum. The allowlist snapshot expires at the Season 1 end time and then the
+historical service safely stops without using stale symbols.
+
+Both systemd services have CPU and memory limits. Historical research is
+limited to 25% CPU and 1.5 GiB RAM; Kronos shadow inference is limited to 25%
+CPU and 3 GiB RAM. The schedules run at 08:00 and 12:00 UTC, respectively.
 
 ## Moving live trading to Oracle later
 
 Do **not** run two execution workers (Oracle and GitHub Actions) concurrently.
 The current journal uses an encrypted GitHub branch plus a GitHub Actions
 concurrency group; these safeguards do not automatically coordinate with
-another host. Moving the live trader requires a verified single-writer lock
-held across both hosts, secrets provisioned **privately** on Oracle, a proven
+another host. Moving the live trader requires a verified cross-host single-writer lock
+held across both hosts, credentials provisioned **privately** on Oracle, a proven
 shutdown/standby of GitHub execution, a successful portfolio and journal
 reconciliation and a supervised handoff. Until that is implemented, keep
 live execution on GitHub and use Oracle only for read-only training/Kronos.

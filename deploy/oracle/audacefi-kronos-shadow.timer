@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily bounded Kronos shadow inference
+
+[Timer]
+OnCalendar=*-*-* 12:00:00 UTC
+RandomizedDelaySec=5m
+Persistent=true
+Unit=audacefi-kronos-shadow.service
+
+[Install]
+WantedBy=timers.target

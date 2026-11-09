@@ -1,0 +1,28 @@
+[Unit]
+Description=AudaceFi daily Kronos shadow forecast and outcome tracker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=autotrader
+Group=autotrader
+WorkingDirectory=/opt/autotrader
+Environment=PYTHONPATH=/opt/autotrader
+Environment=HF_HOME=/var/lib/autotrader/audacefi/huggingface
+Environment=AUDACEFI_KRONOS_SHADOW_FILE=/var/lib/autotrader/audacefi/kronos-shadow.json
+ExecStart=/opt/autotrader/.venv/bin/python -m integrations.audacefi.oracle_kronos_shadow
+StateDirectory=autotrader/audacefi
+StateDirectoryMode=0700
+UMask=0077
+Nice=10
+CPUQuota=25%
+MemoryHigh=2G
+MemoryMax=3G
+TasksMax=48
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/autotrader/audacefi
+TimeoutStartSec=3600

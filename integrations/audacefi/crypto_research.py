@@ -17,7 +17,8 @@ from autotrader.config import StrategyConfig
 from autotrader.data import load_daily_history
 from autotrader.forecast import KronosEngine
 
-TICKERS = {"BTC": "BTC-USD", "ETH": "ETH-USD", "SOL": "SOL-USD"}
+# WBTC is the eligible AudaceFi asset; BTC-USD is explicitly a proxy feed.
+TICKERS = {"WBTC": "BTC-USD", "ETH": "ETH-USD", "SOL": "SOL-USD"}
 
 
 def crypto_future_dates(last_session: pd.Timestamp, days: int) -> pd.DatetimeIndex:
@@ -64,9 +65,8 @@ class CryptoKronosEngine(KronosEngine):
         return predicted / current - 1
 
 
-def run_forecasts(now: datetime | None = None) -> dict:
-    now = now or datetime.now(timezone.utc)
-    cfg = StrategyConfig()
+def load_crypto_histories(now: datetime, cfg: StrategyConfig | None = None) -> dict[str, pd.DataFrame]:
+    cfg = cfg or StrategyConfig()
     histories = {}
     for symbol, ticker in TICKERS.items():
         raw = load_daily_history(ticker, cfg.lookback + 2)
@@ -74,6 +74,14 @@ def run_forecasts(now: datetime | None = None) -> dict:
         if len(closed) < cfg.lookback:
             raise RuntimeError("INSUFFICIENT_COMPLETED_HISTORY:" + ticker)
         histories[symbol] = closed
+    return histories
+
+
+def run_forecasts(now: datetime | None = None,
+                  histories: dict[str, pd.DataFrame] | None = None) -> dict:
+    now = now or datetime.now(timezone.utc)
+    cfg = StrategyConfig()
+    histories = histories or load_crypto_histories(now, cfg)
     engine = CryptoKronosEngine(cfg)
     signals = []
     for symbol, ticker in TICKERS.items():
@@ -91,6 +99,8 @@ def run_forecasts(now: datetime | None = None) -> dict:
         signals.append({
             "symbol": symbol,
             "expected_return": engine.predict_crypto(ticker, history),
+            "current_close_usd": float(close.iloc[-1]),
+            "baseline_momentum_5d": float(close.iloc[-1] / close.iloc[-6] - 1),
             "momentum_3d": momentum_3d,
             "momentum_7d": momentum_7d,
             "volatility_annualized": vol,
@@ -101,6 +111,10 @@ def run_forecasts(now: datetime | None = None) -> dict:
         "asset_class": "crypto",
         "generated_at": now.astimezone(timezone.utc).isoformat(),
         "model": cfg.model_name,
+        "model_revision": cfg.model_revision,
+        "tokenizer_revision": cfg.tokenizer_revision,
+        "model_source_revision": Path("UPSTREAM_REF").read_text(encoding="utf-8").strip()
+        if Path("UPSTREAM_REF").is_file() else None,
         "data_source": "Yahoo Finance crypto daily UTC completed candles",
         "signals": signals,
     }

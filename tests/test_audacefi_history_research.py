@@ -35,6 +35,10 @@ def test_months_are_closed_utc_only():
         "2026-07", "2026-08", "2026-09", "2026-10"]
     assert history_research.complete_months(datetime(2026, 1, 10, tzinfo=timezone.utc), 2) == [
         "2025-11", "2025-12"]
+    yearly = history_research.complete_months(
+        datetime(2026, 11, 9, tzinfo=timezone.utc), 12)
+    assert len(yearly) == 12
+    assert yearly[0] == "2025-11" and yearly[-1] == "2026-10"
 
 
 def test_binance_official_archives_use_expected_paths():
@@ -106,3 +110,33 @@ def test_api_unavailable_does_not_fabricate_eligible_symbols(monkeypatch):
     monkeypatch.setattr(history_job, "read_route", lambda key, route: (403, None))
     with pytest.raises(RuntimeError, match="HISTORY_SEASON_UNVERIFIED"):
         history_job.eligible_symbols("fake")
+
+
+def test_time_bounded_frozen_allowlist_supports_secretless_oracle_research(tmp_path):
+    path = tmp_path / "allowlist.json"
+    path.write_text('''{"schemaVersion":1,"category":"crypto-bro",
+      "seasonLabel":"Season 1","allowlistFrozen":true,
+      "verifiedAtUtc":"2026-11-09T15:01:07Z",
+      "expiresAtUtc":"2026-11-14T00:00:00Z","sourceWorkflowRunId":42640313647,
+      "symbols":["SOL","ETH","WBTC"]}''', encoding="utf-8")
+    now = datetime(2026, 11, 10, 8, tzinfo=timezone.utc)
+    assert history_job.eligible_symbols("", snapshot_path=str(path), now=now) == [
+        "ETH", "SOL", "WBTC"]
+
+
+def test_expired_or_unfrozen_allowlist_snapshot_fails_closed(tmp_path):
+    path = tmp_path / "allowlist.json"
+    path.write_text('''{"schemaVersion":1,"category":"crypto-bro",
+      "seasonLabel":"Season 1","allowlistFrozen":true,
+      "verifiedAtUtc":"2026-11-09T15:01:07Z",
+      "expiresAtUtc":"2026-11-14T00:00:00Z","sourceWorkflowRunId":42640313647,
+      "symbols":["SOL"]}''', encoding="utf-8")
+    with pytest.raises(RuntimeError, match="HISTORY_ALLOWLIST_SNAPSHOT_EXPIRED"):
+        history_job.eligible_symbols("", snapshot_path=str(path),
+            now=datetime(2026, 11, 14, 0, tzinfo=timezone.utc))
+    path.write_text(path.read_text(encoding="utf-8").replace('"allowlistFrozen":true',
+                                                               '"allowlistFrozen":false'),
+                    encoding="utf-8")
+    with pytest.raises(RuntimeError, match="HISTORY_SNAPSHOT_INVALID"):
+        history_job.eligible_symbols("", snapshot_path=str(path),
+            now=datetime(2026, 11, 10, 8, tzinfo=timezone.utc))

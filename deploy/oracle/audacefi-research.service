@@ -7,12 +7,19 @@ Wants=network-online.target
 Type=oneshot
 User=autotrader
 Group=autotrader
-WorkingDirectory=/var/lib/autotrader/audacefi
+WorkingDirectory=/opt/autotrader
 Environment=PYTHONPATH=/opt/autotrader
-EnvironmentFile=/etc/autotrader/audacefi-research.env
+Environment=AUDACEFI_ALLOWLIST_SNAPSHOT=/opt/autotrader/deploy/oracle/audacefi-s1-allowlist.snapshot.json
+Environment=AUDACEFI_HISTORY_REPORT=/var/lib/autotrader/audacefi/audacefi-historical-qualification.json
 ExecStart=/opt/autotrader/.venv/bin/python -m integrations.audacefi.history_job
 StateDirectory=autotrader/audacefi
+StateDirectoryMode=0700
 UMask=0077
+Nice=10
+CPUQuota=25%
+MemoryHigh=1200M
+MemoryMax=1536M
+TasksMax=32
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict

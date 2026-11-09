@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "category": "crypto-bro",
+  "seasonLabel": "Season 1",
+  "allowlistFrozen": true,
+  "verifiedAtUtc": "2026-11-09T15:01:07Z",
+  "expiresAtUtc": "2026-11-14T00:00:00Z",
+  "sourceWorkflowRunId": 42640313647,
+  "symbols": [
+    "2Z",
+    "BC",
+    "BP",
+    "ETH",
+    "GRASS",
+    "JLP",
+    "JTO",
+    "JUP",
+    "KMNO",
+    "PENGU",
+    "RAY",
+    "SOL",
+    "TRUMP",
+    "USELESS",
+    "WBTC"
+  ]
+}

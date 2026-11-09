@@ -32,7 +32,7 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Verify archive parser, walk-forward and reused AutoTrader calibration
         run: pytest -q tests/test_audacefi_history_research.py
-      - name: Analyze four months of verified spot history for eligible tokens
+      - name: Analyze twelve months of verified spot history for eligible tokens
         env:
           AUDACEFI_API_KEY: ${{ secrets.AUDACEFI_API_KEY }}
         run: python -m integrations.audacefi.history_job
