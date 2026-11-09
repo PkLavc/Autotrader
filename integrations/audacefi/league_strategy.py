@@ -35,6 +35,7 @@ class LeaguePolicy:
     intraday_m6_min: float = .007
     intraday_m12_min: float = -.005
     intraday_m24_min: float = -.02
+    intraday_strategy: str = "momentum"
 
 
 def _utc(value: Any) -> datetime:
@@ -223,16 +224,31 @@ def decide(context: dict, portfolio: dict, report: dict, *,
             if not all(math.isfinite(move) for move in moves):
                 continue
             m1, m3, m6, m12, m24 = moves
-            if (m1 <= 0 or m3 < p.intraday_m3_min or m6 < p.intraday_m6_min or
-                    m12 < p.intraday_m12_min or m24 < p.intraday_m24_min or
-                    volume < 100_000 or signal.get("above_ema20") is not True):
+            base_pass = (m1 > 0 and m3 >= p.intraday_m3_min and
+                         m6 >= p.intraday_m6_min and m12 >= p.intraday_m12_min and
+                         m24 >= p.intraday_m24_min)
+            recovery_pass = (-.06 <= m24 <= -.01 and m3 >= .008 and
+                             m6 >= .003 and m1 > 0)
+            selected_strategy = ("recovery" if p.intraday_strategy == "recovery"
+                                 else "momentum")
+            if selected_strategy == "recovery":
+                passes = recovery_pass
+            else:
+                passes = base_pass
+            if (not passes or volume < 100_000 or
+                    signal.get("above_ema20") is not True):
                 continue
-            strength = .25*m3 + .40*m6 + .25*m12 + .10*m24
+            if selected_strategy == "recovery":
+                selected_strategy = "recovery"
+                strength = .60*m3 + .40*m6
+            else:
+                strength = .25*m3 + .40*m6 + .25*m12 + .10*m24
             if strength < p.minimum_net_edge + p.round_trip_cost_bps/10_000:
                 continue
             stop_distance = p.stop_distance_max
             weight = min(cap, p.risk_budget_per_trade/stop_distance)
-            candidates.append((strength, symbol, weight, strength, stop_distance))
+            candidates.append((strength, symbol, weight, strength, stop_distance,
+                               selected_strategy))
             continue
         try:
             expected = _positive(signal.get("expected_return"), "expected_return", zero=True)
@@ -255,7 +271,7 @@ def decide(context: dict, portfolio: dict, report: dict, *,
         stop_distance = max(p.stop_distance_min, min(p.stop_distance_max, 2*vol/math.sqrt(365)))
         weight = min(cap, p.risk_budget_per_trade/stop_distance)
         score = net_edge/max(vol*math.sqrt(5/365), .025)
-        candidates.append((score, symbol, weight, net_edge, stop_distance))
+        candidates.append((score, symbol, weight, net_edge, stop_distance, "momentum"))
 
     candidates.sort(key=lambda row: (-row[0], row[1]))
     if not candidates:
@@ -263,7 +279,7 @@ def decide(context: dict, portfolio: dict, report: dict, *,
     actions = []
     free_exposure = max(0.0, min(total_cap*equity-exposed, cash))
     held_count = len([v for v in positions.values() if float(v["value_usdc"]) > 0])
-    for score, symbol, weight, edge, stop in candidates:
+    for score, symbol, weight, edge, stop, selected_strategy in candidates:
         if symbol in positions or held_count+len(actions) >= p.max_assets:
             continue
         notional = min(weight*equity, free_exposure)
@@ -274,6 +290,7 @@ def decide(context: dict, portfolio: dict, report: dict, *,
             "maximum_input_usdc": round(notional, 6),
             "stop_reference_fraction": round(stop, 6),
             "ranking_score": round(score, 6),
+            "strategy": selected_strategy,
         }
         action["trend_strength" if intraday else "estimated_net_edge"] = round(edge, 6)
         if intraday:

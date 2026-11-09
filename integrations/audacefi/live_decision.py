@@ -117,9 +117,15 @@ def main() -> int:
                           minimum_net_edge=.004) if intraday else None
     if intraday:
         profile = request.get("activeProfile", "baseline")
-        if not isinstance(profile, str) or profile not in {"baseline", "early", "steady", "breakout"}:
+        if not isinstance(profile, str) or profile not in {"baseline", "early", "steady", "breakout", "recovery"}:
             raise ValueError("INVALID_ADAPTIVE_PROFILE")
         policy = policy_for(profile, policy)
+        approved = request.get("historicalStrategy") == "recovery"
+        if approved:
+            policy = policy_for("recovery", policy)
+        elif profile == "recovery":
+            profile = "baseline"
+            policy = policy_for(profile, policy)
     result = decide(context, portfolio, report, now=now, policy=policy)
     if intraday:
         result["adaptive"] = adaptive
@@ -128,8 +134,44 @@ def main() -> int:
         # completed-candle windows. It applies on the NEXT decision.
         result["adaptiveState"] = update_promotion(
             request.get("adaptiveState"), adaptive,
-            window=int(now.timestamp() // 900),
+            window=int(now.timestamp() // (88 * 900)),
         )
+        actions_by_symbol = {row.get("symbol"): row for row in result.get("actions", [])}
+        diagnostics = []
+        for signal in signals:
+            if signal.get("symbol") not in {"SOL", "ETH"}:
+                continue
+            m1, m3, m6, m12, m24 = (float(signal[key]) for key in (
+                "momentum_1h", "momentum_3h", "momentum_6h",
+                "momentum_12h", "momentum_24h"))
+            base = {"momentum_1h_positive": m1 > 0,
+                    "momentum_3h_min": m3 >= policy.intraday_m3_min,
+                    "momentum_6h_min": m6 >= policy.intraday_m6_min,
+                    "momentum_12h_min": m12 >= policy.intraday_m12_min,
+                    "momentum_24h_min": m24 >= policy.intraday_m24_min}
+            recovery = {"recovery_24h_between_minus6_and_minus1": -.06 <= m24 <= -.01,
+                        "recovery_3h_at_least_0_8pct": m3 >= .008,
+                        "recovery_6h_at_least_0_3pct": m6 >= .003,
+                        "recovery_1h_positive": m1 > 0}
+            selected = actions_by_symbol.get(signal["symbol"])
+            checks = recovery if approved else base
+            strength = .60*m3 + .40*m6 if approved else .25*m3 + .40*m6 + .25*m12 + .10*m24
+            checks["median_dollar_volume_at_least_100k"] = (
+                signal["median_15m_dollar_volume_usd"] >= 100_000)
+            checks["price_above_ema20"] = signal.get("above_ema20") is True
+            checks["estimated_net_edge_after_costs"] = (
+                strength >= policy.minimum_net_edge + policy.round_trip_cost_bps / 10_000)
+            failed = [name for name, passed in checks.items() if not passed]
+            diagnostics.append({"symbol": signal["symbol"],
+                "indicators": {key: signal[key] for key in (
+                    "momentum_1h", "momentum_3h", "momentum_6h",
+                    "momentum_12h", "momentum_24h", "above_ema20")},
+                "strategySelected": selected.get("strategy") if selected else None,
+                "historicalStrategyApproval": "recovery" if approved else "momentum",
+                "filters": checks,
+                "reason": ("ORDER_PROPOSED" if selected else
+                           ",".join(failed) if failed else result.get("reason", "NO_ORDER"))})
+        result["assetDiagnostics"] = diagnostics
     json.dump(result, sys.stdout, separators=(",", ":"))
     return 0
 

@@ -1,6 +1,7 @@
 // Season 1 spot operator. All plans and risk state are stored in the encrypted
 // journal branch. The stock AutoTrader is not imported or modified.
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { readFile, writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -16,10 +17,18 @@ function decision(context, portfolio, adaptiveState) {
   const env = Object.fromEntries(['PATH', 'PYTHONPATH', 'LANG', 'LC_ALL', 'HOME', 'SSL_CERT_FILE']
     .filter(name => typeof process.env[name] === 'string').map(name => [name, process.env[name]]));
   env.PYTHONPATH = process.cwd();
+  let historicalStrategy = 'momentum';
+  try {
+    const qualification = JSON.parse(readFileSync(
+      'integrations/audacefi/strategy-qualification.json', 'utf8'));
+    if (qualification?.schemaVersion === 1 && qualification?.approvedStrategy === 'recovery' &&
+        Number.isInteger(qualification?.sourceRunId) && qualification.sourceRunId > 0)
+      historicalStrategy = 'recovery';
+  } catch {}
   const raw = execFileSync('python', ['-m', 'integrations.audacefi.live_decision'], {
     input: JSON.stringify({ context, portfolio, fetchSignals: true,
       signalMode: 'intraday', adaptiveState,
-      activeProfile: adaptiveState.active }),
+      activeProfile: adaptiveState.active, historicalStrategy }),
     encoding: 'utf8', timeout: 90_000, maxBuffer: 65536, env,
   });
   const result = JSON.parse(raw);
@@ -213,7 +222,7 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
     try {
       adaptiveState = JSON.parse(await readFile(join(journalDirectory, 'adaptive-state.json'), 'utf8'));
     } catch (error) { if (error?.code !== 'ENOENT') throw error; }
-    if (!['baseline', 'steady', 'breakout', 'early'].includes(adaptiveState?.active))
+    if (!['baseline', 'steady', 'breakout', 'early', 'recovery'].includes(adaptiveState?.active))
       throw Error('ADAPTIVE_STORED_PROFILE_INVALID');
     let result;
     try { result = decision(context, portfolio, adaptiveState); }

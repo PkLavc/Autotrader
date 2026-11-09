@@ -158,6 +158,8 @@ def walk_forward(rows: list[list]) -> dict:
     split = len(folds) * 3 // 4
     training = {name: aggregate([fold[name] for fold in folds[:split]])
                 for name in PRESETS}
+    holdout_comparison = {name: aggregate([fold[name] for fold in folds[split:]])
+                          for name in PRESETS}
     baseline = training["baseline"]
     names = [name for name in PRESETS if name != "baseline" and
              training[name]["trades"] >= MIN_TRAIN_TRADES and
@@ -166,11 +168,14 @@ def walk_forward(rows: list[list]) -> dict:
     if not names:
         return {"status": "NO_TRAINING_EDGE", "folds": len(folds),
                 "baselineTrain": baseline,
-                "baselineHoldout": aggregate([fold["baseline"] for fold in folds[split:]])}
+                "baselineHoldout": holdout_comparison["baseline"],
+                "comparison": {name: {"train": training[name],
+                                      "holdout": holdout_comparison[name]}
+                               for name in PRESETS}}
     # One choice from TRAIN only. Do not search the final holdout for a winner.
     name = max(names, key=lambda n: (training[n]["net_return"], n))
-    testing = aggregate([fold[name] for fold in folds[split:]])
-    reference = aggregate([fold["baseline"] for fold in folds[split:]])
+    testing = holdout_comparison[name]
+    reference = holdout_comparison["baseline"]
     valid = (testing["trades"] >= MIN_TEST_TRADES and
              testing["net_return"] > .003 and
              testing["net_return"] > reference["net_return"] + .003 and
@@ -179,4 +184,7 @@ def walk_forward(rows: list[list]) -> dict:
     return {"status": "VALIDATED_HISTORICAL_CANDIDATE" if valid else "REJECTED_OOS",
             "profile": name, "folds": len(folds), "train": training[name],
             "holdout": testing, "baselineHoldout": reference,
+            "comparison": {profile: {"train": training[profile],
+                                     "holdout": holdout_comparison[profile]}
+                           for profile in PRESETS},
             "estimatedRoundTripCostBps": ROUND_TRIP_FEE_ESTIMATE_BPS}

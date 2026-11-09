@@ -102,6 +102,8 @@ def test_intraday_candidate_uses_closed_15m_trend_and_35_percent_cap(monkeypatch
     assert 3000 < action["maximum_input_usdc"] <= 3500
     assert action["reference_price_usd"] == 100
     assert "estimated_net_edge" not in action
+    assert result["assetDiagnostics"][0]["strategySelected"] == "momentum"
+    assert result["assetDiagnostics"][0]["reason"] == "ORDER_PROPOSED"
 
 
 def test_intraday_reversal_exits_existing_position(monkeypatch):

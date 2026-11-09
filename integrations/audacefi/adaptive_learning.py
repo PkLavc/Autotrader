@@ -27,6 +27,10 @@ PRESETS = {
     "early": {"intraday_m3_min": .001, "intraday_m6_min": .004,
               "intraday_m12_min": -.012, "intraday_m24_min": -.025,
               "minimum_net_edge": .003},
+    # Research candidate only. Historical OOS approval is required before use.
+    "recovery": {"intraday_m3_min": .008, "intraday_m6_min": .003,
+                 "intraday_m12_min": -.06, "intraday_m24_min": -.06,
+                 "minimum_net_edge": .004, "intraday_strategy": "recovery"},
 }
 ROUND_TRIP_COST = .006  # Stress estimate: fees + slippage across both legs.
 HOLD_CANDLES = 8
@@ -81,6 +85,10 @@ def _indicators(rows: list[tuple[int, float, float]], index: int) -> tuple | Non
 
 def _qualifies(indicators: tuple, preset: dict, baseline_cost: float) -> bool:
     m1, m3, m6, m12, m24, above, liquidity = indicators
+    if preset.get("intraday_strategy") == "recovery":
+        return (above and liquidity >= 100_000 and m1 > 0 and
+                -.06 <= m24 <= -.01 and m3 >= .008 and m6 >= .003 and
+                .60*m3 + .40*m6 >= preset["minimum_net_edge"] + baseline_cost)
     strength = .25 * m3 + .40 * m6 + .25 * m12 + .10 * m24
     return (above and liquidity >= 100_000 and m1 > 0 and
             m3 >= preset["intraday_m3_min"] and
@@ -148,6 +156,9 @@ def evaluate(candles_by_symbol: dict[str, object]) -> dict:
         split = len(rows) - 88
         train = {name: _simulate(rows, p, 96, split) for name, p in PRESETS.items()}
         for name, result in train.items():
+            if name == "recovery":
+                # Recovery can only be enabled by the twelve-month holdout gate.
+                continue
             if name == "baseline" or result["trades"] < MIN_TRAIN_TRADES or result["net_return"] <= 0:
                 continue
             # Save validation data WITHOUT inspecting its performance during
@@ -179,7 +190,7 @@ def evaluate(candles_by_symbol: dict[str, object]) -> dict:
 
 
 def update_promotion(state: object, suggestion: dict, *, window: int) -> dict:
-    """Deterministic hysteresis. Three consecutive NEW windows to change profile."""
+    """Promote only on disjoint, mature validation periods, never 15m repeats."""
     if not isinstance(window, int) or window < 0:
         raise ValueError("invalid window")
     old = state if isinstance(state, dict) else {}
@@ -191,12 +202,17 @@ def update_promotion(state: object, suggestion: dict, *, window: int) -> dict:
     if isinstance(cooling, int) and cooling > window:
         return {"active": "baseline", "pending": None, "count": 0,
                 "window": window, "cooldownUntilWindow": cooling}
+    # The evaluator's samples overlap heavily; use completed 22h holdout blocks.
     if not isinstance(prev, int) or prev >= window:
         return {"active": active, "pending": old.get("pending"),
                 "count": old.get("count", 0), "window": prev}
     profile = suggestion.get("profile") if suggestion.get("status") == "VALIDATED_CANDIDATE" else None
-    if profile not in PRESETS or profile == active:
+    if profile not in PRESETS or profile == "recovery" or profile == active:
         return {"active": active, "pending": None, "count": 0, "window": window}
+    # ``window`` is a completed, non-overlapping 22h validation block, not a
+    # 15m scheduler tick. Ignore duplicates and require adjacent unique blocks.
+    if isinstance(prev, int) and window - prev != 1:
+        return {"active": active, "pending": profile, "count": 1, "window": window}
     count = old.get("count", 0) + 1 if old.get("pending") == profile else 1
     if count >= 3:
         return {"active": profile, "pending": None, "count": 0, "window": window}
