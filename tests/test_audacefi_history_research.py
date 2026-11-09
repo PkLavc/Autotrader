@@ -202,4 +202,4 @@ def test_history_evaluation_cache_skips_unchanged_tokens(monkeypatch, tmp_path):
     second = history_job.research_one("SOL", ["2026-10"])
     assert calls == {"walk": 1, "load": 2}
     assert first["status"] == second["status"] == "NO_TRAINING_EDGE"
-    assert second["cachedEvaluation"] is True
+    assert second["_cachedEvaluation"] is True

@@ -146,7 +146,7 @@ def research_one(symbol: str, months: list[str]) -> dict:
                         cached.get("fingerprint") == fingerprint and
                         isinstance(cached.get("result"), dict)):
                     return {"symbol": symbol, "proxyQuote": quote,
-                            "historyBars": len(bars), "cachedEvaluation": True,
+                            "historyBars": len(bars), "_cachedEvaluation": True,
                             **cached["result"]}
             except (OSError, UnicodeDecodeError, json.JSONDecodeError):
                 pass
@@ -223,6 +223,9 @@ def main() -> int:
         for future in as_completed(futures):
             results.append(future.result())
     results.sort(key=lambda row: row["symbol"])
+    cached_evaluations = sum(row.get("_cachedEvaluation") is True for row in results)
+    for row in results:
+        row.pop("_cachedEvaluation", None)
     checked = sum(row.get("historyBars", 0) >= 30_000 for row in results)
     qualified = sum(row.get("status") == "VALIDATED_HISTORICAL_CANDIDATE"
                     for row in results)
@@ -244,6 +247,7 @@ def main() -> int:
         f.write("\n")
     print("AUDACEFI_HISTORY_COVERED=" + str(checked))
     print("AUDACEFI_HISTORY_VALIDATED_CANDIDATES=" + str(qualified))
+    print("AUDACEFI_HISTORY_CACHED_EVALUATIONS=" + str(cached_evaluations))
     print("AUDACEFI_HISTORY_REPORT=" + str(report_path))
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
