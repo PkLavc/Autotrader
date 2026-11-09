@@ -43,8 +43,17 @@ export async function openDurableJournal(directory, { repository, githubToken, e
   let sha = loaded.data?.sha;
   await mkdir(directory, { recursive: true, mode: 0o700 });
   if (loaded.status === 200) {
-    if (loaded.data?.type !== 'file' || typeof loaded.data.content !== 'string') throw Error('JOURNAL_REMOTE_INVALID');
-    const encrypted = Buffer.from(loaded.data.content.replace(/\s/g, ''), 'base64');
+    if (loaded.data?.type !== 'file' || !/^[0-9a-f]{40}$/.test(sha) ||
+        !Number.isInteger(loaded.data.size) || loaded.data.size > 1_000_000)
+      throw Error('JOURNAL_REMOTE_INVALID');
+    // Contents API may UTF-8-mangle binary content while returning a valid
+    // blob SHA. Fetch the exact Git blob bytes instead.
+    const blob = await api('GET', `/git/blobs/${sha}`);
+    if (blob.status !== 200 || blob.data?.sha !== sha ||
+        blob.data?.encoding !== 'base64' || typeof blob.data.content !== 'string' ||
+        blob.data.size !== loaded.data.size) throw Error('JOURNAL_BLOB_INVALID');
+    const encrypted = Buffer.from(blob.data.content.replace(/\s/g, ''), 'base64');
+    if (encrypted.length !== blob.data.size) throw Error('JOURNAL_BLOB_SIZE_MISMATCH');
     if (encrypted.length < 29) throw Error('JOURNAL_CIPHERTEXT_INVALID');
     const nonce = encrypted.subarray(0, 12);
     const tag = encrypted.subarray(12, 28);
