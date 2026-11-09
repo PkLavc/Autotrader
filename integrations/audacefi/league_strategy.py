@@ -30,6 +30,11 @@ class LeaguePolicy:
     minimum_net_edge: float = 0.025
     min_order_usdc: float = 1.0
     max_assets: int = 3
+    # Intraday knobs are bounded presets, not unrestricted model output.
+    intraday_m3_min: float = .003
+    intraday_m6_min: float = .007
+    intraday_m12_min: float = -.005
+    intraday_m24_min: float = -.02
 
 
 def _utc(value: Any) -> datetime:
@@ -218,8 +223,9 @@ def decide(context: dict, portfolio: dict, report: dict, *,
             if not all(math.isfinite(move) for move in moves):
                 continue
             m1, m3, m6, m12, m24 = moves
-            if (m1 <= 0 or m3 < .003 or m6 < .007 or m12 < -.005 or
-                    m24 < -.02 or volume < 100_000 or signal.get("above_ema20") is not True):
+            if (m1 <= 0 or m3 < p.intraday_m3_min or m6 < p.intraday_m6_min or
+                    m12 < p.intraday_m12_min or m24 < p.intraday_m24_min or
+                    volume < 100_000 or signal.get("above_ema20") is not True):
                 continue
             strength = .25*m3 + .40*m6 + .25*m12 + .10*m24
             if strength < p.minimum_net_edge + p.round_trip_cost_bps/10_000:
