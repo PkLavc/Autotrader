@@ -18,12 +18,24 @@ test('records rejected signals once and marks their later net outcomes', () => {
   assert.equal(marked[0].outcomes['1h'].grossReturn, .02);
 });
 
-test('never logs an executed proposal as a rejected opportunity', () => {
+test('logs proposed and rejected opportunities for later counterfactual labels', () => {
   const t0 = Date.parse('2026-11-09T00:00:00Z');
   const result = updateOpportunityLedger([], [{ symbol: 'ETH',
     observedAt: new Date(t0).toISOString(), referencePriceUsd: 2000,
     reason: 'ORDER_PROPOSED' }], t0);
-  assert.deepEqual(result, []);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].reason, 'ORDER_PROPOSED');
+});
+
+test('does not mark a future outcome before the requested horizon matures', () => {
+  const t0 = Date.parse('2026-11-09T00:00:00Z');
+  const diagnostic = { symbol: 'ETH', observedAt: new Date(t0).toISOString(),
+    referencePriceUsd: 2000, reason: 'SIGNAL', indicators: { momentum_1h: .01 } };
+  const first = updateOpportunityLedger([], [diagnostic], t0);
+  const early = updateOpportunityLedger(first, [{ ...diagnostic,
+    observedAt: new Date(t0 + 30 * 60_000).toISOString(), referencePriceUsd: 2010 }],
+    t0 + 30 * 60_000);
+  assert.deepEqual(early[0].outcomes, {});
 });
 
 test('rejects malformed persisted state', () => {

@@ -105,7 +105,8 @@ def test_intraday_candidate_uses_closed_15m_trend_and_35_percent_cap(monkeypatch
     assert "estimated_net_edge" not in action
     assert result["assetDiagnostics"][0]["strategySelected"] == "momentum"
     assert result["assetDiagnostics"][0]["reason"] == "ORDER_PROPOSED"
-    assert result["activeProfile"] == "baseline"
+    assert result["activeProfile"] == "momentum"
+    assert result["activeBySymbol"] == {"ETH": "momentum", "SOL": "momentum"}
     assert result["adaptiveState"]["active"] == "baseline"
 
 

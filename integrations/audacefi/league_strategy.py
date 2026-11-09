@@ -7,6 +7,7 @@ Winning is not guaranteed: the league ranks net USDC returns, not model scores.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import replace
 from datetime import datetime, timezone
 import json
 import math
@@ -213,6 +214,25 @@ def decide(context: dict, portfolio: dict, report: dict, *,
             continue
         symbol = signal["symbol"]
         if intraday:
+            strategy_map = report.get("strategy_by_symbol", {})
+            strategy_override = strategy_map.get(symbol, {}) if isinstance(strategy_map, dict) else {}
+            if not isinstance(strategy_override, dict):
+                strategy_override = {}
+            strategy_name = strategy_override.get("profile", p.intraday_strategy)
+            family = strategy_override.get("intraday_strategy", p.intraday_strategy)
+            if strategy_name not in {"momentum", "baseline", "steady", "early",
+                    "recovery", "breakout", "mean_reversion", "multi_trend",
+                    "momentum_loose", "momentum_tight", "breakout_confirmed",
+                    "mean_reversion_deep", "multi_trend_strict"}:
+                continue
+            asset_policy = replace(p,
+                intraday_strategy=("momentum" if strategy_name in {"momentum", "baseline"}
+                                   else family),
+                intraday_m3_min=float(strategy_override.get("intraday_m3_min", p.intraday_m3_min)),
+                intraday_m6_min=float(strategy_override.get("intraday_m6_min", p.intraday_m6_min)),
+                intraday_m12_min=float(strategy_override.get("intraday_m12_min", p.intraday_m12_min)),
+                intraday_m24_min=float(strategy_override.get("intraday_m24_min", p.intraday_m24_min)),
+                minimum_net_edge=float(strategy_override.get("minimum_net_edge", p.minimum_net_edge)))
             try:
                 moves = [float(signal[name]) for name in (
                     "momentum_1h", "momentum_3h", "momentum_6h",
@@ -224,10 +244,10 @@ def decide(context: dict, portfolio: dict, report: dict, *,
             if not all(math.isfinite(move) for move in moves):
                 continue
             m1, m3, m6, m12, m24 = moves
-            selected_strategy = p.intraday_strategy
-            common = (m1 > 0 and m3 >= p.intraday_m3_min and
-                      m6 >= p.intraday_m6_min and m12 >= p.intraday_m12_min and
-                      m24 >= p.intraday_m24_min)
+            selected_strategy = asset_policy.intraday_strategy
+            common = (m1 > 0 and m3 >= asset_policy.intraday_m3_min and
+                      m6 >= asset_policy.intraday_m6_min and m12 >= asset_policy.intraday_m12_min and
+                      m24 >= asset_policy.intraday_m24_min)
             recovery_pass = (-.06 <= m24 <= -.01 and m3 >= .008 and
                              m6 >= .003 and m1 > 0)
             breakout = float(signal.get("breakout_20", -1))
@@ -255,7 +275,7 @@ def decide(context: dict, portfolio: dict, report: dict, *,
                 passes, strength = False, 0.0
             if not passes or volume < 100_000:
                 continue
-            if strength < p.minimum_net_edge + p.round_trip_cost_bps/10_000:
+            if strength < asset_policy.minimum_net_edge + asset_policy.round_trip_cost_bps/10_000:
                 continue
             stop_distance = p.stop_distance_max
             weight = min(cap, p.risk_budget_per_trade/stop_distance)

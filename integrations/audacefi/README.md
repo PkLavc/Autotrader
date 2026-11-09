@@ -94,11 +94,13 @@ and Oracle research are read-only. Backtests do not guarantee live gains.
 ## Historical data, AutoTrader reuse and Oracle VM
 
 The [historical training workflow](../../.github/workflows/audacefi-history-training.yml)
-runs daily and on demand. It downloads twelve **completed** months of public
+runs weekly and on demand. It downloads twelve **completed** months of public
 15-minute Binance spot archives for the active AudaceFi-eligible symbols,
 verifies official SHA-256 checksums, rejects missing candles and regenerates a
 bounded candidate grid across momentum, recovery, breakout, mean-reversion and
-multi-period trend families. It selects a single candidate on the first 75%
+multi-period trend families. Alternative signal thresholds are regenerated
+from the training segment's median absolute 24-hour return; the live baseline
+and portfolio risk limits stay fixed. It selects a candidate on the first 75%
 chronologically, then opens the untouched final 25% once for promotion checks.
 Each partition is simulated as one continuous equity curve through the same
 decision engine as live execution. A missing
@@ -113,18 +115,24 @@ adapted to daily crypto candles in
 [`CryptoKronosEngine`](crypto_research.py) but remains optional research:
 it is **not** a validated 15-minute live trading model. Nothing in this
 workflow places orders. A 12-month candidate may be written to the strategy
-gate only when the same profile beats momentum for both SOL and ETH in training
-and untouched holdout, has
-enough completed trades, closes in USDC, respects the rolling swap limit and
+gate independently for SOL or ETH only when that asset's candidate beats
+momentum in training and untouched holdout, has enough completed trades, closes
+in USDC, respects the rolling swap limit and
 stays within the intraday and competition drawdown guards. The executor still
 rolls back to momentum for 24 hours after three consecutive realized losing
 round trips exceeding 20 USDC combined.
 
-The live executor also keeps a bounded, encrypted-journal ledger of rejected
-SOL/ETH signals. It records why each entry filter failed, then marks net
-counterfactual 1h/6h/24h returns after estimated fees and slippage as later
-completed candles arrive. Those observations inform research only; they cannot
-promote a strategy by themselves.
+The live executor also keeps a bounded, encrypted-journal ledger of SOL/ETH
+signals, including proposals and rejected entries. It records indicators and
+filter decisions, then marks net counterfactual 1h/6h/24h returns after estimated
+fees and slippage as later completed candles arrive. Only matured 24-hour labels
+with non-overlapping daily observations enter the online learner. It splits
+those labels chronologically, selects among historically OOS-approved policies
+per asset, and tests only stricter parameter variants. Promotion requires a
+positive net validation edge over momentum, at least eight validation samples,
+and drawdown below 1.8%; realized losing round trips can roll that asset back.
+The online ledger cannot bypass the historical qualification gate or increase
+exposure.
 
 The six-times-daily universe scan now checks all currently eligible symbols
 against the frozen allowlist and AudaceFi Devnet mint mapping, then cross-checks
@@ -135,7 +143,8 @@ Quote-route availability remains unverified until an authorized Devnet buy and
 sell are both confirmed. The live signer and executor remain restricted to
 SOL/ETH, so no newly discovered token can be traded by this change.
 
-Corrected twelve-month run (November 9): 15 explicitly eligible symbols,
+Previous twelve-month run (November 9, before per-asset qualification and
+training-derived threshold generation): 15 explicitly eligible symbols,
 5 with complete verified history, and **zero** recovery candidates approved.
 On the untouched holdout, SOL momentum returned -1.09% (150 swaps; estimated
 costs 793.44 USDC) versus recovery -4.11% (42 swaps; 212.24 USDC). ETH momentum

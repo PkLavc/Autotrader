@@ -14,7 +14,7 @@ def qualification(report: dict, run_id: str) -> dict:
     if not isinstance(results, list):
         raise ValueError("HISTORICAL_REPORT_INVALID")
     promotable = set(PRESETS) - {"baseline"}
-    qualified: dict[str, dict[str, float]] = {"SOL": {}, "ETH": {}}
+    qualified: dict[str, dict[str, dict]] = {"SOL": {}, "ETH": {}}
     for row in results:
         if (not isinstance(row, dict) or row.get("symbol") not in {"SOL", "ETH"} or
                 row.get("status") != "VALIDATED_HISTORICAL_CANDIDATE" or
@@ -31,6 +31,25 @@ def qualification(report: dict, run_id: str) -> dict:
         consistency = row.get("holdoutConsistency", {})
         consistency = consistency if isinstance(consistency, dict) else {}
         regimes = consistency.get("regimes", {}) if isinstance(consistency, dict) else {}
+        parameters = candidate.get("parameters", PRESETS[profile])
+        if not isinstance(parameters, dict):
+            continue
+        family = parameters.get("intraday_strategy", "momentum")
+        if family not in {"momentum", "recovery", "breakout", "mean_reversion", "multi_trend"}:
+            continue
+        bounded = True
+        for key, low, high in (("intraday_m3_min", 0, .02),
+                               ("intraday_m6_min", 0, .02),
+                               ("intraday_m12_min", -.10, .05),
+                               ("intraday_m24_min", -.10, .05),
+                               ("minimum_net_edge", .003, .02)):
+            value = parameters.get(key, PRESETS[profile].get(key, .004))
+            if (isinstance(value, bool) or not isinstance(value, (int, float)) or
+                    not low <= value <= high):
+                bounded = False
+                break
+        if not bounded:
+            continue
         if (holdout.get("net_return", 0) > base_holdout.get("net_return", 0) + .003 and
                 train.get("net_return", 0) > base_train.get("net_return", 0) and
                 train.get("trades", 0) >= 10 and holdout.get("net_return", 0) > 0 and
@@ -51,22 +70,33 @@ def qualification(report: dict, run_id: str) -> dict:
                     item.get("meanEdge", -1) >= 0
                     for item in regimes.values())):
             edge = holdout.get("net_return", 0) - base_holdout.get("net_return", 0)
-            qualified[row["symbol"]][profile] = edge
-    # A globally approved policy must have independent qualification for both
-    # live-supported assets. One token's holdout cannot authorize the other.
-    shared = set(qualified["SOL"]) & set(qualified["ETH"])
-    selected = max(shared, key=lambda name: (
-        qualified["SOL"][name] + qualified["ETH"][name], name)) if shared else None
-    approved = selected is not None
+            qualified[row["symbol"]][profile] = {
+                "profile": profile, "parameters": parameters,
+                "holdoutEdge": round(edge, 8),
+                "trainNetReturn": train.get("net_return", 0),
+                "holdoutNetReturn": holdout.get("net_return", 0),
+                "holdoutMaxDrawdown": holdout.get("max_drawdown", 1),
+                "holdoutObservations": consistency.get("folds", 0),
+                "wilsonLower95": consistency.get("wilsonLower95", 0),
+            }
+    approved_by_symbol = {}
+    for symbol, choices in qualified.items():
+        if choices:
+            approved_by_symbol[symbol] = max(choices.values(), key=lambda item: (
+                item["holdoutEdge"], item["holdoutNetReturn"], item["profile"]))
+    approved = bool(approved_by_symbol)
     try:
         source = int(run_id)
     except (TypeError, ValueError):
         raise ValueError("HISTORICAL_RUN_ID_INVALID") from None
-    return {"schemaVersion": 2,
-            "approvedStrategy": selected if approved else "momentum",
+    selected_profiles = {item["profile"] for item in approved_by_symbol.values()}
+    return {"schemaVersion": 3,
+            "approvedStrategy": (next(iter(selected_profiles)) if len(selected_profiles) == 1
+                                 else "per_asset" if approved else "momentum"),
             "sourceRunId": source if approved else None,
-            "approvedSymbols": ["SOL", "ETH"] if approved else [],
-            "reason": "VALIDATED_12M_OOS_ADVANTAGE" if approved else
+            "approvedSymbols": sorted(approved_by_symbol),
+            "approvedBySymbol": approved_by_symbol,
+            "reason": "VALIDATED_12M_OOS_ADVANTAGE_PER_ASSET" if approved else
                       "NO_12M_OOS_CANDIDATE_ADVANTAGE"}
 
 

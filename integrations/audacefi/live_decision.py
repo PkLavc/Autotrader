@@ -16,6 +16,7 @@ from autotrader.data import load_daily_history
 from .crypto_research import completed_crypto_bars
 from .league_strategy import LeaguePolicy, decide
 from .adaptive_learning import evaluate, policy_for, update_promotion
+from .adaptive_feedback import select_by_asset
 from .intraday_signal import signal_from_rows
 
 
@@ -114,37 +115,58 @@ def main() -> int:
                 "baseline", "early", "steady", "breakout", "recovery",
                 "mean_reversion", "multi_trend"}:
             raise ValueError("INVALID_ADAPTIVE_PROFILE")
-        approved_strategy = request.get("historicalStrategy")
-        approved = approved_strategy in {"steady", "early", "recovery", "breakout",
-            "mean_reversion", "multi_trend", "momentum_loose", "momentum_tight",
-            "breakout_confirmed", "mean_reversion_deep", "multi_trend_strict"}
-        if approved:
-            # This value is accepted only from the versioned qualification file
-            # produced by a 12-month, chronologically held-out research run.
-            profile = approved_strategy
-            policy = policy_for(approved_strategy, policy)
-        else:
-            # Legacy short-window promotions are not OOS evidence. Keep the
-            # shared exit engine unchanged, but use baseline for new entries.
-            profile = "baseline"
-            prior_state = request.get("adaptiveState")
-            request["adaptiveState"] = {
-                **(prior_state if isinstance(prior_state, dict) else {}),
-                "active": "baseline"}
-            policy = policy_for(profile, policy)
+        # Each asset must pass its own untouched historical OOS qualification.
+        # Matured counterfactuals may choose/roll back only within that gate.
+        approved_by_symbol = request.get("historicalStrategies")
+        if not isinstance(approved_by_symbol, dict):
+            approved_by_symbol = {}
+        prior_state = request.get("adaptiveState")
+        feedback = select_by_asset(approved_by_symbol,
+            request.get("opportunityFeedback", []),
+            now_ms=int(now.timestamp() * 1000), prior=prior_state,
+            realized=request.get("realizedFeedback", []))
+        profile_by_symbol = feedback["activeBySymbol"]
+        policy_by_symbol = {}
+        for symbol, selected in profile_by_symbol.items():
+            qualification = approved_by_symbol.get(symbol)
+            approved_profile = qualification.get("profile") if isinstance(qualification, dict) else None
+            params = feedback.get("activeParametersBySymbol", {}).get(symbol)
+            if not isinstance(params, dict):
+                params = qualification.get("parameters") if isinstance(qualification, dict) else None
+            active_profile = selected if selected == approved_profile else "baseline"
+            policy_by_symbol[symbol] = policy_for(active_profile, policy)
+            if active_profile == approved_profile and isinstance(params, dict):
+                from dataclasses import replace
+                allowed = {key: value for key, value in params.items() if key in {
+                    "intraday_strategy", "intraday_m3_min", "intraday_m6_min",
+                    "intraday_m12_min", "intraday_m24_min", "minimum_net_edge"}}
+                policy_by_symbol[symbol] = replace(policy_by_symbol[symbol], **allowed)
+        report["strategy_by_symbol"] = {
+            symbol: {"profile": profile_by_symbol[symbol],
+                     **(feedback.get("activeParametersBySymbol", {}).get(symbol) or
+                        approved_by_symbol.get(symbol, {}).get("parameters", {})
+                        if isinstance(approved_by_symbol.get(symbol), dict) and
+                        profile_by_symbol[symbol] != "momentum" else {})}
+            for symbol in profile_by_symbol}
+        profile = (next(iter(set(profile_by_symbol.values())))
+                   if len(set(profile_by_symbol.values())) == 1 else "per_asset")
+        policy = policy_by_symbol.get("SOL", policy)
     result = decide(context, portfolio, report, now=now, policy=policy)
     if intraday:
+        result["activeBySymbol"] = profile_by_symbol
         result["adaptive"] = adaptive
         result["activeProfile"] = profile
         # The next profile is promoted only after three distinct, successful
         # completed-candle windows. It applies on the NEXT decision.
         result["adaptiveState"] = update_promotion(
-            request.get("adaptiveState"), adaptive,
+            {**(request.get("adaptiveState") if isinstance(request.get("adaptiveState"), dict) else {}),
+             "active": "baseline"}, adaptive,
             # The operator's idempotence marker is a completed 15m candle.
             # Short windows are diagnostic only; 12m history is the only
             # path that may approve a new strategy.
             window=int(now.timestamp() // 900),
         )
+        result["adaptiveState"].update(feedback)
         actions_by_symbol = {row.get("symbol"): row for row in result.get("actions", [])}
         diagnostics = []
         for signal in signals:
@@ -159,8 +181,13 @@ def main() -> int:
                     "momentum_12h_min": m12 >= policy.intraday_m12_min,
                     "momentum_24h_min": m24 >= policy.intraday_m24_min}
             selected = actions_by_symbol.get(signal["symbol"])
-            strategy = profile if approved else "momentum"
+            strategy = profile_by_symbol.get(signal["symbol"], "momentum")
+            signal_policy = policy_by_symbol.get(signal["symbol"], policy)
             checks = dict(base)
+            checks["momentum_3h_min"] = m3 >= signal_policy.intraday_m3_min
+            checks["momentum_6h_min"] = m6 >= signal_policy.intraday_m6_min
+            checks["momentum_12h_min"] = m12 >= signal_policy.intraday_m12_min
+            checks["momentum_24h_min"] = m24 >= signal_policy.intraday_m24_min
             if strategy == "recovery":
                 checks = {"recovery_24h_between_minus6_and_minus1": -.06 <= m24 <= -.01,
                           "recovery_3h_at_least_0_8pct": m3 >= .008,
@@ -189,7 +216,7 @@ def main() -> int:
             else:
                 strength = .25*m3 + .40*m6 + .25*m12 + .10*m24
             checks["estimated_net_edge_after_costs"] = (
-                strength >= policy.minimum_net_edge + policy.round_trip_cost_bps / 10_000)
+                strength >= signal_policy.minimum_net_edge + signal_policy.round_trip_cost_bps / 10_000)
             failed = [name for name, passed in checks.items() if not passed]
             diagnostics.append({"symbol": signal["symbol"],
                 "observedAt": now.isoformat(),
@@ -198,8 +225,10 @@ def main() -> int:
                     "momentum_1h", "momentum_3h", "momentum_6h",
                     "momentum_12h", "momentum_24h", "above_ema20",
                     "ema20_gap", "breakout_20", "rsi14")},
-                "strategySelected": selected.get("strategy") if selected else None,
-                "historicalStrategyApproval": profile if approved else "momentum",
+                "strategySelected": selected.get("strategy") if selected else strategy,
+                "learningEvidence": feedback.get("evidenceBySymbol", {}).get(signal["symbol"], {}),
+                "historicalStrategyApproval": (approved_by_symbol.get(signal["symbol"], {}).get("profile", "momentum")
+                    if isinstance(approved_by_symbol.get(signal["symbol"]), dict) else "momentum"),
                 "filters": checks,
                 "reason": ("ORDER_PROPOSED" if selected else
                            ",".join(failed) if failed else result.get("reason", "NO_ORDER"))})

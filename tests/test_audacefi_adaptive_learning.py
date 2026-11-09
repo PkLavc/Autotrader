@@ -123,6 +123,7 @@ def test_recovery_requires_12_month_out_of_sample_advantage():
                    "bear": {"folds": 6, "meanEdge": .01}}}}
     report = {"results": [row, {**row, "symbol": "ETH"}]}
     assert qualification(report, "123")["approvedStrategy"] == "recovery"
+    assert set(qualification(report, "123")["approvedBySymbol"]) == {"SOL", "ETH"}
     comparison["recovery"]["holdout"]["net_return"] = .011
     assert qualification(report, "124")["approvedStrategy"] == "momentum"
 
@@ -217,11 +218,14 @@ def test_out_of_sample_qualification_can_select_generated_families():
     report = {"results": [row, {**row, "symbol": "ETH"}]}
     result = qualification(report, "321")
     assert result["approvedStrategy"] == "multi_trend"
-    assert result["approvedSymbols"] == ["SOL", "ETH"]
-    assert qualification({"results": [row]}, "322")["approvedStrategy"] == "momentum"
+    assert result["approvedSymbols"] == ["ETH", "SOL"]
+    single = qualification({"results": [row]}, "322")
+    assert single["approvedStrategy"] == "multi_trend"
+    assert single["approvedSymbols"] == ["SOL"]
+    assert single["approvedBySymbol"]["SOL"]["profile"] == "multi_trend"
     row["holdoutConsistency"]["blockBootstrapMeanEdgeLower95"] = -.001
     assert qualification(report, "323")["approvedStrategy"] == "momentum"
-    assert result["schemaVersion"] == 2
+    assert result["schemaVersion"] == 3
 
 
 def test_universe_scan_rejects_bad_mints_before_price_or_route_research():

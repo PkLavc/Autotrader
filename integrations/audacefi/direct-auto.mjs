@@ -14,31 +14,32 @@ const keyFor = index => `autotrader_s1_competitive_${String(Math.floor(index / 2
 const planFile = (directory, index) => join(directory, `operation-${String(index).padStart(2, '0')}.json`);
 const hold = reason => console.log('AUDACEFI_AUTO_HOLD=' + reason);
 
-function decision(context, portfolio, adaptiveState) {
+function decision(context, portfolio, adaptiveState, opportunityRows, realizedRows) {
   const env = Object.fromEntries(['PATH', 'PYTHONPATH', 'LANG', 'LC_ALL', 'HOME', 'SSL_CERT_FILE']
     .filter(name => typeof process.env[name] === 'string').map(name => [name, process.env[name]]));
   env.PYTHONPATH = process.cwd();
-  let historicalStrategy = 'momentum';
+  let historicalStrategies = {};
   try {
     const qualification = JSON.parse(readFileSync(
       'integrations/audacefi/strategy-qualification.json', 'utf8'));
-    if (qualification?.schemaVersion === 2 &&
+    if (qualification?.schemaVersion === 3 &&
         Array.isArray(qualification?.approvedSymbols) &&
-        ['SOL', 'ETH'].every(symbol => qualification.approvedSymbols.includes(symbol)) &&
+        qualification.approvedBySymbol && typeof qualification.approvedBySymbol === 'object' &&
         ['steady', 'early', 'recovery', 'breakout', 'mean_reversion', 'multi_trend',
           'momentum_loose', 'momentum_tight', 'breakout_confirmed',
-          'mean_reversion_deep', 'multi_trend_strict'].includes(qualification?.approvedStrategy) &&
+          'mean_reversion_deep', 'multi_trend_strict'].some(profile =>
+            Object.values(qualification.approvedBySymbol).some(item => item?.profile === profile)) &&
         Number.isInteger(qualification?.sourceRunId) && qualification.sourceRunId > 0)
-      historicalStrategy = qualification.approvedStrategy;
+      historicalStrategies = qualification.approvedBySymbol;
   } catch {}
   const window = Math.floor(Date.now() / (15 * 60_000));
   if (Number.isInteger(adaptiveState?.historicalRollbackUntilWindow) &&
       window < adaptiveState.historicalRollbackUntilWindow)
-    historicalStrategy = 'momentum';
+    historicalStrategies = {};
   const raw = execFileSync('python', ['-m', 'integrations.audacefi.live_decision'], {
     input: JSON.stringify({ context, portfolio, fetchSignals: true,
-      signalMode: 'intraday', adaptiveState,
-      activeProfile: adaptiveState.active, historicalStrategy }),
+      signalMode: 'intraday', adaptiveState, historicalStrategies,
+      opportunityFeedback: opportunityRows, realizedFeedback: realizedRows }),
     encoding: 'utf8', timeout: 90_000, maxBuffer: 65536, env,
   });
   const result = JSON.parse(raw);
@@ -137,7 +138,8 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
         const pnl = Math.round((cash - before) * 1e6) / 1e6;
         if (!Number.isFinite(pnl) || Math.abs(pnl) > 5000)
           throw Error('ADAPTIVE_FEEDBACK_PNL_INVALID');
-        feedback.outcomes.push({ pair, pnl, profile: buy.profile || 'baseline' });
+        feedback.outcomes.push({ pair, pnl, symbol: buy.symbol,
+          profile: buy.profile || 'momentum' });
         console.log('AUDACEFI_ADAPTIVE_REALIZED_PNL_USDC=' + pnl);
       }
       // Older competitive trades predate cashBefore: mark as observed, never
@@ -235,8 +237,25 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
     } catch (error) { if (error?.code !== 'ENOENT') throw error; }
     if (!['baseline', 'steady', 'breakout', 'early', 'recovery', 'mean_reversion', 'multi_trend'].includes(adaptiveState?.active))
       throw Error('ADAPTIVE_STORED_PROFILE_INVALID');
+    let opportunityRows = [];
+    try { opportunityRows = JSON.parse(await readFile(
+      join(journalDirectory, 'adaptive-opportunities.json'), 'utf8')); }
+    catch (error) { if (error?.code !== 'ENOENT') throw error; }
+    if (!Array.isArray(opportunityRows) || opportunityRows.length > 250)
+      throw Error('ADAPTIVE_OPPORTUNITY_LEDGER_INVALID');
+    let realizedRows = [];
+    try {
+      const realizedState = JSON.parse(await readFile(
+        join(journalDirectory, 'adaptive-performance.json'), 'utf8'));
+      realizedRows = Array.isArray(realizedState?.outcomes)
+        ? realizedState.outcomes.filter(row => row && ['SOL', 'ETH'].includes(row.symbol)) : [];
+    }
+    catch (error) { if (error?.code !== 'ENOENT') throw error; }
+    if (!Array.isArray(realizedRows) || realizedRows.length > 32 || realizedRows.some(row =>
+      !row || !['SOL', 'ETH'].includes(row.symbol) || typeof row.profile !== 'string' ||
+      !Number.isFinite(row.pnl))) throw Error('ADAPTIVE_REALIZED_FEEDBACK_INVALID');
     let result;
-    try { result = decision(context, portfolio, adaptiveState); }
+    try { result = decision(context, portfolio, adaptiveState, opportunityRows, realizedRows); }
     catch { hold('STRATEGY_DATA_UNAVAILABLE'); return; }
     const nextState = result.adaptiveState;
     if (!nextState || !['baseline', 'steady', 'breakout', 'early', 'recovery', 'mean_reversion', 'multi_trend'].includes(nextState.active) ||
@@ -260,10 +279,6 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
       ...(result.adaptive?.holdout ? { holdout: result.adaptive.holdout } : {}) });
     await writeFile(join(journalDirectory, 'adaptive-decisions.json'),
       JSON.stringify(observations.slice(-192)) + '\n', { mode: 0o600 });
-    let opportunityRows = [];
-    try { opportunityRows = JSON.parse(await readFile(
-      join(journalDirectory, 'adaptive-opportunities.json'), 'utf8')); }
-    catch (error) { if (error?.code !== 'ENOENT') throw error; }
     opportunityRows = updateOpportunityLedger(
       opportunityRows, result.assetDiagnostics || [], now);
     await save(journalDirectory, 'adaptive-opportunities.json', opportunityRows, checkpoint);
@@ -271,6 +286,11 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
     modelProfile = result.activeProfile;
     console.log('AUDACEFI_ADAPTIVE_STATUS=' + (result.adaptive?.status || 'NOT_AVAILABLE'));
     console.log('AUDACEFI_ADAPTIVE_ACTIVE=' + nextState.active);
+    if (nextState.activeBySymbol && ['SOL', 'ETH'].every(symbol =>
+      ['momentum', ...['steady', 'early', 'breakout', 'recovery', 'mean_reversion',
+        'multi_trend', 'momentum_loose', 'momentum_tight', 'breakout_confirmed',
+        'mean_reversion_deep', 'multi_trend_strict']].includes(nextState.activeBySymbol[symbol])))
+      console.log('AUDACEFI_ADAPTIVE_ACTIVE_BY_SYMBOL=' + JSON.stringify(nextState.activeBySymbol));
     console.log('AUDACEFI_REJECTED_OPPORTUNITY_SAMPLES=' + opportunityRows.length);
     console.log('AUDACEFI_AUTO_DECISION=' + result.status);
     if (/^[A-Z_]{1,64}$/.test(result.reason ?? ''))
@@ -282,6 +302,7 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
         assets.some(asset => asset.symbol === row.symbol));
       if (proposal) {
         chosen = assets.find(asset => asset.symbol === proposal.symbol);
+        modelProfile = result.activeBySymbol?.[proposal.symbol] || 'momentum';
         const serverPrice = priced(chosen), reference = Number(proposal.reference_price_usd);
         if (serverPrice === null || !Number.isFinite(reference) || reference <= 0 ||
             Math.abs(serverPrice / reference - 1) > .05) {

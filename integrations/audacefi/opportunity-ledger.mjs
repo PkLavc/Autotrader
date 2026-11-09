@@ -42,7 +42,7 @@ export function updateOpportunityLedger(previous, diagnostics, now = Date.now())
   const latestWindow = new Set(rows.map(row =>
     `${row.symbol}:${Math.floor(row.observedAt / (15 * 60_000))}`));
   for (const signal of diagnostics) {
-    if (!signal || signal.reason === 'ORDER_PROPOSED' ||
+    if (!signal ||
         typeof signal.symbol !== 'string' || typeof signal.reason !== 'string') continue;
     const observedAt = Date.parse(signal.observedAt);
     const referencePriceUsd = Number(signal.referencePriceUsd);
@@ -54,7 +54,10 @@ export function updateOpportunityLedger(previous, diagnostics, now = Date.now())
     rows.push({ symbol: signal.symbol,
       observedAt: Math.floor(observedAt / (15 * 60_000)) * (15 * 60_000),
       referencePriceUsd, strategy: String(signal.historicalStrategyApproval || 'momentum'),
-      reason: signal.reason.slice(0, 256), filters: signal.filters || {}, outcomes: {} });
+      strategySelected: typeof signal.strategySelected === 'string' ? signal.strategySelected : null,
+      reason: signal.reason.slice(0, 256), filters: signal.filters || {},
+      indicators: signal.indicators && typeof signal.indicators === 'object'
+        ? signal.indicators : {}, outcomes: {} });
   }
   return rows.slice(-200);
 }

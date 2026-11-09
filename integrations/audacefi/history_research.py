@@ -22,7 +22,7 @@ from urllib.request import Request, urlopen
 from zipfile import ZipFile, BadZipFile
 
 from .adaptive_learning import (MAX_ROLLING_SWAPS, PRESETS, _simulate,
-                                validate_candles)
+                                generate_candidates, validate_candles)
 
 ORIGIN = "https://data.binance.vision"
 MAX_ZIP = 5_000_000
@@ -128,7 +128,8 @@ def load_history(symbol: str, months: list[str], loader=download,
 
 
 def holdout_consistency(rows: list[tuple[int, float, float]], profile: str,
-                        first: int, last: int, *, symbol: str) -> dict:
+                        first: int, last: int, *, symbol: str,
+                        parameters: dict | None = None) -> dict:
     """Paired five-day candidate/baseline evidence with regime breakdown."""
     observations = []
     by_regime: dict[str, list[float]] = {}
@@ -138,7 +139,7 @@ def holdout_consistency(rows: list[tuple[int, float, float]], profile: str,
             continue
         reference = rows[begin][1] / rows[begin - 96][1] - 1
         regime = "bull" if reference >= .01 else "bear" if reference <= -.01 else "sideways"
-        candidate = _simulate(rows, PRESETS[profile], begin, end, symbol=symbol)
+        candidate = _simulate(rows, parameters or PRESETS[profile], begin, end, symbol=symbol)
         baseline = _simulate(rows, PRESETS["baseline"], begin, end, symbol=symbol)
         edge = candidate["net_return"] - baseline["net_return"]
         observations.append(edge)
@@ -191,11 +192,11 @@ def walk_forward(rows: list[list], symbol: str = "SOL") -> dict:
     # Bounded, interpretable strategy families. The winner is selected only
     # on the chronological training segment; the untouched holdout is opened
     # once for that one nominated candidate.
-    profiles = tuple(PRESETS)
-    training = {name: _simulate(parsed, PRESETS[name], 96, split, symbol=symbol)
-                for name in profiles}
-    holdout = {name: _simulate(parsed, PRESETS[name], split, len(parsed), symbol=symbol)
-               for name in profiles}
+    profiles = generate_candidates(parsed[:split])
+    training = {name: _simulate(parsed, params, 96, split, symbol=symbol)
+                for name, params in profiles.items()}
+    holdout = {name: _simulate(parsed, params, split, len(parsed), symbol=symbol)
+               for name, params in profiles.items()}
     baseline_train, baseline_test = training["baseline"], holdout["baseline"]
     candidates = [name for name in profiles if name != "baseline" and
                   training[name]["trades"] >= MIN_TRAIN_TRADES and
@@ -208,7 +209,8 @@ def walk_forward(rows: list[list], symbol: str = "SOL") -> dict:
     test = holdout[selected] if selected else holdout["baseline"]
     candidate_train = training[selected] if selected else baseline_train
     train_edge = selected is not None
-    consistency = (holdout_consistency(parsed, selected, split, len(parsed), symbol=symbol)
+    consistency = (holdout_consistency(parsed, selected, split, len(parsed), symbol=symbol,
+                                       parameters=profiles[selected])
                    if selected else {"folds": 0, "foldsBeatingBaseline": 0,
                                     "wilsonLower95": 0.0, "regimes": {}, "regimeCoverage": 0})
     consistency_pass = (consistency["folds"] >= 10 and
@@ -252,7 +254,8 @@ def walk_forward(rows: list[list], symbol: str = "SOL") -> dict:
         reason = "HOLDOUT_FOLD_OR_REGIME_CONFIDENCE_INSUFFICIENT"
     else:
         reason = "VALIDATED_12M_OOS_ADVANTAGE"
-    comparison = {name: {"train": training[name], "holdout": holdout[name]}
+    comparison = {name: {"train": training[name], "holdout": holdout[name],
+                         "parameters": profiles[name]}
                   for name in profiles}
     return {"status": status, "decisionReason": reason,
             "profile": selected or "baseline",
@@ -266,6 +269,10 @@ def walk_forward(rows: list[list], symbol: str = "SOL") -> dict:
             "holdoutConsistency": consistency,
             "baselineTrain": baseline_train, "baselineHoldout": baseline_test,
             "comparison": comparison,
+            "candidateGeneration": {"method": "training_segment_median_abs_24h_return",
+                "baselineFixed": True, "thresholdScale": round(max(.75, min(1.5,
+                    (sorted(abs(parsed[i][1] / parsed[i-96][1] - 1)
+                            for i in range(96, split))[max(0, (split-96)//2)] / .02))), 6)},
             "costModel": {"estimatedRoundTripCostBps": ROUND_TRIP_FEE_ESTIMATE_BPS,
                 "estimatedFeeBpsPerSwap": 10, "estimatedSlippageBpsPerSwap": 5,
                 "maximumRollingSwaps24h": 10, "reservedExitSwapForEntry": True,

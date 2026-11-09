@@ -14,8 +14,13 @@ import math
 from .intraday_signal import signal_from_rows
 from .league_strategy import LeaguePolicy, decide
 
-def generate_candidates() -> dict[str, dict]:
-    """Regenerate a bounded grid of strategy families and signal thresholds."""
+def generate_candidates(training_rows: object = None) -> dict[str, dict]:
+    """Create a bounded parameter grid from training-only volatility.
+
+    Baseline remains byte-for-byte fixed. Alternative thresholds adapt to the
+    training segment's median absolute 24h return; neither execution risk nor
+    cost assumptions can be changed here.
+    """
     candidates = {
         "baseline": {"intraday_m3_min": .003, "intraday_m6_min": .007,
                      "intraday_m12_min": -.005, "intraday_m24_min": -.02,
@@ -35,6 +40,23 @@ def generate_candidates() -> dict[str, dict]:
         "mean_reversion": ("mean_reversion", .001, -.03, -.06, -.08, .004),
         "multi_trend": ("multi_trend", .002, .004, .006, .008, .004),
     }
+    scale = 1.0
+    parsed = validate_candles(training_rows) if training_rows is not None else []
+    if parsed:
+        daily = [abs(parsed[i][1] / parsed[i - 96][1] - 1)
+                 for i in range(96, len(parsed))]
+        daily.sort()
+        median = daily[len(daily) // 2] if daily else .02
+        scale = max(.75, min(1.5, median / .02))
+    def tune(values: dict) -> dict:
+        adjusted = dict(values)
+        for key in ("intraday_m3_min", "intraday_m6_min", "intraday_m12_min",
+                    "intraday_m24_min"):
+            value = adjusted.get(key)
+            if isinstance(value, (int, float)) and value > 0:
+                adjusted[key] = round(max(.0005, min(.02, value * scale)), 6)
+        return adjusted
+
     for name, (family, m3, m6, m12, m24, edge) in families.items():
         candidates[name] = {"intraday_strategy": family,
             "intraday_m3_min": m3, "intraday_m6_min": m6,
@@ -55,6 +77,9 @@ def generate_candidates() -> dict[str, dict]:
             "intraday_m3_min": values[0], "intraday_m6_min": values[1],
             "intraday_m12_min": values[2], "intraday_m24_min": values[3],
             "minimum_net_edge": values[4]}
+    for name in tuple(candidates):
+        if name != "baseline":
+            candidates[name] = tune(candidates[name])
     return candidates
 
 
@@ -313,8 +338,9 @@ def evaluate(candles_by_symbol: dict[str, object]) -> dict:
         # Training ends before holdout starts; each trade fully closes inside
         # its own segment. No future close can influence a train signal.
         split = len(rows) - 88
+        candidates = generate_candidates(rows[:split])
         train = {name: _simulate(rows, p, 96, split, symbol=symbol)
-                 for name, p in PRESETS.items()}
+                 for name, p in candidates.items()}
         for name, result in train.items():
             if name == "recovery":
                 # Recovery can only be enabled by the twelve-month holdout gate.
@@ -333,7 +359,8 @@ def evaluate(candles_by_symbol: dict[str, object]) -> dict:
     winner = max(train_candidates, key=lambda item: (item[0], item[1], item[2]))
     train_return, symbol, name, training = winner
     rows, split = held_out[(symbol, name)]
-    validation = _simulate(rows, PRESETS[name], split, len(rows), symbol=symbol)
+    candidates = generate_candidates(rows[:split])
+    validation = _simulate(rows, candidates[name], split, len(rows), symbol=symbol)
     baseline = _simulate(rows, PRESETS["baseline"], split, len(rows), symbol=symbol)
     if not (validation["trades"] >= MIN_TEST_TRADES and
             validation["net_return"] > REQUIRED_TEST_EDGE and
@@ -346,6 +373,7 @@ def evaluate(candles_by_symbol: dict[str, object]) -> dict:
         )}
     return {"status": "VALIDATED_CANDIDATE", "symbol": symbol, "profile": name,
             "train": training, "holdout": validation,
+            "parameters": candidates[name],
             "costBps": round(ROUND_TRIP_COST * 10000)}
 
 

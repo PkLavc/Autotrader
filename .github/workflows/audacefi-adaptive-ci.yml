@@ -6,18 +6,23 @@ on:
     branches: [main]
     paths:
       - 'integrations/audacefi/adaptive_learning.py'
+      - 'integrations/audacefi/adaptive_feedback.py'
       - 'integrations/audacefi/opportunity-ledger.mjs'
       - 'integrations/audacefi/intraday_signal.py'
       - 'integrations/audacefi/live_decision.py'
       - 'integrations/audacefi/league_strategy.py'
+      - 'integrations/audacefi/history_research.py'
+      - 'integrations/audacefi/strategy-qualification.json'
       - 'integrations/audacefi/strategy_qualification.py'
       - 'integrations/audacefi/direct-auto.mjs'
       - 'integrations/audacefi/adaptive-handoff.mjs'
       - 'integrations/audacefi/handoff-journal.mjs'
       - 'tests/test_audacefi_adaptive_learning.py'
+      - 'tests/test_audacefi_adaptive_feedback.py'
       - 'tests/test_audacefi_opportunity_ledger.mjs'
       - 'tests/test_audacefi_live_decision.py'
       - 'tests/test_audacefi_league_strategy.py'
+      - 'tests/test_audacefi_history_research.py'
       - 'tests/test_audacefi_handoff_journal.mjs'
       - '.github/workflows/audacefi-adaptive-ci.yml'
 
@@ -39,7 +44,7 @@ jobs:
           node-version: '24'
       - run: pip install -r requirements.txt
       - name: Python adaptive, market and risk tests
-        run: pytest -q tests/test_audacefi_adaptive_learning.py tests/test_audacefi_live_decision.py tests/test_audacefi_league_strategy.py
+        run: pytest -q tests/test_audacefi_adaptive_learning.py tests/test_audacefi_adaptive_feedback.py tests/test_audacefi_live_decision.py tests/test_audacefi_league_strategy.py tests/test_audacefi_history_research.py
       - name: Verify safe journal handoff rules
         run: node --test tests/test_audacefi_handoff_journal.mjs
       - name: Verify rejected-opportunity outcome ledger

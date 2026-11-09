@@ -3,13 +3,18 @@ name: AudaceFi historical training (research only)
 on:
   workflow_dispatch:
   schedule:
-    - cron: '32 7 * * *'
+    # Archive walk-forward is expensive; live matured outcomes update every
+    # executor cycle, while the twelve-month historical gate refreshes weekly.
+    - cron: '32 7 * * 1'
   push:
     branches: [main]
     paths:
       - '.github/workflows/audacefi-history-training.yml'
       - 'integrations/audacefi/history_job.py'
       - 'integrations/audacefi/history_research.py'
+      - 'integrations/audacefi/adaptive_learning.py'
+      - 'integrations/audacefi/strategy_qualification.py'
+      - 'integrations/audacefi/adaptive_feedback.py'
       - 'tests/test_audacefi_history_research.py'
 
 permissions:
