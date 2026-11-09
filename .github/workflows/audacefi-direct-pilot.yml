@@ -1,0 +1,46 @@
+name: AudaceFi direct Devnet pilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Preflight or the fixed 25 USDC Devnet pilot'
+        required: true
+        type: choice
+        options: [preflight, execute]
+        default: preflight
+
+permissions:
+  contents: write
+
+concurrency:
+  group: audacefi-direct-pilot
+  cancel-in-progress: false
+
+jobs:
+  pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+      - name: Build pinned official bench verifier
+        run: |
+          git clone --quiet https://github.com/AudaceFi/audacefi-integration-kit.git vendor/audacefi-integration-kit
+          git -C vendor/audacefi-integration-kit checkout --detach 9abd82702795929722554906b3ac14a7c861181a
+          test "$(git -C vendor/audacefi-integration-kit rev-parse HEAD)" = 9abd82702795929722554906b3ac14a7c861181a
+          cd vendor/audacefi-integration-kit
+          npm ci --ignore-scripts
+          npm run build
+      - name: Qualify direct API, journal, and optional fixed pilot
+        env:
+          AUDACEFI_API_KEY: ${{ secrets.AUDACEFI_API_KEY }}
+          AUDACEFI_WALLET_ADDRESS: ${{ secrets.AUDACEFI_WALLET_ADDRESS }}
+          AUDACEFI_WALLET_RECOVERY_PHRASE: ${{ secrets.AUDACEFI_WALLET_RECOVERY_PHRASE }}
+          AUDACEFI_JOURNAL_KEY: ${{ secrets.AUDACEFI_JOURNAL_KEY }}
+          AUDACEFI_ENABLE_EXECUTION: ${{ inputs.mode == 'execute' && 'true' || 'false' }}
+          AUDACEFI_DEVNET_ACK: ${{ inputs.mode == 'execute' && 'true' || 'false' }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node integrations/audacefi/direct-pilot.mjs "${{ inputs.mode }}"
