@@ -15,6 +15,7 @@ ROUTES = (
     ("state", "/api/v1/me/state?category=crypto-bro&mode=real"),
     ("allowlist", "/api/v1/me/allowlist?category=crypto_bro&mode=real"),
     ("bench", "/api/v1/devnet/bench"),
+    ("discipline", "/api/v1/me/discipline?category=crypto_bro"),
 )
 MAX_BYTES = 256 * 1024
 
@@ -102,6 +103,14 @@ def summarize(name: str, body: dict | list | None) -> None:
                     token.get("symbol") == symbol for token in tokens
                 )).lower())
         return
+    if name == "discipline" and isinstance(body, dict):
+        print("DISCIPLINE_FIELDS=" + ",".join(sorted(body)))
+        for field in ("limits", "today", "risk", "drawdown", "trades", "status"):
+            value = body.get(field)
+            if isinstance(value, dict):
+                print("DISCIPLINE_" + field.upper() + "_FIELDS=" +
+                      ",".join(sorted(value)))
+        return
     if isinstance(body, dict):
         print(name.upper() + "_ROOT_FIELDS=" + ",".join(sorted(
             k for k in body if k in {
@@ -165,11 +174,12 @@ def main() -> int:
                     char.isupper() or char.isdigit() or char == "_" for char in code
                 ):
                     print(name.upper() + "_ERROR_CODE=" + code)
-            if status != 200:
+            if status != 200 and name != "discipline":
                 ok = False
         except (OSError, ValueError, http.client.HTTPException):
             print(name.upper() + "_CONNECT_FAILED")
-            ok = False
+            if name != "discipline":
+                ok = False
     for name, route in (("wallet", "/api/v1/me/wallet?category=crypto_bro"),
                         ("player", "/api/v1/players/" + str(account_id) if account_id else "")):
         if not route:
