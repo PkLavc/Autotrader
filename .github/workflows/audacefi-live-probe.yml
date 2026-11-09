@@ -1,0 +1,31 @@
+name: AudaceFi live execution endpoint diagnostic (no orders)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audacefi-live-probe.yml'
+      - 'integrations/audacefi/live_probe.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audacefi-live-probe
+  cancel-in-progress: false
+
+jobs:
+  live-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify authenticated season/allowlist/bench endpoints
+        env:
+          AUDACEFI_API_KEY: ${{ secrets.AUDACEFI_API_KEY }}
+        run: python3 -m integrations.audacefi.live_probe
+      - name: Record invariant (no writes)
+        if: always()
+        run: |
+          echo 'AudaceFi execution remains disabled; this job only checks documented GET endpoints.' >> "$GITHUB_STEP_SUMMARY"
