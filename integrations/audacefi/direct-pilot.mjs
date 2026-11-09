@@ -101,6 +101,8 @@ if (mode === 'preflight') {
 if (mode === 'history') {
   const saved = await reconcileOperation(client, journal, OPERATION_KEY);
   if (!saved) throw Error('PILOT_HISTORY_SUBMISSION_MISSING');
+  const sell = await journal.read(SELL_KEY);
+  console.log('DIRECT_PILOT_SELL_JOURNAL_FINAL=' + strBoolean(sell.events.at(-1)?.stage === 'FINAL_CONFIRMED'));
   for (const [name, route] of [
     ['FEED', '/v1/me/feed?category=crypto-bro'],
     ['DISCIPLINE', '/v1/me/discipline?category=crypto_bro'],
@@ -157,6 +159,9 @@ if (mode === 'history') {
           console.log('DIRECT_PILOT_WALLET_HOLDING_COUNT=' + body.holdings.length);
         if (Array.isArray(body.holdings) && body.holdings[0])
           console.log('DIRECT_PILOT_WALLET_HOLDING_FIELDS=' + Object.keys(body.holdings[0]).sort().join(','));
+        if (Array.isArray(body.holdings))
+          console.log('DIRECT_PILOT_WALLET_USDC_ONLY=' + strBoolean(body.holdings.every(item =>
+            item.symbol === 'USDC' || Number(item.amount) === 0)));
         if (body.lastLpv && typeof body.lastLpv === 'object')
           console.log('DIRECT_PILOT_WALLET_LPV_FIELDS=' + Object.keys(body.lastLpv).sort().join(','));
       }
