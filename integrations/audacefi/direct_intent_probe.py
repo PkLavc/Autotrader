@@ -27,7 +27,12 @@ def request(key: str, method: str, path: str, payload: dict | None = None) -> tu
         raw = response.read(MAX_BYTES + 1)
         if len(raw) > MAX_BYTES:
             raise ValueError("RESPONSE_TOO_LARGE")
-        parsed = json.loads(raw) if raw else {}
+        try:
+            parsed = json.loads(raw) if raw else {}
+        except (ValueError, UnicodeDecodeError):
+            if response.status == 200:
+                raise ValueError("INVALID_RESPONSE") from None
+            parsed = {}
         if not isinstance(parsed, dict):
             raise ValueError("INVALID_RESPONSE")
         return response.status, parsed
@@ -41,6 +46,10 @@ def error_code(body: dict) -> str:
         if isinstance(value, str) and CODE.fullmatch(value):
             return value
     return "UNAVAILABLE"
+
+
+def field_names(body: dict) -> str:
+    return ",".join(sorted(key for key in body if isinstance(key, str) and CODE.fullmatch(key)))
 
 
 def token(tokens: object, symbol: str) -> dict:
@@ -88,6 +97,24 @@ def main() -> int:
         usdc, sol = token(allow.get("tokens"), "USDC"), token(allow.get("tokens"), "SOL")
         if usdc.get("decimals") != 6 or usdc["mint"] == sol["mint"]:
             raise ValueError("TOKEN_DECIMALS_OR_PAIR_INVALID")
+        bench_status, bench = request(key, "GET", "/api/v1/devnet/bench")
+        print("DIRECT_BENCH_HTTP=" + str(bench_status))
+        if bench_status != 200:
+            return 1
+        print("DIRECT_BENCH_FIELDS=" + field_names(bench))
+        mints = bench.get("mints")
+        print("DIRECT_BENCH_MINTS_TYPE=" + (
+            "object" if isinstance(mints, dict) else "list" if isinstance(mints, list) else "other"
+        ))
+        if isinstance(mints, dict):
+            print("DIRECT_BENCH_MINT_KEYS=" + field_names(mints))
+            first = next((value for value in mints.values() if isinstance(value, dict)), None)
+            if first is not None:
+                print("DIRECT_BENCH_MINT_VALUE_FIELDS=" + field_names(first))
+        elif isinstance(mints, list):
+            first = next((value for value in mints if isinstance(value, dict)), None)
+            if first is not None:
+                print("DIRECT_BENCH_MINT_ITEM_FIELDS=" + field_names(first))
         material = "autotrader-s1-direct-intent-25-usdc-sol:" + season_id + ":" + expected_wallet
         idem = "at_s1_" + sha256(material.encode()).hexdigest()[:48]
         intent = {
@@ -110,7 +137,14 @@ def main() -> int:
             return 1
         print("DIRECT_INTENT_BUILT=true")
         print("DIRECT_INTENT_REPLAYED=" + str(body.get("replayed") is True).lower())
+        print("DIRECT_INTENT_FIELDS=" + field_names(body))
         print("DIRECT_INPUT_BINDING_ECHO=" + str(body.get("inputBinding") == intent["inputBinding"]).lower())
+        submission_status, submission = request(key, "GET", "/api/v1/swap-intents/" + body["intentId"] + "/submission")
+        print("DIRECT_SUBMISSION_LOOKUP_HTTP=" + str(submission_status))
+        if submission_status != 200:
+            print("DIRECT_SUBMISSION_LOOKUP_ERROR_CODE=" + error_code(submission))
+        else:
+            print("DIRECT_SUBMISSION_LOOKUP_FIELDS=" + field_names(submission))
         quote_status, quote = request(key, "POST", "/api/v1/swap-intents/" + body["intentId"] + "/quote", {"amountInRaw": "25000000"})
         print("DIRECT_QUOTE_HTTP=" + str(quote_status))
         if quote_status not in (200, 201):
@@ -119,6 +153,7 @@ def main() -> int:
         print("DIRECT_QUOTE_CONTEXT_MATCH=" + str(
             quote.get("intentId") == body["intentId"] and quote.get("amountInRaw") == "25000000"
         ).lower())
+        print("DIRECT_QUOTE_FIELDS=" + field_names(quote))
         print("DIRECT_QUOTE_HAS_EXPIRY=" + str(isinstance(quote.get("expiresAt"), str)).lower())
         print("DIRECT_PROBE=NO_SIGNATURE_OR_SUBMISSION")
         return 0
