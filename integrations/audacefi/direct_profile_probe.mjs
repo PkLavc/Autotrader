@@ -22,10 +22,20 @@ console.log('DIRECT_CLUSTER_KIND=' + (
 ));
 console.log('DIRECT_MINT_COUNT=' + (Array.isArray(bench.mints) ? bench.mints.length : 'invalid'));
 if (!['devnet', 'solana-devnet'].includes(bench.cluster) || !Array.isArray(bench.mints) ||
-    bench.mints.length < 2 || bench.mints.length > 64) throw Error('BENCH_INVALID');
+    bench.mints.length < 2 || bench.mints.length > 2048) throw Error('BENCH_INVALID');
 for (const value of [bench.programId, bench.poster, bench.configPda,
   bench.vaultAuthority, bench.feeAuthority, bench.usdcMintMainnet, bench.usdcMintDevnet]) address(value);
-const mappings = bench.mints.map(row => {
+const allowResponse = await fetch('https://sandbox.audacefi.app/api/v1/me/allowlist?category=crypto_bro&mode=real', {
+  headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
+  redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(12000),
+});
+if (allowResponse.status !== 200) throw Error(`ALLOWLIST_HTTP_${allowResponse.status}`);
+const allow = await allowResponse.json();
+const sol = allow.tokens?.find(row => row.symbol === 'SOL' && row.eligible === true);
+if (!sol?.mint) throw Error('SOL_NOT_ELIGIBLE');
+const pairMints = bench.mints.filter(row => row.mintMainnet === bench.usdcMintMainnet || row.mintMainnet === sol.mint);
+if (pairMints.length !== 2) throw Error('PAIR_MAPPING_INVALID');
+const mappings = pairMints.map(row => {
   address(row.mintMainnet); address(row.mintDevnet);
   if (!Number.isInteger(row.decimals) || row.decimals < 0 || row.decimals > 9) throw Error('MAPPING_INVALID');
   return { mainnet: row.mintMainnet, devnet: row.mintDevnet, decimals: row.decimals };
