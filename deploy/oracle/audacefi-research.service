@@ -1,0 +1,21 @@
+[Unit]
+Description=AudaceFi historical research (read-only, no trades)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=autotrader
+Group=autotrader
+WorkingDirectory=/var/lib/autotrader/audacefi
+Environment=PYTHONPATH=/opt/autotrader
+EnvironmentFile=/etc/autotrader/audacefi-research.env
+ExecStart=/opt/autotrader/.venv/bin/python -m integrations.audacefi.history_job
+StateDirectory=autotrader/audacefi
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/autotrader/audacefi
+TimeoutStartSec=1200
