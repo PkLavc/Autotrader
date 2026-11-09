@@ -3,6 +3,7 @@
 // with the active 15-minute decision window already evaluated by that worker.
 // This does not hold or sign any wallet key and does not submit an order.
 import { createDecipheriv } from 'node:crypto';
+import { competitiveJournalIsQuiescent } from './handoff-journal.mjs';
 
 const repo = process.env.GITHUB_REPOSITORY;
 const token = process.env.GITHUB_TOKEN;
@@ -56,11 +57,7 @@ async function journalSnapshot() {
   plaintext.fill(0);
   if (value.version !== 1 || !value.files || typeof value.files !== 'object' ||
       Array.isArray(value.files)) throw Error('HANDOFF_JOURNAL_VERSION_INVALID');
-  const names = Object.keys(value.files);
-  // If ANY competitive operation has been prepared, decline handoff rather
-  // than risk interrupting an intention/quote/signature/submission.
-  if (names.some(name=>/^operation-\d{2}\.json$/.test(name)) ||
-      names.some(name=>name.startsWith('operation-'))) return {flat:false};
+  if (!competitiveJournalIsQuiescent(value.files)) return {flat:false};
   const encoded = value.files['risk-state.json'];
   if (typeof encoded !== 'string') return {flat:false};
   const risk = JSON.parse(Buffer.from(encoded,'base64').toString('utf8'));

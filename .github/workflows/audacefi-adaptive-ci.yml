@@ -9,9 +9,12 @@ on:
       - 'integrations/audacefi/live_decision.py'
       - 'integrations/audacefi/league_strategy.py'
       - 'integrations/audacefi/direct-auto.mjs'
+      - 'integrations/audacefi/adaptive-handoff.mjs'
+      - 'integrations/audacefi/handoff-journal.mjs'
       - 'tests/test_audacefi_adaptive_learning.py'
       - 'tests/test_audacefi_live_decision.py'
       - 'tests/test_audacefi_league_strategy.py'
+      - 'tests/test_audacefi_handoff_journal.mjs'
       - '.github/workflows/audacefi-adaptive-ci.yml'
 
 permissions:
@@ -33,8 +36,11 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Python adaptive, market and risk tests
         run: pytest -q tests/test_audacefi_adaptive_learning.py tests/test_audacefi_live_decision.py tests/test_audacefi_league_strategy.py
+      - name: Verify safe journal handoff rules
+        run: node --test tests/test_audacefi_handoff_journal.mjs
       - name: Syntax-check live executor
         run: |
           node --check integrations/audacefi/direct-auto.mjs
           node --check integrations/audacefi/direct-pilot.mjs
+          node --check integrations/audacefi/adaptive-handoff.mjs
           python -m compileall -q integrations/audacefi
