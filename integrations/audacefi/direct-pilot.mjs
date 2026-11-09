@@ -129,7 +129,10 @@ if (mode === 'reconcile') {
       console.log('DIRECT_PILOT_RANKED_EVIDENCE=' + (
         evidence?.evidence?.trade?.txid === saved.txid ? 'matched' : 'pending'
       ));
-    } catch { console.log('DIRECT_PILOT_RANKED_EVIDENCE=unavailable'); }
+    } catch (error) {
+      console.log('DIRECT_PILOT_RANKED_EVIDENCE=' + (/^HTTP_[0-9]{3}$/.test(error?.code)
+        ? error.code : 'unavailable'));
+    }
     const final = await finalizeOperation(client, journal, OPERATION_KEY, adapters.verifyFinal);
     await checkpoint();
     console.log('DIRECT_PILOT_FINALITY=' + final);

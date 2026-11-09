@@ -18,4 +18,13 @@ if (gate !== 8 || !body.includes('        catch {\n            return (console.l
   throw Error('VERIFIER_DIAGNOSTIC_GATES_CHANGED');
 body = body.replace('        catch {\n            return (console.log',
   "        catch (error) {\n            console.log('DIRECT_PILOT_VERIFIER_ERROR=' + (/^[A-Z_]{1,64}$/.test(error?.message) ? error.message : 'UNCLASSIFIED'));\n            return (console.log");
-await writeFile(file, source.slice(0, start) + body + source.slice(end));
+const loop = 'for (const { address, mint, owner, delta } of expected) {';
+const mismatch = 'if (post - pre !== delta)\n            throw new Error("FINALIZED_BENCH_BALANCE_MISMATCH");';
+if (!body.includes(loop) && source.includes(loop)) {
+  const prefix = source.slice(0, start);
+  if (!prefix.includes(loop) || !prefix.includes(mismatch)) throw Error('VERIFIER_BALANCE_DIAGNOSTIC_CHANGED');
+  const changedPrefix = prefix.replace(loop,
+    'for (const [position, { address, mint, owner, delta }] of expected.entries()) {').replace(mismatch,
+    'if (post - pre !== delta) {\n            console.log("DIRECT_PILOT_BALANCE_ROLE=" + position);\n            throw new Error("FINALIZED_BENCH_BALANCE_MISMATCH");\n        }');
+  await writeFile(file, changedPrefix + body + source.slice(end));
+} else throw Error('VERIFIER_BALANCE_DIAGNOSTIC_CHANGED');
