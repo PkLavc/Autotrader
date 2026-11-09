@@ -123,6 +123,18 @@ if (mode === 'history') {
         console.log(`DIRECT_PILOT_${name}_FIELDS=` + Object.keys(body).sort().join(','));
         if (Array.isArray(body?.items) && body.items[0])
           console.log(`DIRECT_PILOT_${name}_ITEM_FIELDS=` + Object.keys(body.items[0]).sort().join(','));
+        if (name === 'FEED') {
+          const types = [...new Set(body.items.map(item => item.type).filter(value =>
+            typeof value === 'string' && /^[a-z_]{1,60}$/.test(value)))].sort();
+          console.log('DIRECT_PILOT_FEED_EVENT_TYPES=' + types.join(','));
+        }
+        if (name === 'PLAYER') {
+          for (const field of ['currentSeason', 'trackRecord']) {
+            const value = body[field];
+            if (value && typeof value === 'object' && !Array.isArray(value))
+              console.log(`DIRECT_PILOT_PLAYER_${field.toUpperCase()}_FIELDS=` + Object.keys(value).sort().join(','));
+          }
+        }
       }
     } catch (error) {
       console.log(`DIRECT_PILOT_${name}_HTTP=` + (String(error?.message).match(/^DIRECT_GET_HTTP_([0-9]{3})$/)?.[1] ?? 'error'));
