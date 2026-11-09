@@ -158,7 +158,8 @@ def decide(context: dict, portfolio: dict, report: dict, *,
     for symbol, position in sorted(positions.items()):
         entry, high = float(position["entry_price_usdc"]), float(position["peak_price_usdc"])
         price = float(position["price_usdc"])
-        stop = max(entry*(1-p.stop_distance_max), high*(1-.10))
+        trailing = .025 if isinstance(report, dict) and report.get("model") == "coinbase_completed_15m" else .10
+        stop = max(entry*(1-p.stop_distance_max), high*(1-trailing))
         if price <= stop and float(position["value_usdc"]) > 0:
             exits.append({
                 "side": "SELL_TO_USDC", "symbol": symbol,
@@ -187,14 +188,46 @@ def decide(context: dict, portfolio: dict, report: dict, *,
     signals = report.get("signals")
     if not isinstance(signals, list) or len(signals) > 20:
         return _hold("SIGNAL_FORMAT_INVALID", phase="active")
+    if report.get("model") == "coinbase_completed_15m" and positions:
+        for symbol in positions:
+            signal = next((row for row in signals if isinstance(row, dict) and row.get("symbol") == symbol), None)
+            if signal is not None:
+                try:
+                    if float(signal["momentum_1h"]) < -.003 and float(signal["momentum_3h"]) < -.005:
+                        return _sell_all(positions, "INTRADAY_TREND_REVERSAL", phase="defensive_exit")
+                except (KeyError, TypeError, ValueError):
+                    pass
     if remaining_hours <= p.new_entry_cutoff_hours:
         return _hold("NEW_ENTRIES_CLOSED_BEFORE_SNAPSHOT", phase="closing", remaining_hours=round(remaining_hours, 2))
 
     candidates = []
+    intraday = report.get("model") == "coinbase_completed_15m"
     for signal in signals:
         if not isinstance(signal, dict) or signal.get("symbol") not in eligible:
             continue
         symbol = signal["symbol"]
+        if intraday:
+            try:
+                moves = [float(signal[name]) for name in (
+                    "momentum_1h", "momentum_3h", "momentum_6h",
+                    "momentum_12h", "momentum_24h")]
+                volume = _positive(signal.get("median_15m_dollar_volume_usd"), "liquidity")
+                _positive(signal.get("last_close_usd"), "reference_price")
+            except (KeyError, TypeError, ValueError):
+                continue
+            if not all(math.isfinite(move) for move in moves):
+                continue
+            m1, m3, m6, m12, m24 = moves
+            if (m1 <= 0 or m3 < .003 or m6 < .007 or m12 < -.005 or
+                    m24 < -.02 or volume < 100_000 or signal.get("above_ema20") is not True):
+                continue
+            strength = .25*m3 + .40*m6 + .25*m12 + .10*m24
+            if strength < p.minimum_net_edge + p.round_trip_cost_bps/10_000:
+                continue
+            stop_distance = p.stop_distance_max
+            weight = min(cap, p.risk_budget_per_trade/stop_distance)
+            candidates.append((strength, symbol, weight, strength, stop_distance))
+            continue
         try:
             expected = _positive(signal.get("expected_return"), "expected_return", zero=True)
             momentum3 = float(signal["momentum_3d"])
@@ -230,13 +263,18 @@ def decide(context: dict, portfolio: dict, report: dict, *,
         notional = min(weight*equity, free_exposure)
         if notional < p.min_order_usdc:
             continue
-        actions.append({
+        action = {
             "side": "BUY_WITH_USDC", "symbol": symbol,
             "maximum_input_usdc": round(notional, 6),
-            "estimated_net_edge": round(edge, 6),
             "stop_reference_fraction": round(stop, 6),
             "ranking_score": round(score, 6),
-        })
+        }
+        action["trend_strength" if intraday else "estimated_net_edge"] = round(edge, 6)
+        if intraday:
+            action["reference_price_usd"] = float(next(
+                row["last_close_usd"] for row in signals
+                if isinstance(row, dict) and row.get("symbol") == symbol))
+        actions.append(action)
         free_exposure -= notional
     if not actions:
         return _hold("ALLOCATION_LIMIT_OR_ALREADY_HELD", phase="active", drawdown=round(drawdown, 6))
@@ -246,7 +284,7 @@ def decide(context: dict, portfolio: dict, report: dict, *,
         "drawdown": round(drawdown, 6),
         "executionAuthorized": False,
         "requires_wallet_confirmation": True,
-        "model": "league_crypto_bro_v1",
+        "model": "league_crypto_bro_intraday_v1" if intraday else "league_crypto_bro_v1",
     }
 
 

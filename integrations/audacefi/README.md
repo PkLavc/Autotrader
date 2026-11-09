@@ -36,20 +36,26 @@ The optional `/ranked-evidence` GET currently returns 404; authenticated
 holdings confirmation.
 
 The [direct Devnet trading workflow](../../.github/workflows/audacefi-direct-pilot.yml)
-checks every 30 minutes during November 9–13, 2026 UTC. It reads the active
-season, wallet, allowlist, onchain holdings and current SOL price. The existing
-`league_strategy.decide` controls entries and protective exits using completed
-daily SOL momentum signals from `live_decision.py`. Those fast signals are
-explicitly momentum based and are not the optional Kronos forecast. It holds
-at most one 25-USDC SOL position, reserves at most three further buy/sell
-cycles and begins liquidation when 16 hours remain before the API's official
-season end. The total eight-swap ceiling, including the pilot, stays below
-the displayed ten-trade daily cap. Before any new order, the encrypted journal,
-AudaceFi swap count and Devnet token balances must agree. Any pending write
-is reconciled under its original operation key rather than retried as a new
-trade. The `AUDACEFI_JOURNAL_KEY` Actions secret encrypts the append-only
-journal on the separate `audacefi-auto-journal` branch; no plaintext trading
-state is stored on `main`.
+now runs long auto sessions of up to 330 minutes during the active Season 1
+window, checking every three minutes. Crons at minutes 17 and 47 queue a
+replacement session if one is already running. Manual `auto` dispatch defaults
+to one check; `session_minutes=330` starts a long session. GitHub can delay or
+drop a scheduled trigger, so this does not guarantee uninterrupted uptime.
+
+The operator reconciles the append-only journal, authenticated wallet and
+Solana Devnet balances before every order. It uses a new
+`audacefi-competitive-journal` branch encrypted with `AUDACEFI_JOURNAL_KEY`;
+the earlier auto branch had zero reservations when this policy was installed.
+It selects eligible SOL or ETH from completed Coinbase 15-minute candles and
+checks the fresh AudaceFi price before entry. It holds at most one asset, caps
+an entry at 35% of equity or 3,500 fictitious USDC, and reserves a sell slot
+under a rolling 24-hour limit of ten trades. The two pilot swaps count during
+the first day. A 1.8% portfolio stop uses both the current day and season peaks;
+a position also exits after a 3.5% entry loss or 2.5% trailing price decline.
+New entries stop 24 hours before the API's season end; liquidation begins 16
+hours before it. Price gaps or service outages can still breach a stop, so no
+risk or ranking outcome is guaranteed. The existing stock AutoTrader is not
+involved in this workflow.
 
 ## Crypto Bro league strategy (v1, isolated from stock Autotrader)
 

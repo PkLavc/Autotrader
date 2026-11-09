@@ -43,7 +43,7 @@ const season = state.season.active;
 const now = Date.now();
 if (!season || season.status !== 'active' || season.executionMode !== 'devnet_onchain' ||
     !season.startsAt || !season.endsAt || Date.parse(season.startsAt) > now ||
-    Date.parse(season.endsAt) <= now + (mode === 'auto' ? 5 * 60_000 : 16 * 3600_000) ||
+    Date.parse(season.endsAt) <= now + (mode === 'auto' ? 0 : 16 * 3600_000) ||
     state.wallet.state !== 'ok' || state.wallet.walletAddress !== expectedAddress ||
     state.wallet.seasonId !== season.id) throw Error('PILOT_SEASON_OR_WALLET_INVALID');
 const allow = await client.readAllowlist('crypto-bro', season.id);
@@ -52,13 +52,13 @@ const token = symbol => {
   if (rows.length !== 1 || !Number.isInteger(rows[0].decimals)) throw Error('PILOT_TOKEN_NOT_ELIGIBLE');
   return rows[0];
 };
-const usdc = token('USDC'), sol = token('SOL');
+const usdc = token('USDC'), sol = token('SOL'), eth = token('ETH');
 if (usdc.decimals !== 6 || sol.decimals !== 9) throw Error('PILOT_TOKEN_DECIMALS_INVALID');
 const bench = await get('/v1/devnet/bench');
 if (bench.cluster !== 'devnet' || bench.programId !== PROGRAM ||
     bench.usdcMintMainnet !== usdc.mint || !Array.isArray(bench.mints) ||
     bench.mints.length > 2048) throw Error('PILOT_BENCH_INVALID');
-const mappings = [usdc, sol].map(item => {
+const mappings = [usdc, sol, eth].map(item => {
   const rows = bench.mints.filter(row => row.mintMainnet === item.mint);
   if (rows.length !== 1 || rows[0].decimals !== item.decimals) throw Error('PILOT_MAPPING_INVALID');
   return { mainnet: item.mint, devnet: rows[0].mintDevnet, decimals: item.decimals };
@@ -85,11 +85,12 @@ const journalStore = await openDurableJournal('/tmp/audacefi-journal', {
   githubToken: process.env.GITHUB_TOKEN,
   encryptionKey: process.env.AUDACEFI_JOURNAL_KEY,
   mainSha: process.env.GITHUB_SHA,
-  ...(mode === 'auto' ? { branch: 'audacefi-auto-journal' } : {}),
+  ...(mode === 'auto' ? { branch: 'audacefi-competitive-journal' } : {}),
 });
-const policy = { maxOperations: mode === 'auto' ? 6 : 3, inputBudgets: {
-  [usdc.mint]: mode === 'auto' ? '75000000' : '25000000',
-  [sol.mint]: '10000000000',
+const policy = { maxOperations: mode === 'auto' ? 40 : 3, inputBudgets: {
+  [usdc.mint]: mode === 'auto' ? '100000000000' : '25000000',
+  [sol.mint]: mode === 'auto' ? (10_000n * 10n ** BigInt(sol.decimals)).toString() : '10000000000',
+  ...(mode === 'auto' ? { [eth.mint]: (10_000n * 10n ** BigInt(eth.decimals)).toString() } : {}),
 } };
 const journal = await FileJournal.create(journalStore.directory, policy);
 const { checkpoint } = await journalStore.wrap(journal);
@@ -104,7 +105,7 @@ if (mode === 'auto') {
   const { runAuto } = await import('./direct-auto.mjs');
   await runAuto({ client, journal, journalDirectory: journalStore.directory,
     checkpoint, adapters, runAiAgent, reconcileOperation, finalizeOperation,
-    get, season, expectedAddress, usdc, sol });
+    get, season, expectedAddress, usdc, assets: [sol, eth] });
   process.exit(0);
 }
 if (mode === 'history') {

@@ -79,9 +79,12 @@ def summarize(name: str, body: dict | list | None) -> None:
         return
     if name == "allowlist" and isinstance(body, dict):
         tokens = body.get("tokens")
+        print("ALLOWLIST_ROOT_FIELDS=" + ",".join(sorted(body)))
         print("ALLOWLIST_FROZEN=" + str(body.get("allowlistFrozen") is True).lower())
         print("ALLOWLIST_SEASON_PRESENT=" + str(isinstance(body.get("seasonId"), str)).lower())
         if isinstance(tokens, list):
+            if tokens and isinstance(tokens[0], dict):
+                print("ALLOWLIST_TOKEN_FIELDS=" + ",".join(sorted(tokens[0])))
             print("ALLOWLIST_ELIGIBLE_COUNT=" + str(sum(
                 isinstance(token, dict) and token.get("eligible") is True
                 for token in tokens

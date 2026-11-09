@@ -70,3 +70,63 @@ def test_final_window_requires_sell_without_forecast(monkeypatch):
     decision = json.loads(output.getvalue())
     assert decision["status"] == "EXIT_REQUIRED"
     assert decision["actions"][0]["side"] == "SELL_TO_USDC"
+
+
+def test_intraday_candidate_uses_closed_15m_trend_and_35_percent_cap(monkeypatch):
+    now = datetime.now(timezone.utc)
+    signal = {"symbol": "SOL", "last_close_usd": 100,
+              "median_15m_dollar_volume_usd": 2_000_000,
+              "above_ema20": True, "momentum_1h": .004,
+              "momentum_3h": .012, "momentum_6h": .022,
+              "momentum_12h": .018, "momentum_24h": .01}
+    monkeypatch.setattr(live_decision, "completed_intraday_signal", lambda symbol, _: {
+        **signal, "symbol": symbol})
+    request = {"fetchSignals": True, "signalMode": "intraday",
+               "context": {"verified": True, "category": "crypto-bro",
+                           "restrictions_verified": True, "wallet_ready": True,
+                           "network": "solana-devnet", "season_status": "active",
+                           "start_utc": (now - timedelta(hours=2)).isoformat(),
+                           "end_utc": (now + timedelta(days=2)).isoformat(),
+                           "eligible_symbols": ["SOL"], "max_position_weight": .35,
+                           "max_total_exposure": .35,
+                           "start_snapshot_confirmed": True},
+               "portfolio": {"equity_usdc": 10000, "cash_usdc": 10000,
+                             "peak_equity_usdc": 10000, "positions": {}}}
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(request)))
+    monkeypatch.setattr(sys, "stdout", output)
+    assert live_decision.main() == 0
+    result = json.loads(output.getvalue())
+    assert result["status"] == "PROPOSED"
+    action = result["actions"][0]
+    assert 3000 < action["maximum_input_usdc"] <= 3500
+    assert action["reference_price_usd"] == 100
+    assert "estimated_net_edge" not in action
+
+
+def test_intraday_reversal_exits_existing_position(monkeypatch):
+    now = datetime.now(timezone.utc)
+    monkeypatch.setattr(live_decision, "completed_intraday_signal", lambda *_: {
+        "symbol": "SOL", "last_close_usd": 100, "median_15m_dollar_volume_usd": 2_000_000,
+        "above_ema20": False, "momentum_1h": -.004, "momentum_3h": -.008,
+        "momentum_6h": .002, "momentum_12h": .01, "momentum_24h": .02})
+    request = {"fetchSignals": True, "signalMode": "intraday",
+               "context": {"verified": True, "category": "crypto-bro",
+                           "restrictions_verified": True, "wallet_ready": True,
+                           "network": "solana-devnet", "season_status": "active",
+                           "start_utc": (now - timedelta(hours=2)).isoformat(),
+                           "end_utc": (now + timedelta(days=2)).isoformat(),
+                           "eligible_symbols": ["SOL"], "max_position_weight": .35,
+                           "max_total_exposure": .35,
+                           "start_snapshot_confirmed": True},
+               "portfolio": {"equity_usdc": 10000, "cash_usdc": 6600,
+                             "peak_equity_usdc": 10000,
+                             "positions": {"SOL": {"value_usdc": 3400,
+                                                    "price_usdc": 100,
+                                                    "entry_price_usdc": 100,
+                                                    "peak_price_usdc": 101}}}}
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(request)))
+    monkeypatch.setattr(sys, "stdout", output)
+    assert live_decision.main() == 0
+    assert json.loads(output.getvalue())["actions"][0]["side"] == "SELL_TO_USDC"
