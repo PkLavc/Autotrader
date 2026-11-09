@@ -20,8 +20,18 @@ def signal_from_rows(symbol: str, rows: list[tuple[int, float, float]],
         ema = (2 / 21) * float(rows[cursor][1]) + (19 / 21) * ema
     volume = median(float(price) * float(amount)
                     for _, price, amount in rows[index - 95:index + 1])
-    if not all(math.isfinite(value) for value in (close, ema, volume, *moves.values())):
+    prior_high = max(float(rows[cursor][1]) for cursor in range(index - 20, index))
+    ema_gap = close / ema - 1 if ema else math.nan
+    changes = [float(rows[cursor][1]) / float(rows[cursor - 1][1]) - 1
+               for cursor in range(index - 13, index + 1)]
+    gains = sum(max(0.0, change) for change in changes)
+    losses = sum(max(0.0, -change) for change in changes)
+    rsi14 = 100.0 if losses == 0 else 100.0 - 100.0 / (1.0 + gains / losses)
+    if not all(math.isfinite(value) for value in
+               (close, ema, volume, prior_high, ema_gap, rsi14, *moves.values())):
         return None
     return {"symbol": symbol, "last_close_usd": close,
             "median_15m_dollar_volume_usd": volume,
-            "above_ema20": close > ema, **moves}
+            "above_ema20": close > ema, "ema20_gap": ema_gap,
+            "breakout_20": close / prior_high - 1,
+            "rsi14": rsi14, **moves}

@@ -224,25 +224,37 @@ def decide(context: dict, portfolio: dict, report: dict, *,
             if not all(math.isfinite(move) for move in moves):
                 continue
             m1, m3, m6, m12, m24 = moves
-            base_pass = (m1 > 0 and m3 >= p.intraday_m3_min and
-                         m6 >= p.intraday_m6_min and m12 >= p.intraday_m12_min and
-                         m24 >= p.intraday_m24_min)
+            selected_strategy = p.intraday_strategy
+            common = (m1 > 0 and m3 >= p.intraday_m3_min and
+                      m6 >= p.intraday_m6_min and m12 >= p.intraday_m12_min and
+                      m24 >= p.intraday_m24_min)
             recovery_pass = (-.06 <= m24 <= -.01 and m3 >= .008 and
                              m6 >= .003 and m1 > 0)
-            selected_strategy = ("recovery" if p.intraday_strategy == "recovery"
-                                 else "momentum")
+            breakout = float(signal.get("breakout_20", -1))
+            ema_gap = float(signal.get("ema20_gap", math.inf))
+            rsi14 = float(signal.get("rsi14", math.nan))
             if selected_strategy == "recovery":
-                passes = recovery_pass
-            else:
-                passes = base_pass
-            if (not passes or volume < 100_000 or
-                    signal.get("above_ema20") is not True):
-                continue
-            if selected_strategy == "recovery":
-                selected_strategy = "recovery"
+                passes = recovery_pass and signal.get("above_ema20") is True
                 strength = .60*m3 + .40*m6
-            else:
+            elif selected_strategy == "breakout":
+                passes = (common and breakout >= .002 and
+                          signal.get("above_ema20") is True)
+                strength = .40*breakout + .35*m3 + .25*m6
+            elif selected_strategy == "mean_reversion":
+                passes = (m1 > 0 and m3 >= p.intraday_m3_min and
+                          m24 >= p.intraday_m24_min and ema_gap <= -.008 and
+                          rsi14 <= 32)
+                strength = .55*m1 + .45*m3
+            elif selected_strategy == "multi_trend":
+                passes = common and signal.get("above_ema20") is True
+                strength = .10*m1 + .20*m3 + .25*m6 + .25*m12 + .20*m24
+            elif selected_strategy == "momentum":
+                passes = common and signal.get("above_ema20") is True
                 strength = .25*m3 + .40*m6 + .25*m12 + .10*m24
+            else:
+                passes, strength = False, 0.0
+            if not passes or volume < 100_000:
+                continue
             if strength < p.minimum_net_edge + p.round_trip_cost_bps/10_000:
                 continue
             stop_distance = p.stop_distance_max

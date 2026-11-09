@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'integrations/audacefi/adaptive_learning.py'
+      - 'integrations/audacefi/opportunity-ledger.mjs'
       - 'integrations/audacefi/intraday_signal.py'
       - 'integrations/audacefi/live_decision.py'
       - 'integrations/audacefi/league_strategy.py'
@@ -14,6 +15,7 @@ on:
       - 'integrations/audacefi/adaptive-handoff.mjs'
       - 'integrations/audacefi/handoff-journal.mjs'
       - 'tests/test_audacefi_adaptive_learning.py'
+      - 'tests/test_audacefi_opportunity_ledger.mjs'
       - 'tests/test_audacefi_live_decision.py'
       - 'tests/test_audacefi_league_strategy.py'
       - 'tests/test_audacefi_handoff_journal.mjs'
@@ -40,9 +42,12 @@ jobs:
         run: pytest -q tests/test_audacefi_adaptive_learning.py tests/test_audacefi_live_decision.py tests/test_audacefi_league_strategy.py
       - name: Verify safe journal handoff rules
         run: node --test tests/test_audacefi_handoff_journal.mjs
+      - name: Verify rejected-opportunity outcome ledger
+        run: node --test tests/test_audacefi_opportunity_ledger.mjs
       - name: Syntax-check live executor
         run: |
           node --check integrations/audacefi/direct-auto.mjs
           node --check integrations/audacefi/direct-pilot.mjs
           node --check integrations/audacefi/adaptive-handoff.mjs
+          node --check integrations/audacefi/opportunity-ledger.mjs
           python -m compileall -q integrations/audacefi

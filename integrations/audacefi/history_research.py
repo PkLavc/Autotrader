@@ -15,6 +15,7 @@ from hashlib import sha256
 from io import BytesIO, StringIO, TextIOWrapper
 import json
 import math
+import random
 import re
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -126,11 +127,57 @@ def load_history(symbol: str, months: list[str], loader=download,
     return all_rows
 
 
+def holdout_consistency(rows: list[tuple[int, float, float]], profile: str,
+                        first: int, last: int, *, symbol: str) -> dict:
+    """Paired five-day candidate/baseline evidence with regime breakdown."""
+    observations = []
+    by_regime: dict[str, list[float]] = {}
+    for begin in range(first, last, 5 * 24 * 4):
+        end = min(last, begin + 5 * 24 * 4)
+        if end - begin < 3 * 24 * 4 or begin < 96:
+            continue
+        reference = rows[begin][1] / rows[begin - 96][1] - 1
+        regime = "bull" if reference >= .01 else "bear" if reference <= -.01 else "sideways"
+        candidate = _simulate(rows, PRESETS[profile], begin, end, symbol=symbol)
+        baseline = _simulate(rows, PRESETS["baseline"], begin, end, symbol=symbol)
+        edge = candidate["net_return"] - baseline["net_return"]
+        observations.append(edge)
+        by_regime.setdefault(regime, []).append(edge)
+    n = len(observations)
+    wins = sum(edge > 0 for edge in observations)
+    # 95% Wilson lower confidence bound for the candidate's fraction of
+    # five-day windows beating baseline, avoiding a normal approximation.
+    z = 1.96
+    denominator = 1 + z*z/n if n else 1
+    center = wins/n + z*z/(2*n) if n else 0
+    margin = z * math.sqrt((wins/n*(1-wins/n) + z*z/(4*n))/n) if n else 0
+    lower = max(0.0, (center - margin) / denominator) if n else 0.0
+    regimes = {name: {"folds": len(edges), "meanEdge": round(sum(edges)/len(edges), 8)}
+               for name, edges in sorted(by_regime.items())}
+    bootstrap: list[float] = []
+    if n >= 10:
+        rng = random.Random(0xA0DACE)
+        block_size = 2  # paired, non-overlapping five-day blocks
+        for _ in range(1000):
+            sample = []
+            while len(sample) < n:
+                start = rng.randrange(max(1, n - block_size + 1))
+                sample.extend(observations[start:start + block_size])
+            bootstrap.append(sum(sample[:n]) / n)
+    bootstrap.sort()
+    bootstrap_lower = bootstrap[max(0, int(.025 * len(bootstrap)) - 1)] if bootstrap else 0.0
+    return {"folds": n, "foldsBeatingBaseline": wins,
+            "wilsonLower95": round(lower, 6),
+            "blockBootstrapMeanEdgeLower95": round(bootstrap_lower, 8),
+            "bootstrapBlockFolds": 2, "regimes": regimes,
+            "regimeCoverage": len(regimes)}
+
+
 def walk_forward(rows: list[list], symbol: str = "SOL") -> dict:
     """One chronological train/holdout replay with uninterrupted equity curves.
 
-    The last quarter is untouched while choosing the candidate. Each portion
-    is replayed continuously across its real five-day competition windows;
+    The last quarter remains untouched during candidate selection. One
+    training-selected candidate is evaluated there without parameter changes;
     equity and max drawdown are never aggregated from isolated fold returns.
     """
     parsed = validate_candles(rows)
@@ -141,58 +188,82 @@ def walk_forward(rows: list[list], symbol: str = "SOL") -> dict:
     split = len(parsed) * 3 // 4
     if split < 20_000 or len(parsed) - split < 7_000:
         return {"status": "INSUFFICIENT_CHRONOLOGICAL_SPLIT"}
-    profiles = ("baseline", "recovery")
+    # Bounded, interpretable strategy families. The winner is selected only
+    # on the chronological training segment; the untouched holdout is opened
+    # once for that one nominated candidate.
+    profiles = tuple(PRESETS)
     training = {name: _simulate(parsed, PRESETS[name], 96, split, symbol=symbol)
                 for name in profiles}
     holdout = {name: _simulate(parsed, PRESETS[name], split, len(parsed), symbol=symbol)
                for name in profiles}
     baseline_train, baseline_test = training["baseline"], holdout["baseline"]
-    candidate = training["recovery"]
-    train_edge = (candidate["net_return"] > baseline_train["net_return"] and
-                  candidate["trades"] >= MIN_TRAIN_TRADES)
-    test = holdout["recovery"]
+    candidates = [name for name in profiles if name != "baseline" and
+                  training[name]["trades"] >= MIN_TRAIN_TRADES and
+                  training[name]["net_return"] > baseline_train["net_return"] and
+                  training[name]["max_intraday_drawdown"] <= .018 and
+                  training[name]["max_competition_drawdown"] <= .018]
+    selected = max(candidates, key=lambda name: (
+        training[name]["net_return"] - baseline_train["net_return"],
+        -training[name]["max_drawdown"], name)) if candidates else None
+    test = holdout[selected] if selected else holdout["baseline"]
+    candidate_train = training[selected] if selected else baseline_train
+    train_edge = selected is not None
+    consistency = (holdout_consistency(parsed, selected, split, len(parsed), symbol=symbol)
+                   if selected else {"folds": 0, "foldsBeatingBaseline": 0,
+                                    "wilsonLower95": 0.0, "regimes": {}, "regimeCoverage": 0})
+    consistency_pass = (consistency["folds"] >= 10 and
+                        consistency["wilsonLower95"] > .50 and
+                        consistency["blockBootstrapMeanEdgeLower95"] > 0 and
+                        consistency["regimeCoverage"] >= 2 and
+                        all(value["folds"] >= 3 for value in consistency["regimes"].values()) and
+                        all(value["meanEdge"] >= 0 for value in consistency["regimes"].values()))
     valid = (train_edge and test["trades"] >= MIN_TEST_TRADES and
              test["max_rolling_swaps_24h"] <= MAX_ROLLING_SWAPS and
-             training["recovery"]["max_rolling_swaps_24h"] <= MAX_ROLLING_SWAPS and
+             candidate_train["max_rolling_swaps_24h"] <= MAX_ROLLING_SWAPS and
              test["usdc_only_at_end"] is True and
              test["net_return"] > 0 and
              test["net_return"] > baseline_test["net_return"] + .003 and
              test["max_intraday_drawdown"] <= .018 and
-             training["recovery"]["max_intraday_drawdown"] <= .018 and
+             candidate_train["max_intraday_drawdown"] <= .018 and
              test["max_competition_drawdown"] <= .018 and
-             training["recovery"]["max_competition_drawdown"] <= .018)
+             candidate_train["max_competition_drawdown"] <= .018 and
+             consistency_pass)
     status = ("VALIDATED_HISTORICAL_CANDIDATE" if valid else
               "REJECTED_OOS" if train_edge else "NO_TRAINING_EDGE")
     if not train_edge:
-        reason = "RECOVERY_NOT_BETTER_DURING_TRAINING"
+        reason = "NO_GENERATED_CANDIDATE_BEATS_BASELINE_IN_TRAINING"
     elif (test["max_rolling_swaps_24h"] > MAX_ROLLING_SWAPS or
-          training["recovery"]["max_rolling_swaps_24h"] > MAX_ROLLING_SWAPS):
+          candidate_train["max_rolling_swaps_24h"] > MAX_ROLLING_SWAPS):
         reason = "ROLLING_SWAP_LIMIT_EXCEEDED"
     elif not test["usdc_only_at_end"]:
         reason = "HOLDOUT_NOT_LIQUIDATED_TO_USDC"
     elif test["trades"] < MIN_TEST_TRADES:
         reason = "INSUFFICIENT_HOLDOUT_TRADES"
     elif test["net_return"] <= 0:
-        reason = "RECOVERY_HOLDOUT_NOT_PROFITABLE_NET_OF_COSTS"
+        reason = "CANDIDATE_HOLDOUT_NOT_PROFITABLE_NET_OF_COSTS"
     elif test["net_return"] <= baseline_test["net_return"] + .003:
-        reason = "RECOVERY_HOLDOUT_EDGE_BELOW_30_BPS"
+        reason = "CANDIDATE_HOLDOUT_EDGE_BELOW_30_BPS"
     elif (test["max_intraday_drawdown"] > .018 or
-          training["recovery"]["max_intraday_drawdown"] > .018 or
+          candidate_train["max_intraday_drawdown"] > .018 or
           test["max_competition_drawdown"] > .018 or
-          training["recovery"]["max_competition_drawdown"] > .018):
+          candidate_train["max_competition_drawdown"] > .018):
         reason = "DRAWDOWN_EXCEEDS_LIVE_1_8_PERCENT_GUARD"
+    elif not consistency_pass:
+        reason = "HOLDOUT_FOLD_OR_REGIME_CONFIDENCE_INSUFFICIENT"
     else:
         reason = "VALIDATED_12M_OOS_ADVANTAGE"
     comparison = {name: {"train": training[name], "holdout": holdout[name]}
                   for name in profiles}
-    return {"status": status, "decisionReason": reason, "profile": "recovery",
+    return {"status": status, "decisionReason": reason,
+            "profile": selected or "baseline",
             "historyBars": len(parsed), "trainingBars": split,
             "holdoutBars": len(parsed) - split,
             "trainStartUtc": datetime.fromtimestamp(parsed[96][0], timezone.utc).isoformat(),
             "trainEndUtc": datetime.fromtimestamp(parsed[split - 1][0], timezone.utc).isoformat(),
             "holdoutStartUtc": datetime.fromtimestamp(parsed[split][0], timezone.utc).isoformat(),
             "holdoutEndUtc": datetime.fromtimestamp(parsed[-1][0], timezone.utc).isoformat(),
-            "train": training["recovery"], "holdout": test,
+            "train": candidate_train, "holdout": test,
+            "holdoutConsistency": consistency,
             "baselineTrain": baseline_train, "baselineHoldout": baseline_test,
             "comparison": comparison,
             "costModel": {"estimatedRoundTripCostBps": ROUND_TRIP_FEE_ESTIMATE_BPS,

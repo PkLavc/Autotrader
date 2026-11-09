@@ -96,9 +96,12 @@ and Oracle research are read-only. Backtests do not guarantee live gains.
 The [historical training workflow](../../.github/workflows/audacefi-history-training.yml)
 runs daily and on demand. It downloads twelve **completed** months of public
 15-minute Binance spot archives for the active AudaceFi-eligible symbols,
-verifies official SHA-256 checksums, rejects missing candles and compares the
-current momentum baseline with recovery on a chronological 75%/25% train/holdout
-split. Each partition is simulated as one continuous equity curve. A missing
+verifies official SHA-256 checksums, rejects missing candles and regenerates a
+bounded candidate grid across momentum, recovery, breakout, mean-reversion and
+multi-period trend families. It selects a single candidate on the first 75%
+chronologically, then opens the untouched final 25% once for promotion checks.
+Each partition is simulated as one continuous equity curve through the same
+decision engine as live execution. A missing
 USDT spot archive may fall back to a separately verified USDC pair. These
 stablecoin market prices are proxies; they are **not** AudaceFi Devnet quotes.
 
@@ -109,8 +112,28 @@ are not treated as separate evidence. The stock Kronos forecaster is already
 adapted to daily crypto candles in
 [`CryptoKronosEngine`](crypto_research.py) but remains optional research:
 it is **not** a validated 15-minute live trading model. Nothing in this
-workflow places orders or automatically promotes a historical result to
-the live strategy.
+workflow places orders. A 12-month candidate may be written to the strategy
+gate only when the same profile beats momentum for both SOL and ETH in training
+and untouched holdout, has
+enough completed trades, closes in USDC, respects the rolling swap limit and
+stays within the intraday and competition drawdown guards. The executor still
+rolls back to momentum for 24 hours after three consecutive realized losing
+round trips exceeding 20 USDC combined.
+
+The live executor also keeps a bounded, encrypted-journal ledger of rejected
+SOL/ETH signals. It records why each entry filter failed, then marks net
+counterfactual 1h/6h/24h returns after estimated fees and slippage as later
+completed candles arrive. Those observations inform research only; they cannot
+promote a strategy by themselves.
+
+The six-times-daily universe scan now checks all currently eligible symbols
+against the frozen allowlist and AudaceFi Devnet mint mapping, then cross-checks
+recent completed Coinbase and Binance candles against the authenticated
+AudaceFi mark price and a liquidity floor. A short scan reports current signal
+candidates only; it does not treat a few candles as historical performance.
+Quote-route availability remains unverified until an authorized Devnet buy and
+sell are both confirmed. The live signer and executor remain restricted to
+SOL/ETH, so no newly discovered token can be traded by this change.
 
 Corrected twelve-month run (November 9): 15 explicitly eligible symbols,
 5 with complete verified history, and **zero** recovery candidates approved.
@@ -124,13 +147,15 @@ training on both SOL (2.02%/2.62%) and ETH (1.84%/2.36%). Full-curve holdout max
 not observed AudaceFi fills. The result is evidence to keep momentum and reject
 recovery, not proof of live profitability.
 
-The [Oracle worker deployment](../../deploy/oracle/README.md) runs this
-historical research and a daily Kronos five-day shadow forecast on WBTC, ETH
+The [Oracle worker deployment](../../deploy/oracle/README.md) runs the same
+candidate evaluation daily and a Kronos five-day shadow forecast on WBTC, ETH
 and SOL. It records realized forecast errors against five-day momentum without
-promoting a model or sending orders. It uses a public frozen allowlist snapshot
-that expires with Season 1 and carries no API or wallet secrets. The live
-GitHub worker remains the only trading executor until a separately verified
-cross-host handoff prevents concurrent orders.
+signing or placing orders. Its frozen allowlist snapshot expires with Season 1
+and carries no API or wallet secrets. GitHub Actions remains the only trading
+executor. This checkout has no Oracle deployment credential or verified
+research-result bridge, so the live gate is currently sourced from the
+authenticated GitHub historical-training workflow; the Oracle's private report
+does not yet publish decisions into that gate.
 
 ## Safe operation
 

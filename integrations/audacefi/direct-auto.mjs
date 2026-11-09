@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { readFile, writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
+import { updateOpportunityLedger } from './opportunity-ledger.mjs';
 
 const MAX_OPERATIONS = 40;
 const PILOT_SWAPS = 2;
@@ -21,10 +22,19 @@ function decision(context, portfolio, adaptiveState) {
   try {
     const qualification = JSON.parse(readFileSync(
       'integrations/audacefi/strategy-qualification.json', 'utf8'));
-    if (qualification?.schemaVersion === 1 && qualification?.approvedStrategy === 'recovery' &&
+    if (qualification?.schemaVersion === 2 &&
+        Array.isArray(qualification?.approvedSymbols) &&
+        ['SOL', 'ETH'].every(symbol => qualification.approvedSymbols.includes(symbol)) &&
+        ['steady', 'early', 'recovery', 'breakout', 'mean_reversion', 'multi_trend',
+          'momentum_loose', 'momentum_tight', 'breakout_confirmed',
+          'mean_reversion_deep', 'multi_trend_strict'].includes(qualification?.approvedStrategy) &&
         Number.isInteger(qualification?.sourceRunId) && qualification.sourceRunId > 0)
-      historicalStrategy = 'recovery';
+      historicalStrategy = qualification.approvedStrategy;
   } catch {}
+  const window = Math.floor(Date.now() / (15 * 60_000));
+  if (Number.isInteger(adaptiveState?.historicalRollbackUntilWindow) &&
+      window < adaptiveState.historicalRollbackUntilWindow)
+    historicalStrategy = 'momentum';
   const raw = execFileSync('python', ['-m', 'integrations.audacefi.live_decision'], {
     input: JSON.stringify({ context, portfolio, fetchSignals: true,
       signalMode: 'intraday', adaptiveState,
@@ -144,7 +154,8 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
           await save(journalDirectory, 'adaptive-state.json', {
             active: 'baseline', pending: null, count: 0,
             window: Math.floor(Date.now() / 900000),
-            cooldownUntilWindow: Math.floor(Date.now() / 900000) + 16,
+          cooldownUntilWindow: Math.floor(Date.now() / 900000) + 96,
+          historicalRollbackUntilWindow: Math.floor(Date.now() / 900000) + 96,
           }, checkpoint);
           console.log('AUDACEFI_ADAPTIVE_LIVE_ROLLBACK=true');
         }
@@ -222,17 +233,21 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
     try {
       adaptiveState = JSON.parse(await readFile(join(journalDirectory, 'adaptive-state.json'), 'utf8'));
     } catch (error) { if (error?.code !== 'ENOENT') throw error; }
-    if (!['baseline', 'steady', 'breakout', 'early', 'recovery'].includes(adaptiveState?.active))
+    if (!['baseline', 'steady', 'breakout', 'early', 'recovery', 'mean_reversion', 'multi_trend'].includes(adaptiveState?.active))
       throw Error('ADAPTIVE_STORED_PROFILE_INVALID');
     let result;
     try { result = decision(context, portfolio, adaptiveState); }
     catch { hold('STRATEGY_DATA_UNAVAILABLE'); return; }
     const nextState = result.adaptiveState;
-    if (!nextState || !['baseline', 'steady', 'breakout', 'early'].includes(nextState.active) ||
+    if (!nextState || !['baseline', 'steady', 'breakout', 'early', 'recovery', 'mean_reversion', 'multi_trend'].includes(nextState.active) ||
         !Number.isInteger(nextState.window) || nextState.window !== signalWindow ||
         !Number.isInteger(nextState.count) || nextState.count < 0 || nextState.count > 2 ||
-        (nextState.pending !== null && !['steady', 'breakout', 'early'].includes(nextState.pending)))
+        (nextState.pending !== null && !['steady', 'breakout', 'early', 'recovery', 'mean_reversion', 'multi_trend'].includes(nextState.pending)))
       throw Error('ADAPTIVE_STATE_INVALID');
+    if (Number.isInteger(adaptiveState.historicalRollbackUntilWindow))
+      nextState.historicalRollbackUntilWindow = adaptiveState.historicalRollbackUntilWindow;
+    if (Number.isInteger(adaptiveState.cooldownUntilWindow))
+      nextState.cooldownUntilWindow = adaptiveState.cooldownUntilWindow;
     let observations = [];
     try { observations = JSON.parse(await readFile(join(journalDirectory, 'adaptive-decisions.json'), 'utf8')); }
     catch (error) { if (error?.code !== 'ENOENT') throw error; }
@@ -241,13 +256,22 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
       reason: result.reason || 'SIGNAL', profile: result.activeProfile,
       candidate: result.adaptive?.profile || null,
       validation: result.adaptive?.status || 'NOT_AVAILABLE',
+      ...(Array.isArray(result.assetDiagnostics) ? { assets: result.assetDiagnostics } : {}),
       ...(result.adaptive?.holdout ? { holdout: result.adaptive.holdout } : {}) });
     await writeFile(join(journalDirectory, 'adaptive-decisions.json'),
       JSON.stringify(observations.slice(-192)) + '\n', { mode: 0o600 });
+    let opportunityRows = [];
+    try { opportunityRows = JSON.parse(await readFile(
+      join(journalDirectory, 'adaptive-opportunities.json'), 'utf8')); }
+    catch (error) { if (error?.code !== 'ENOENT') throw error; }
+    opportunityRows = updateOpportunityLedger(
+      opportunityRows, result.assetDiagnostics || [], now);
+    await save(journalDirectory, 'adaptive-opportunities.json', opportunityRows, checkpoint);
     await save(journalDirectory, 'adaptive-state.json', nextState, checkpoint);
     modelProfile = result.activeProfile;
     console.log('AUDACEFI_ADAPTIVE_STATUS=' + (result.adaptive?.status || 'NOT_AVAILABLE'));
     console.log('AUDACEFI_ADAPTIVE_ACTIVE=' + nextState.active);
+    console.log('AUDACEFI_REJECTED_OPPORTUNITY_SAMPLES=' + opportunityRows.length);
     console.log('AUDACEFI_AUTO_DECISION=' + result.status);
     if (/^[A-Z_]{1,64}$/.test(result.reason ?? ''))
       console.log('AUDACEFI_AUTO_REASON=' + result.reason);

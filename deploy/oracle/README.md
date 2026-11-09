@@ -60,8 +60,14 @@ sudo systemctl status audacefi-research.service --no-pager
 sudo systemctl status audacefi-kronos-shadow.service --no-pager
 ```
 
-The historical report uses twelve completed calendar months and is written to
-`/var/lib/autotrader/audacefi/audacefi-historical-qualification.json`.
+The historical report uses twelve completed calendar months, regenerates and
+walk-forward evaluates bounded momentum, recovery, breakout, mean-reversion and
+multi-period trend candidates, and is written privately to
+`/var/lib/autotrader/audacefi/audacefi-historical-qualification.json`. Training
+selects one candidate from the first 75% only; promotion checks open the
+untouched final 25% once and require repeated five-day improvements across at
+least two market regimes. The same profile must pass on both executor assets,
+SOL and ETH. Oracle research cannot change the live policy.
 The private Kronos shadow journal is
 `/var/lib/autotrader/audacefi/kronos-shadow.json`; it records three eligible
 assets, five-day predictions and realized comparisons against five-day
@@ -88,3 +94,14 @@ reused by the AudaceFi history job, while `crypto_research.CryptoKronosEngine`
 already adapts the stock Kronos forecast to seven-day crypto calendars.
 The stock NYSE calendar, equity broker and sector allocation must not be
 copied unmodified into the Solana Devnet order executor.
+
+## Research result handoff
+
+The GitHub executor reads the versioned
+`integrations/audacefi/strategy-qualification.json` file from the public
+repository. The Oracle checkout is read-only and has no credential or
+authenticated bridge to publish its private qualification file. Until an
+Oracle-to-GitHub result bridge is provisioned and verified, the daily GitHub
+historical-training workflow remains the source of the live strategy gate.
+The Oracle independently trains and measures the same candidates, but does not
+activate them. Do not copy a private Oracle artifact into the public repository.

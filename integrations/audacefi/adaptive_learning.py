@@ -14,25 +14,51 @@ import math
 from .intraday_signal import signal_from_rows
 from .league_strategy import LeaguePolicy, decide
 
-# Parameter universe is fixed and small, preventing arbitrary risk changes.
-PRESETS = {
-    "baseline": {"intraday_m3_min": .003, "intraday_m6_min": .007,
-                 "intraday_m12_min": -.005, "intraday_m24_min": -.02,
-                 "minimum_net_edge": .004},
-    "breakout": {"intraday_m3_min": .006, "intraday_m6_min": .012,
-                 "intraday_m12_min": .004, "intraday_m24_min": -.005,
-                 "minimum_net_edge": .006},
-    "steady": {"intraday_m3_min": .004, "intraday_m6_min": .009,
-               "intraday_m12_min": 0.0, "intraday_m24_min": -.01,
-               "minimum_net_edge": .005},
-    "early": {"intraday_m3_min": .001, "intraday_m6_min": .004,
-              "intraday_m12_min": -.012, "intraday_m24_min": -.025,
-              "minimum_net_edge": .003},
-    # Research candidate only. Historical OOS approval is required before use.
-    "recovery": {"intraday_m3_min": .008, "intraday_m6_min": .003,
-                 "intraday_m12_min": -.06, "intraday_m24_min": -.06,
-                 "minimum_net_edge": .004, "intraday_strategy": "recovery"},
-}
+def generate_candidates() -> dict[str, dict]:
+    """Regenerate a bounded grid of strategy families and signal thresholds."""
+    candidates = {
+        "baseline": {"intraday_m3_min": .003, "intraday_m6_min": .007,
+                     "intraday_m12_min": -.005, "intraday_m24_min": -.02,
+                     "minimum_net_edge": .004},
+        "steady": {"intraday_m3_min": .004, "intraday_m6_min": .009,
+                   "intraday_m12_min": 0.0, "intraday_m24_min": -.01,
+                   "minimum_net_edge": .005},
+        "early": {"intraday_m3_min": .001, "intraday_m6_min": .004,
+                  "intraday_m12_min": -.012, "intraday_m24_min": -.025,
+                  "minimum_net_edge": .003},
+    }
+    # Family definitions and nearby threshold variants are regenerated each
+    # run. Only signal inputs vary; portfolio and execution risk do not.
+    families = {
+        "recovery": ("recovery", .008, .003, -.06, -.06, .004),
+        "breakout": ("breakout", .003, .004, -.01, -.04, .004),
+        "mean_reversion": ("mean_reversion", .001, -.03, -.06, -.08, .004),
+        "multi_trend": ("multi_trend", .002, .004, .006, .008, .004),
+    }
+    for name, (family, m3, m6, m12, m24, edge) in families.items():
+        candidates[name] = {"intraday_strategy": family,
+            "intraday_m3_min": m3, "intraday_m6_min": m6,
+            "intraday_m12_min": m12, "intraday_m24_min": m24,
+            "minimum_net_edge": edge}
+    variants = {
+        "momentum_loose": (.0015, .004, -.008, -.03, .003),
+        "momentum_tight": (.005, .010, 0.0, -.01, .006),
+        "breakout_confirmed": (.004, .006, -.005, -.02, .005),
+        "mean_reversion_deep": (.002, -.035, -.06, -.08, .004),
+        "multi_trend_strict": (.004, .007, .010, .012, .006),
+    }
+    for name, values in variants.items():
+        family = ("breakout" if name.startswith("breakout") else
+                  "mean_reversion" if name.startswith("mean_reversion") else
+                  "multi_trend" if name.startswith("multi_trend") else "momentum")
+        candidates[name] = {"intraday_strategy": family,
+            "intraday_m3_min": values[0], "intraday_m6_min": values[1],
+            "intraday_m12_min": values[2], "intraday_m24_min": values[3],
+            "minimum_net_edge": values[4]}
+    return candidates
+
+
+PRESETS = generate_candidates()
 ROUND_TRIP_COST = .003  # Current live policy estimate, all-in round trip.
 FEE_PER_SWAP = .001
 SLIPPAGE_PER_SWAP = .0005
@@ -98,20 +124,13 @@ def _simulate(rows: list[tuple[int, float, float]], preset: dict,
         minimum_net_edge=.004))
     # Apply only the candidate's signal thresholds/strategy; all risk and
     # execution constraints remain identical to the live policy.
-    if preset.get("intraday_strategy") == "recovery":
-        policy = replace(policy, intraday_strategy="recovery",
-                         intraday_m3_min=preset["intraday_m3_min"],
-                         intraday_m6_min=preset["intraday_m6_min"],
-                         intraday_m12_min=preset["intraday_m12_min"],
-                         intraday_m24_min=preset["intraday_m24_min"],
-                         minimum_net_edge=preset["minimum_net_edge"])
-    else:
-        policy = replace(policy, intraday_strategy="momentum",
-                         intraday_m3_min=preset.get("intraday_m3_min", policy.intraday_m3_min),
-                         intraday_m6_min=preset.get("intraday_m6_min", policy.intraday_m6_min),
-                         intraday_m12_min=preset.get("intraday_m12_min", policy.intraday_m12_min),
-                         intraday_m24_min=preset.get("intraday_m24_min", policy.intraday_m24_min),
-                         minimum_net_edge=preset.get("minimum_net_edge", policy.minimum_net_edge))
+    policy = replace(policy,
+                     intraday_strategy=preset.get("intraday_strategy", "momentum"),
+                     intraday_m3_min=preset.get("intraday_m3_min", policy.intraday_m3_min),
+                     intraday_m6_min=preset.get("intraday_m6_min", policy.intraday_m6_min),
+                     intraday_m12_min=preset.get("intraday_m12_min", policy.intraday_m12_min),
+                     intraday_m24_min=preset.get("intraday_m24_min", policy.intraday_m24_min),
+                     minimum_net_edge=preset.get("minimum_net_edge", policy.minimum_net_edge))
 
     equity = peak_all = STARTING_EQUITY_USDC
     max_drawdown = 0.0

@@ -110,12 +110,19 @@ def main() -> int:
                           minimum_net_edge=.004) if intraday else None
     if intraday:
         profile = request.get("activeProfile", "baseline")
-        if not isinstance(profile, str) or profile not in {"baseline", "early", "steady", "breakout", "recovery"}:
+        if not isinstance(profile, str) or profile not in {
+                "baseline", "early", "steady", "breakout", "recovery",
+                "mean_reversion", "multi_trend"}:
             raise ValueError("INVALID_ADAPTIVE_PROFILE")
-        approved = request.get("historicalStrategy") == "recovery"
+        approved_strategy = request.get("historicalStrategy")
+        approved = approved_strategy in {"steady", "early", "recovery", "breakout",
+            "mean_reversion", "multi_trend", "momentum_loose", "momentum_tight",
+            "breakout_confirmed", "mean_reversion_deep", "multi_trend_strict"}
         if approved:
-            policy = policy_for(profile, policy)
-            policy = policy_for("recovery", policy)
+            # This value is accepted only from the versioned qualification file
+            # produced by a 12-month, chronologically held-out research run.
+            profile = approved_strategy
+            policy = policy_for(approved_strategy, policy)
         else:
             # Legacy short-window promotions are not OOS evidence. Keep the
             # shared exit engine unchanged, but use baseline for new entries.
@@ -151,25 +158,48 @@ def main() -> int:
                     "momentum_6h_min": m6 >= policy.intraday_m6_min,
                     "momentum_12h_min": m12 >= policy.intraday_m12_min,
                     "momentum_24h_min": m24 >= policy.intraday_m24_min}
-            recovery = {"recovery_24h_between_minus6_and_minus1": -.06 <= m24 <= -.01,
-                        "recovery_3h_at_least_0_8pct": m3 >= .008,
-                        "recovery_6h_at_least_0_3pct": m6 >= .003,
-                        "recovery_1h_positive": m1 > 0}
             selected = actions_by_symbol.get(signal["symbol"])
-            checks = recovery if approved else base
-            strength = .60*m3 + .40*m6 if approved else .25*m3 + .40*m6 + .25*m12 + .10*m24
+            strategy = profile if approved else "momentum"
+            checks = dict(base)
+            if strategy == "recovery":
+                checks = {"recovery_24h_between_minus6_and_minus1": -.06 <= m24 <= -.01,
+                          "recovery_3h_at_least_0_8pct": m3 >= .008,
+                          "recovery_6h_at_least_0_3pct": m6 >= .003,
+                          "recovery_1h_positive": m1 > 0}
+            elif strategy == "breakout":
+                checks["close_breaks_20_candle_high_by_0_2pct"] = signal.get("breakout_20", -1) >= .002
+            elif strategy == "mean_reversion":
+                checks = {"reversal_1h_positive": m1 > 0,
+                          "reversal_3h_min": m3 >= policy.intraday_m3_min,
+                          "drawdown_24h_bounded": m24 >= policy.intraday_m24_min,
+                          "price_0_8pct_below_ema20": signal.get("ema20_gap", 0) <= -.008,
+                          "rsi14_oversold": signal.get("rsi14", 100) <= 32}
             checks["median_dollar_volume_at_least_100k"] = (
                 signal["median_15m_dollar_volume_usd"] >= 100_000)
-            checks["price_above_ema20"] = signal.get("above_ema20") is True
+            if strategy != "mean_reversion":
+                checks["price_above_ema20"] = signal.get("above_ema20") is True
+            if strategy == "recovery":
+                strength = .60*m3 + .40*m6
+            elif strategy == "breakout":
+                strength = .40*signal.get("breakout_20", 0) + .35*m3 + .25*m6
+            elif strategy == "mean_reversion":
+                strength = .55*m1 + .45*m3
+            elif strategy == "multi_trend":
+                strength = .10*m1 + .20*m3 + .25*m6 + .25*m12 + .20*m24
+            else:
+                strength = .25*m3 + .40*m6 + .25*m12 + .10*m24
             checks["estimated_net_edge_after_costs"] = (
                 strength >= policy.minimum_net_edge + policy.round_trip_cost_bps / 10_000)
             failed = [name for name, passed in checks.items() if not passed]
             diagnostics.append({"symbol": signal["symbol"],
-                "indicators": {key: signal[key] for key in (
+                "observedAt": now.isoformat(),
+                "referencePriceUsd": signal["last_close_usd"],
+                "indicators": {key: signal.get(key) for key in (
                     "momentum_1h", "momentum_3h", "momentum_6h",
-                    "momentum_12h", "momentum_24h", "above_ema20")},
+                    "momentum_12h", "momentum_24h", "above_ema20",
+                    "ema20_gap", "breakout_20", "rsi14")},
                 "strategySelected": selected.get("strategy") if selected else None,
-                "historicalStrategyApproval": "recovery" if approved else "momentum",
+                "historicalStrategyApproval": profile if approved else "momentum",
                 "filters": checks,
                 "reason": ("ORDER_PROPOSED" if selected else
                            ",".join(failed) if failed else result.get("reason", "NO_ORDER"))})
