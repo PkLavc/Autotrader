@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily AudaceFi verified historical research
+
+[Timer]
+OnCalendar=*-*-* 08:00:00 UTC
+RandomizedDelaySec=5m
+Persistent=true
+Unit=audacefi-research.service
+
+[Install]
+WantedBy=timers.target
