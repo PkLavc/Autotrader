@@ -1,0 +1,46 @@
+name: AudaceFi historical training (research only)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '32 7 * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audacefi-history-training.yml'
+      - 'integrations/audacefi/history_job.py'
+      - 'integrations/audacefi/history_research.py'
+      - 'tests/test_audacefi_history_research.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audacefi-history-research
+  cancel-in-progress: true
+
+jobs:
+  historical-qualification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Verify archive parser, walk-forward and reused AutoTrader calibration
+        run: pytest -q tests/test_audacefi_history_research.py
+      - name: Analyze four months of verified spot history for eligible tokens
+        env:
+          AUDACEFI_API_KEY: ${{ secrets.AUDACEFI_API_KEY }}
+        run: python -m integrations.audacefi.history_job
+      - name: Upload nonsecret research report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audacefi-historical-research
+          path: audacefi-historical-qualification.json
+          if-no-files-found: ignore
+          retention-days: 7
