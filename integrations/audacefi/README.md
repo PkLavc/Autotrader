@@ -35,6 +35,12 @@ dispatch its successor if the authenticated season remains active. One active
 and one pending session are allowed. GitHub can delay or drop scheduled triggers;
 continuous availability cannot be guaranteed.
 
+An [independent watchdog](../../.github/workflows/audacefi-watchdog.yml) runs
+hourly at minute 23. It checks the authenticated season, active workflow and
+encrypted-journal commit time. After a 12-minute stale heartbeat it requests
+cancelation and queues one replacement. It never reads the wallet recovery
+phrase, signs, or submits a trade.
+
 `direct-auto.mjs` reconciles AudaceFi wallet holdings, Solana balances and an
 encrypted journal before each order. The separate
 `audacefi-competitive-journal` branch stores encrypted plans, risk state and
@@ -82,6 +88,7 @@ workflow. `runner.mjs` is a separate legacy route.
     python -m pytest -q tests/test_audacefi.py
     node --test integrations/audacefi/wallet-signer.test.mjs
     node --test integrations/audacefi/queue-next-session.test.mjs
+    node --test integrations/audacefi/watchdog.test.mjs
     node --check integrations/audacefi/direct-auto.mjs
     node --check integrations/audacefi/queue-next-session.mjs
 

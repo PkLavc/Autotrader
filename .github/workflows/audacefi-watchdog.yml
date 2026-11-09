@@ -1,0 +1,26 @@
+name: AudaceFi Devnet operator watchdog
+
+on:
+  schedule:
+    - cron: '23 * 9-13 11 *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+      - name: Check season and operator heartbeat
+        env:
+          AUDACEFI_API_KEY: ${{ secrets.AUDACEFI_API_KEY }}
+          AUDACEFI_WALLET_ADDRESS: ${{ secrets.AUDACEFI_WALLET_ADDRESS }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node integrations/audacefi/watchdog.mjs
