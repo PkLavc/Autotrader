@@ -1,0 +1,50 @@
+name: AudaceFi release qualification (devnet, no orders)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audacefi-release-check.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audacefi-release-qualification
+  cancel-in-progress: false
+
+jobs:
+  release-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify isolated strategy and season checks
+        run: |
+          python3 -m unittest discover -s tests -p 'test_audacefi*.py' -q
+          python3 -m compileall -q integrations/audacefi
+      - name: Verify transaction signer using synthetic wallet
+        run: |
+          node --check integrations/audacefi/runner.mjs
+          node --check integrations/audacefi/wallet-signer.mjs
+          node --test integrations/audacefi/wallet-signer.test.mjs
+      - name: Read authenticated current season state
+        env:
+          AUDACEFI_API_KEY: ${{ secrets.AUDACEFI_API_KEY }}
+        run: python3 -m integrations.audacefi.season_gate
+      - name: Validate enrolled Phantom signing address (no transaction)
+        env:
+          AUDACEFI_WALLET_RECOVERY_PHRASE: ${{ secrets.AUDACEFI_WALLET_RECOVERY_PHRASE }}
+          AUDACEFI_WALLET_ADDRESS: ${{ secrets.AUDACEFI_WALLET_ADDRESS }}
+        run: |
+          node --input-type=module -e "import {wallet} from './integrations/audacefi/wallet-signer.mjs'; await wallet.publicKey(); console.log('PHANTOM_WALLET_ADDRESS_MATCHED');"
+      - name: Declare execution status
+        if: always()
+        run: |
+          echo 'AUDACEFI_ORDERS=NOT_DEPLOYED'
+          echo 'The deployment profile, ranked token mappings, durable journal and end-to-end devnet execution remain unqualified.'
+          echo 'No trade was requested or submitted by this workflow.'
