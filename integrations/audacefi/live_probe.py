@@ -119,6 +119,7 @@ def main() -> int:
         return 1
     ok = True
     active_season_id = None
+    account_id = None
     expected_wallet = os.environ.get("AUDACEFI_WALLET_ADDRESS", "")
     for name, route in ROUTES:
         try:
@@ -126,10 +127,18 @@ def main() -> int:
             print(name.upper() + "_HTTP=" + str(status))
             if status == 200:
                 summarize(name, body)
+                if name == "me" and isinstance(body, dict):
+                    account_id = body.get("account", {}).get("id")
                 if name == "state" and isinstance(body, dict):
                     season = body.get("season")
                     active = season.get("active") if isinstance(season, dict) else None
                     active_season_id = active.get("id") if isinstance(active, dict) else None
+                    if isinstance(active, dict):
+                        print("ACTIVE_SEASON_FIELDS=" + ",".join(sorted(active)))
+                    for field in ("limits", "dailyLimits", "risk", "drawdown", "stats"):
+                        value = body.get(field)
+                        if isinstance(value, dict):
+                            print(field.upper() + "_FIELDS=" + ",".join(sorted(value)))
                     wallet = body.get("wallet")
                     linked = wallet.get("walletAddress") if isinstance(wallet, dict) else None
                     matched = bool(expected_wallet and linked == expected_wallet)
@@ -151,6 +160,36 @@ def main() -> int:
         except (OSError, ValueError, http.client.HTTPException):
             print(name.upper() + "_CONNECT_FAILED")
             ok = False
+    for name, route in (("wallet", "/api/v1/me/wallet?category=crypto_bro"),
+                        ("player", "/api/v1/players/" + str(account_id) if account_id else "")):
+        if not route:
+            continue
+        try:
+            status, body = read_route(key, route)
+            print(name.upper() + "_HTTP=" + str(status))
+            if status != 200 or not isinstance(body, dict):
+                continue
+            if name == "wallet":
+                if isinstance(body.get("swapCount"), int):
+                    print("WALLET_SWAP_COUNT=" + str(body["swapCount"]))
+                lpv = body.get("lastLpv")
+                if isinstance(lpv, dict) and isinstance(lpv.get("lpvUsdc"), (int, float)):
+                    print("WALLET_LPV_USDC=" + str(round(lpv["lpvUsdc"], 4)))
+                holdings = body.get("holdings")
+                if isinstance(holdings, list):
+                    for item in holdings:
+                        if isinstance(item, dict) and item.get("symbol") in {"USDC", "SOL"}:
+                            print("WALLET_" + item["symbol"] + "_AMOUNT=" + str(item.get("amount")))
+            else:
+                placements = body.get("currentSeason", {}).get("placements", [])
+                if isinstance(placements, list):
+                    for row in placements:
+                        if isinstance(row, dict) and row.get("category") in {"crypto_bro", "crypto-bro"}:
+                            for field in ("rank", "totalInDivision", "seasonPerfPct", "mddPct"):
+                                if isinstance(row.get(field), (int, float)):
+                                    print("PLAYER_" + field.upper() + "=" + str(row[field]))
+        except (OSError, ValueError, http.client.HTTPException):
+            print(name.upper() + "_CONNECT_FAILED")
     print("ORDERS_SUBMITTED=0")
     return 0 if ok else 1
 
