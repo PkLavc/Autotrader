@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 
 const file = resolve(import.meta.dirname, '../../vendor/audacefi-integration-kit/dist/reference.js');
 const source = await readFile(file, 'utf8');
+const useTenBps = process.argv[2] === 'verify10';
 const start = source.indexOf('    async function verifyFinal(saved, expected) {');
 const end = source.indexOf('    async function readSpotHoldings(', start);
 if (start < 0 || end < 0) throw Error('VERIFIER_DIAGNOSTIC_SOURCE_CHANGED');
@@ -23,8 +24,13 @@ const mismatch = 'if (post - pre !== delta)\n            throw new Error("FINALI
 if (!body.includes(loop) && source.includes(loop)) {
   const prefix = source.slice(0, start);
   if (!prefix.includes(loop) || !prefix.includes(mismatch)) throw Error('VERIFIER_BALANCE_DIAGNOSTIC_CHANGED');
-  const changedPrefix = prefix.replace(loop,
+  let changedPrefix = prefix.replace(loop,
     'for (const [position, { address, mint, owner, delta }] of expected.entries()) {').replace(mismatch,
     'if (post - pre !== delta) {\n            console.log("DIRECT_PILOT_BALANCE_ROLE=" + position);\n            const observed = post - pre;\n            const deviation = delta === 0n ? 0n : (observed - delta) * 10000n / (delta < 0n ? -delta : delta);\n            console.log("DIRECT_PILOT_BALANCE_DEVIATION_BPS=" + deviation.toString());\n            throw new Error("FINALIZED_BENCH_BALANCE_MISMATCH");\n        }');
+  if (useTenBps) {
+    const liveFee = 'secondary?.price, secondary?.expo, 20);';
+    if (!changedPrefix.includes(liveFee)) throw Error('VERIFIER_FEE_DIAGNOSTIC_CHANGED');
+    changedPrefix = changedPrefix.replace(liveFee, 'secondary?.price, secondary?.expo, 10);');
+  }
   await writeFile(file, changedPrefix + body + source.slice(end));
 } else throw Error('VERIFIER_BALANCE_DIAGNOSTIC_CHANGED');
