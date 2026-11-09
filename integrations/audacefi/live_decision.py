@@ -16,6 +16,7 @@ from urllib.request import Request, urlopen
 from autotrader.data import load_daily_history
 from .crypto_research import completed_crypto_bars
 from .league_strategy import LeaguePolicy, decide
+from .adaptive_learning import evaluate, policy_for
 
 
 def completed_intraday_signal(symbol: str, now: datetime) -> dict:
@@ -61,7 +62,9 @@ def completed_intraday_signal(symbol: str, now: datetime) -> dict:
                     for step in range(96))
     return {"symbol": symbol, "last_close_usd": close,
             "median_15m_dollar_volume_usd": volume,
-            "above_ema20": close > ema, **moves}
+            "above_ema20": close > ema, **moves,
+            # Private to the local training process; never sent to the exchange.
+            "_candles": [[ts, *values[ts]] for ts in sorted(values)]}
 
 
 def main() -> int:
@@ -71,11 +74,16 @@ def main() -> int:
     now = datetime.now(timezone.utc)
     report: dict = {}
     intraday = request.get("signalMode") == "intraday"
+    adaptive = {"status": "NOT_EVALUATED"}
     if request.get("fetchSignals") is True and intraday:
-        signals = [completed_intraday_signal(symbol, now) for symbol in
-                   context["eligible_symbols"] if symbol in {"SOL", "ETH"}]
-        if not signals:
+        observations = [completed_intraday_signal(symbol, now) for symbol in
+                        context["eligible_symbols"] if symbol in {"SOL", "ETH"}]
+        if not observations:
             raise RuntimeError("NO_SUPPORTED_INTRADAY_ASSET")
+        # Fit on completed history only. No unvalidated candidate is traded.
+        adaptive = evaluate({row["symbol"]: row.get("_candles") for row in observations})
+        signals = [{k: v for k, v in row.items() if k != "_candles"}
+                   for row in observations]
         report = {"asset_class": "crypto", "generated_at": now.isoformat(),
                   "model": "coinbase_completed_15m", "signals": signals}
     elif request.get("fetchSignals") is True:
@@ -107,8 +115,16 @@ def main() -> int:
                           closing_buffer_hours=16, new_entry_cutoff_hours=24,
                           maximum_signal_age_hours=.5, round_trip_cost_bps=30,
                           minimum_net_edge=.004) if intraday else None
-    decision = decide(context, portfolio, report, now=now, policy=policy)
-    json.dump(decision, sys.stdout, separators=(",", ":"))
+    if intraday:
+        profile = request.get("activeProfile", "baseline")
+        if not isinstance(profile, str) or profile not in {"baseline", "early", "steady", "breakout"}:
+            raise ValueError("INVALID_ADAPTIVE_PROFILE")
+        policy = policy_for(profile, policy)
+    result = decide(context, portfolio, report, now=now, policy=policy)
+    if intraday:
+        result["adaptive"] = adaptive
+        result["activeProfile"] = profile
+    json.dump(result, sys.stdout, separators=(",", ":"))
     return 0
 
 
