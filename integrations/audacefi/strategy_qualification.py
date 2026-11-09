@@ -90,12 +90,38 @@ def qualification(report: dict, run_id: str) -> dict:
     except (TypeError, ValueError):
         raise ValueError("HISTORICAL_RUN_ID_INVALID") from None
     selected_profiles = {item["profile"] for item in approved_by_symbol.values()}
+    diagnostics_by_symbol = {}
+    for row in results:
+        symbol = row.get("symbol") if isinstance(row, dict) else None
+        if symbol not in {"SOL", "ETH"}:
+            continue
+        comparison = row.get("comparison", {})
+        baseline = comparison.get("baseline", {}) if isinstance(comparison, dict) else {}
+        baseline = baseline if isinstance(baseline, dict) else {}
+        holdout = baseline.get("holdout", {})
+        holdout = holdout if isinstance(holdout, dict) else {}
+        consistency = row.get("holdoutConsistency", {})
+        consistency = consistency if isinstance(consistency, dict) else {}
+        diagnostics_by_symbol[symbol] = {
+            "status": row.get("status", "HISTORY_UNAVAILABLE"),
+            "reason": row.get("decisionReason", row.get("reason", "NO_HISTORY_RESULT")),
+            "historyBars": row.get("historyBars", 0),
+            "trainingStartUtc": row.get("trainStartUtc"),
+            "trainingEndUtc": row.get("trainEndUtc"),
+            "validationStartUtc": row.get("holdoutStartUtc"),
+            "validationEndUtc": row.get("holdoutEndUtc"),
+            "baselineValidationNetReturn": holdout.get("net_return"),
+            "baselineValidationCostsUsdc": holdout.get("estimated_costs_usdc"),
+            "baselineValidationMaxDrawdown": holdout.get("max_drawdown"),
+            "validationFolds": consistency.get("folds", 0),
+        }
     return {"schemaVersion": 3,
             "approvedStrategy": (next(iter(selected_profiles)) if len(selected_profiles) == 1
                                  else "per_asset" if approved else "momentum"),
-            "sourceRunId": source if approved else None,
+            "sourceRunId": source,
             "approvedSymbols": sorted(approved_by_symbol),
             "approvedBySymbol": approved_by_symbol,
+            "diagnosticsBySymbol": diagnostics_by_symbol,
             "reason": "VALIDATED_12M_OOS_ADVANTAGE_PER_ASSET" if approved else
                       "NO_12M_OOS_CANDIDATE_ADVANTAGE"}
 

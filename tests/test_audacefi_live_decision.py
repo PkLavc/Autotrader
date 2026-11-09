@@ -117,6 +117,7 @@ def test_intraday_reversal_exits_existing_position(monkeypatch):
         "above_ema20": False, "momentum_1h": -.004, "momentum_3h": -.008,
         "momentum_6h": .002, "momentum_12h": .01, "momentum_24h": .02})
     request = {"fetchSignals": True, "signalMode": "intraday",
+               "enforceEntryQualification": True, "historicalStrategies": {},
                "context": {"verified": True, "category": "crypto-bro",
                            "restrictions_verified": True, "wallet_ready": True,
                            "network": "solana-devnet", "season_status": "active",
@@ -136,3 +137,51 @@ def test_intraday_reversal_exits_existing_position(monkeypatch):
     monkeypatch.setattr(sys, "stdout", output)
     assert live_decision.main() == 0
     assert json.loads(output.getvalue())["actions"][0]["side"] == "SELL_TO_USDC"
+
+
+def test_real_twelve_month_oos_rejection_changes_future_buy_to_hold(monkeypatch):
+    from pathlib import Path
+    from integrations.audacefi.strategy_qualification import qualification
+
+    source = json.loads(Path("tests/fixtures/audacefi-historical-baseline-evidence.json")
+                        .read_text(encoding="utf-8"))
+    gate = qualification(source, str(source["sourceRunId"]))
+    assert gate["approvedBySymbol"] == {}
+    assert gate["diagnosticsBySymbol"]["SOL"]["baselineValidationNetReturn"] == -0.01087459
+    now = datetime.now(timezone.utc)
+    signal = {"symbol": "SOL", "last_close_usd": 100,
+        "median_15m_dollar_volume_usd": 2_000_000, "above_ema20": True,
+        "momentum_1h": .004, "momentum_3h": .012, "momentum_6h": .022,
+        "momentum_12h": .018, "momentum_24h": .01}
+    monkeypatch.setattr(live_decision, "completed_intraday_signal",
+                        lambda symbol, _: {**signal, "symbol": symbol})
+    context = {"verified": True, "category": "crypto-bro", "restrictions_verified": True,
+        "wallet_ready": True, "network": "solana-devnet", "season_status": "active",
+        "start_utc": (now - timedelta(hours=1)).isoformat(),
+        "end_utc": (now + timedelta(days=2)).isoformat(), "eligible_symbols": ["SOL"],
+        "max_position_weight": .35, "max_total_exposure": .35,
+        "start_snapshot_confirmed": True}
+    portfolio = {"equity_usdc": 10000, "cash_usdc": 10000,
+        "peak_equity_usdc": 10000, "positions": {}}
+
+    def run(enforce):
+        request = {"fetchSignals": True, "signalMode": "intraday",
+            "context": context, "portfolio": portfolio,
+            "historicalStrategies": gate["approvedBySymbol"],
+            "historicalDiagnostics": gate["diagnosticsBySymbol"],
+            "enforceEntryQualification": enforce}
+        output = io.StringIO()
+        monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(request)))
+        monkeypatch.setattr(sys, "stdout", output)
+        assert live_decision.main() == 0
+        return json.loads(output.getvalue())
+
+    unqualified_legacy = run(False)
+    guarded = run(True)
+    assert unqualified_legacy["status"] == "PROPOSED"
+    assert guarded["status"] == "HOLD"
+    assert guarded["reason"] == "NO_VALIDATED_ENTRY_STRATEGY"
+    diagnostic = guarded["assetDiagnostics"][0]
+    assert diagnostic["entryEligible"] is False
+    assert diagnostic["learningEvidence"]["historyBars"] == 35040
+    assert diagnostic["learningEvidence"]["baselineValidationNetReturn"] == -0.01087459

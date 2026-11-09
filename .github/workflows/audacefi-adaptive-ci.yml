@@ -23,6 +23,7 @@ on:
       - 'tests/test_audacefi_live_decision.py'
       - 'tests/test_audacefi_league_strategy.py'
       - 'tests/test_audacefi_history_research.py'
+      - 'tests/fixtures/audacefi-historical-baseline-evidence.json'
       - 'tests/test_audacefi_handoff_journal.mjs'
       - '.github/workflows/audacefi-adaptive-ci.yml'
 

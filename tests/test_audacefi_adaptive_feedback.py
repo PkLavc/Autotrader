@@ -93,12 +93,14 @@ def test_recent_negative_matured_results_rollback_to_momentum_automatically():
 
 
 def test_unmatured_or_future_outcomes_cannot_affect_selection():
-    now = 1_700_000_000_000 + 10 * 24 * 60 * 60_000
-    rows = _ledger(count=35)
-    rows[-1]["outcomes"]["24h"]["markedAt"] += 24 * 60 * 60_000
+    now = 1_700_000_000_000 + 7 * 24 * 60 * 60_000
+    rows = _ledger(count=6)
+    rows[-1]["outcomes"]["24h"]["markedAt"] += 48 * 60 * 60_000
     result = select_by_asset(_approved(), rows, now_ms=now)
-    assert result["activeBySymbol"]["SOL"] == "momentum"
-    assert result["evidenceBySymbol"]["SOL"]["status"] == "INSUFFICIENT_MATURED_OBSERVATIONS"
+    assert result["activeBySymbol"]["SOL"] == "recovery"
+    assert result["evidenceBySymbol"]["SOL"]["samples"] == 5
+    assert result["evidenceBySymbol"]["SOL"]["status"] == \
+        "HISTORICAL_OOS_BOOTSTRAP_AWAITING_LIVE_FEEDBACK"
 
 
 def test_realized_losses_for_asset_rollback_its_strategy_only():

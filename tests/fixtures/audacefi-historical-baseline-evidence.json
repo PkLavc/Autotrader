@@ -1,0 +1,10 @@
+{
+  "sourceRunId": 42681668671,
+  "months": ["2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"],
+  "historyCoverage": 5,
+  "validatedCandidates": 0,
+  "results": [
+    {"symbol": "SOL", "status": "NO_TRAINING_EDGE", "decisionReason": "NO_GENERATED_CANDIDATE_BEATS_BASELINE_IN_TRAINING", "historyBars": 35040, "trainStartUtc": "2025-11-02T00:00:00+00:00", "trainEndUtc": "2026-08-01T17:45:00+00:00", "holdoutStartUtc": "2026-08-01T18:00:00+00:00", "holdoutEndUtc": "2026-10-31T23:45:00+00:00", "holdoutConsistency": {"folds": 0}, "comparison": {"baseline": {"holdout": {"net_return": -0.01087459, "estimated_costs_usdc": 793.4417, "max_drawdown": 0.08370622}}}},
+    {"symbol": "ETH", "status": "NO_TRAINING_EDGE", "decisionReason": "NO_GENERATED_CANDIDATE_BEATS_BASELINE_IN_TRAINING", "historyBars": 35040, "trainStartUtc": "2025-11-02T00:00:00+00:00", "trainEndUtc": "2026-08-01T17:45:00+00:00", "holdoutStartUtc": "2026-08-01T18:00:00+00:00", "holdoutEndUtc": "2026-10-31T23:45:00+00:00", "holdoutConsistency": {"folds": 0}, "comparison": {"baseline": {"holdout": {"net_return": -0.0162499, "estimated_costs_usdc": 755.9838, "max_drawdown": 0.07272291}}}}
+  ]
+}

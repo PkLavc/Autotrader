@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { readFile, writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
-import { updateOpportunityLedger } from './opportunity-ledger.mjs';
+import { mergeMaturedArchive, updateOpportunityLedger } from './opportunity-ledger.mjs';
 
 const MAX_OPERATIONS = 40;
 const PILOT_SWAPS = 2;
@@ -19,6 +19,7 @@ function decision(context, portfolio, adaptiveState, opportunityRows, realizedRo
     .filter(name => typeof process.env[name] === 'string').map(name => [name, process.env[name]]));
   env.PYTHONPATH = process.cwd();
   let historicalStrategies = {};
+  let historicalDiagnostics = {};
   try {
     const qualification = JSON.parse(readFileSync(
       'integrations/audacefi/strategy-qualification.json', 'utf8'));
@@ -31,6 +32,9 @@ function decision(context, portfolio, adaptiveState, opportunityRows, realizedRo
             Object.values(qualification.approvedBySymbol).some(item => item?.profile === profile)) &&
         Number.isInteger(qualification?.sourceRunId) && qualification.sourceRunId > 0)
       historicalStrategies = qualification.approvedBySymbol;
+    if (qualification?.schemaVersion === 3 &&
+        qualification.diagnosticsBySymbol && typeof qualification.diagnosticsBySymbol === 'object')
+      historicalDiagnostics = qualification.diagnosticsBySymbol;
   } catch {}
   const window = Math.floor(Date.now() / (15 * 60_000));
   if (Number.isInteger(adaptiveState?.historicalRollbackUntilWindow) &&
@@ -39,7 +43,9 @@ function decision(context, portfolio, adaptiveState, opportunityRows, realizedRo
   const raw = execFileSync('python', ['-m', 'integrations.audacefi.live_decision'], {
     input: JSON.stringify({ context, portfolio, fetchSignals: true,
       signalMode: 'intraday', adaptiveState, historicalStrategies,
-      opportunityFeedback: opportunityRows, realizedFeedback: realizedRows }),
+      historicalDiagnostics,
+      opportunityFeedback: opportunityRows, realizedFeedback: realizedRows,
+      enforceEntryQualification: true }),
     encoding: 'utf8', timeout: 90_000, maxBuffer: 65536, env,
   });
   const result = JSON.parse(raw);
@@ -237,12 +243,19 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
     } catch (error) { if (error?.code !== 'ENOENT') throw error; }
     if (!['baseline', 'steady', 'breakout', 'early', 'recovery', 'mean_reversion', 'multi_trend'].includes(adaptiveState?.active))
       throw Error('ADAPTIVE_STORED_PROFILE_INVALID');
-    let opportunityRows = [];
-    try { opportunityRows = JSON.parse(await readFile(
+    let activeRows = [];
+    try { activeRows = JSON.parse(await readFile(
       join(journalDirectory, 'adaptive-opportunities.json'), 'utf8')); }
     catch (error) { if (error?.code !== 'ENOENT') throw error; }
-    if (!Array.isArray(opportunityRows) || opportunityRows.length > 250)
+    if (!Array.isArray(activeRows) || activeRows.length > 250)
       throw Error('ADAPTIVE_OPPORTUNITY_LEDGER_INVALID');
+    let maturedArchive = [];
+    try { maturedArchive = JSON.parse(await readFile(
+      join(journalDirectory, 'adaptive-matured-outcomes.json'), 'utf8')); }
+    catch (error) { if (error?.code !== 'ENOENT') throw error; }
+    if (!Array.isArray(maturedArchive) || maturedArchive.length > 4000)
+      throw Error('ADAPTIVE_MATURED_ARCHIVE_INVALID');
+    let opportunityRows = [...maturedArchive, ...activeRows];
     let realizedRows = [];
     try {
       const realizedState = JSON.parse(await readFile(
@@ -279,9 +292,10 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
       ...(result.adaptive?.holdout ? { holdout: result.adaptive.holdout } : {}) });
     await writeFile(join(journalDirectory, 'adaptive-decisions.json'),
       JSON.stringify(observations.slice(-192)) + '\n', { mode: 0o600 });
-    opportunityRows = updateOpportunityLedger(
-      opportunityRows, result.assetDiagnostics || [], now);
-    await save(journalDirectory, 'adaptive-opportunities.json', opportunityRows, checkpoint);
+    activeRows = updateOpportunityLedger(activeRows, result.assetDiagnostics || [], now);
+    maturedArchive = mergeMaturedArchive(maturedArchive, activeRows);
+    await save(journalDirectory, 'adaptive-opportunities.json', activeRows, checkpoint);
+    await save(journalDirectory, 'adaptive-matured-outcomes.json', maturedArchive, checkpoint);
     await save(journalDirectory, 'adaptive-state.json', nextState, checkpoint);
     modelProfile = result.activeProfile;
     console.log('AUDACEFI_ADAPTIVE_STATUS=' + (result.adaptive?.status || 'NOT_AVAILABLE'));
@@ -292,6 +306,11 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
         'mean_reversion_deep', 'multi_trend_strict']].includes(nextState.activeBySymbol[symbol])))
       console.log('AUDACEFI_ADAPTIVE_ACTIVE_BY_SYMBOL=' + JSON.stringify(nextState.activeBySymbol));
     console.log('AUDACEFI_REJECTED_OPPORTUNITY_SAMPLES=' + opportunityRows.length);
+    console.log('AUDACEFI_ADAPTIVE_ASSET_DIAGNOSTICS=' + JSON.stringify(
+      (result.assetDiagnostics || []).map(row => ({ symbol: row.symbol,
+        entryEligible: row.entryEligible,
+        evidence: row.learningEvidence,
+        selected: row.strategySelected, reason: row.reason }))));
     console.log('AUDACEFI_AUTO_DECISION=' + result.status);
     if (/^[A-Z_]{1,64}$/.test(result.reason ?? ''))
       console.log('AUDACEFI_AUTO_REASON=' + result.reason);

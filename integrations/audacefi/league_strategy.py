@@ -209,10 +209,15 @@ def decide(context: dict, portfolio: dict, report: dict, *,
 
     candidates = []
     intraday = report.get("model") == "coinbase_completed_15m"
+    entry_eligible = report.get("entry_eligible_symbols")
+    if intraday and entry_eligible is not None and not isinstance(entry_eligible, list):
+        return _hold("ENTRY_QUALIFICATION_INVALID", phase="active", drawdown=round(drawdown, 6))
     for signal in signals:
         if not isinstance(signal, dict) or signal.get("symbol") not in eligible:
             continue
         symbol = signal["symbol"]
+        if intraday and isinstance(entry_eligible, list) and symbol not in entry_eligible:
+            continue
         if intraday:
             strategy_map = report.get("strategy_by_symbol", {})
             strategy_override = strategy_map.get(symbol, {}) if isinstance(strategy_map, dict) else {}
@@ -307,7 +312,10 @@ def decide(context: dict, portfolio: dict, report: dict, *,
 
     candidates.sort(key=lambda row: (-row[0], row[1]))
     if not candidates:
-        return _hold("NO_POSITIVE_NET_EDGE", phase="active", drawdown=round(drawdown, 6))
+        reason = ("NO_VALIDATED_ENTRY_STRATEGY" if intraday and
+                  isinstance(entry_eligible, list) and not entry_eligible else
+                  "NO_POSITIVE_NET_EDGE")
+        return _hold(reason, phase="active", drawdown=round(drawdown, 6))
     actions = []
     free_exposure = max(0.0, min(total_cap*equity-exposed, cash))
     held_count = len([v for v in positions.values() if float(v["value_usdc"]) > 0])

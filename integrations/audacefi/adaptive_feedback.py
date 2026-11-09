@@ -11,8 +11,8 @@ from typing import Any
 from .adaptive_learning import PRESETS
 
 SUPPORTED = {"SOL", "ETH"}
-MIN_OBSERVATIONS = 30
-MIN_VALIDATION = 8
+MIN_OBSERVATIONS = 6
+MIN_VALIDATION = 2
 MAX_DRAWDOWN = .018
 MIN_EDGE = .003
 HORIZON_MS = 24 * 60 * 60 * 1000
@@ -79,6 +79,36 @@ def _curve(returns: list[float]) -> tuple[float, float]:
     return equity - 1, max_dd
 
 
+def _matured_observations(ledger: list, symbol: str, now_ms: int) -> list[tuple[int, float, dict]]:
+    observations = []
+    seen_days = set()
+    last_observed = None
+    for row in ledger:
+        if not isinstance(row, dict) or row.get("symbol") != symbol:
+            continue
+        observed = row.get("observedAt")
+        indicators = row.get("indicators")
+        outcome = row.get("outcomes", {}).get("24h") if isinstance(row.get("outcomes"), dict) else None
+        if (not isinstance(observed, int) or observed + HORIZON_MS > now_ms or
+                not isinstance(outcome, dict) or not isinstance(indicators, dict) or
+                not isinstance(outcome.get("markedAt"), int) or
+                outcome["markedAt"] < observed + HORIZON_MS or
+                outcome["markedAt"] > now_ms):
+            continue
+        net = _number(outcome.get("netReturnAfterEstimatedCosts"))
+        if net is None or abs(net) > .5:
+            continue
+        bucket = observed // HORIZON_MS
+        if bucket in seen_days or (last_observed is not None and
+                                   observed - last_observed < HORIZON_MS):
+            continue
+        seen_days.add(bucket)
+        observations.append((observed, net, indicators))
+        last_observed = observed
+    observations.sort(key=lambda row: row[0])
+    return observations
+
+
 def select_by_asset(approved: object, ledger: object, *, now_ms: int,
                     prior: object = None, realized: object = None) -> dict:
     """Select per symbol from matured 24h outcomes, with a chronological holdout.
@@ -98,14 +128,30 @@ def select_by_asset(approved: object, ledger: object, *, now_ms: int,
     result: dict[str, Any] = {"activeBySymbol": {}, "activeParametersBySymbol": {},
                               "evidenceBySymbol": {}}
     for symbol in sorted(SUPPORTED):
+        observations = _matured_observations(ledger, symbol, now_ms)
+        coverage = ({"from": observations[0][0], "through": observations[-1][0]}
+                    if observations else None)
         selected = "momentum"
         item = approved.get(symbol)
         profile = item.get("profile") if isinstance(item, dict) else None
         params = item.get("parameters") if isinstance(item, dict) else None
         if not _valid_candidate(profile, params):
             result["activeBySymbol"][symbol] = selected
-            result["evidenceBySymbol"][symbol] = {"status": "NO_OOS_APPROVED_CANDIDATE"}
+            result["evidenceBySymbol"][symbol] = {
+                "status": "NO_OOS_APPROVED_CANDIDATE",
+                "entryEligible": False,
+                "reason": "NO_12M_OOS_CANDIDATE_ADVANTAGE",
+                "samples": len(observations), "coverage": coverage,
+                "model": "momentum_protection_only",
+            }
             continue
+
+        # The untouched historical OOS gate is the bootstrap evidence. Do not
+        # demand another 30 live days before using a strategy already approved
+        # by the twelve-month qualification. New observations are for bounded
+        # retuning and rollback only.
+        selected = profile
+        result["activeParametersBySymbol"][symbol] = params
 
         realized_losses = [row for row in realized if isinstance(row, dict) and
             row.get("symbol") == symbol and row.get("profile") == profile and
@@ -117,39 +163,27 @@ def select_by_asset(approved: object, ledger: object, *, now_ms: int,
                 "status": "LIVE_REALIZED_LOSS_ROLLBACK", "losingRoundTrips": 3}
             continue
 
-        observations = []
-        seen_days = set()
-        for row in ledger:
-            if not isinstance(row, dict) or row.get("symbol") != symbol:
-                continue
-            observed = row.get("observedAt")
-            indicators = row.get("indicators")
-            outcome = row.get("outcomes", {}).get("24h") if isinstance(row.get("outcomes"), dict) else None
-            if (not isinstance(observed, int) or observed + HORIZON_MS > now_ms or
-                    not isinstance(outcome, dict) or not isinstance(indicators, dict) or
-                    not isinstance(outcome.get("markedAt"), int) or
-                    outcome["markedAt"] < observed + HORIZON_MS):
-                continue
-            net = _number(outcome.get("netReturnAfterEstimatedCosts"))
-            if net is None or abs(net) > .5:
-                continue
-            bucket = observed // HORIZON_MS
-            if bucket in seen_days:
-                continue
-            seen_days.add(bucket)
-            observations.append((observed, net, indicators))
-        observations.sort(key=lambda row: row[0])
         if len(observations) < MIN_OBSERVATIONS:
             result["activeBySymbol"][symbol] = selected
             result["evidenceBySymbol"][symbol] = {
-                "status": "INSUFFICIENT_MATURED_OBSERVATIONS", "count": len(observations)}
+                "status": "HISTORICAL_OOS_BOOTSTRAP_AWAITING_LIVE_FEEDBACK",
+                "count": len(observations), "samples": len(observations),
+                "coverage": coverage, "entryEligible": True,
+                "model": profile, "reason": "HISTORICAL_OOS_GATE_APPROVED",
+                "historicalHoldoutNetReturn": item.get("holdoutNetReturn"),
+                "historicalHoldoutEdge": item.get("holdoutEdge"),
+                "historicalHoldoutObservations": item.get("holdoutObservations"),
+            }
             continue
         split = max(1, int(len(observations) * .7))
         train, validation = observations[:split], observations[split:]
         if len(validation) < MIN_VALIDATION:
             result["activeBySymbol"][symbol] = selected
             result["evidenceBySymbol"][symbol] = {
-                "status": "INSUFFICIENT_CHRONOLOGICAL_VALIDATION", "count": len(observations)}
+                "status": "HISTORICAL_OOS_BOOTSTRAP_AWAITING_LIVE_VALIDATION",
+                "count": len(observations), "samples": len(observations),
+                "coverage": coverage, "entryEligible": True, "model": profile,
+                "reason": "LIVE_VALIDATION_REQUIRES_TWO_DISJOINT_OBSERVATIONS"}
             continue
         train_baseline = [net if _accepts("momentum", PRESETS["baseline"], indicators) else 0.0
                           for _, net, indicators in train]
@@ -182,6 +216,10 @@ def select_by_asset(approved: object, ledger: object, *, now_ms: int,
             candidate_returns.append(net if candidate_passes else 0.0)
         base_return, _ = _curve(base_returns)
         candidate_return, candidate_dd = _curve(candidate_returns)
+        # Once enough fresh, chronological data exist, require the live OOS
+        # segment to confirm the historical choice. A failed check rolls back.
+        selected = "momentum"
+        result["activeParametersBySymbol"].pop(symbol, None)
         newest = max(item[0] + HORIZON_MS for item in observations)
         old_newest = prior.get("feedbackWatermarkBySymbol", {}).get(symbol, 0)
         if newest <= old_newest:
@@ -209,6 +247,13 @@ def select_by_asset(approved: object, ledger: object, *, now_ms: int,
             "trainingNetEdge": round(train_edge, 8),
             "selectedParameters": (tuned_params if selected == profile else None),
             "watermark": newest,
+            "samples": len(observations), "coverage": coverage,
+            "entryEligible": selected == profile,
+            "model": selected,
+            "reason": ("HISTORICAL_OOS_GATE_AND_LIVE_FEEDBACK_APPROVED"
+                       if selected == profile else "LIVE_FEEDBACK_DID_NOT_IMPROVE_NET_OOS"),
+            "risk": {"validationMaxDrawdown": round(candidate_dd, 8),
+                     "threshold": MAX_DRAWDOWN},
         }
         result.setdefault("feedbackWatermarkBySymbol", {})[symbol] = max(old_newest, newest)
     return result

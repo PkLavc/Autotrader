@@ -120,12 +120,21 @@ def main() -> int:
         approved_by_symbol = request.get("historicalStrategies")
         if not isinstance(approved_by_symbol, dict):
             approved_by_symbol = {}
+        qualification_diagnostics = request.get("historicalDiagnostics")
+        if not isinstance(qualification_diagnostics, dict):
+            qualification_diagnostics = {}
         prior_state = request.get("adaptiveState")
         feedback = select_by_asset(approved_by_symbol,
             request.get("opportunityFeedback", []),
             now_ms=int(now.timestamp() * 1000), prior=prior_state,
             realized=request.get("realizedFeedback", []))
         profile_by_symbol = feedback["activeBySymbol"]
+        if request.get("enforceEntryQualification") is True:
+            report["entry_eligible_symbols"] = sorted(
+                symbol for symbol, selected in profile_by_symbol.items()
+                if selected != "momentum" and
+                isinstance(approved_by_symbol.get(symbol), dict) and
+                approved_by_symbol[symbol].get("profile") == selected)
         policy_by_symbol = {}
         for symbol, selected in profile_by_symbol.items():
             qualification = approved_by_symbol.get(symbol)
@@ -226,11 +235,19 @@ def main() -> int:
                     "momentum_12h", "momentum_24h", "above_ema20",
                     "ema20_gap", "breakout_20", "rsi14")},
                 "strategySelected": selected.get("strategy") if selected else strategy,
-                "learningEvidence": feedback.get("evidenceBySymbol", {}).get(signal["symbol"], {}),
+                "learningEvidence": {
+                    **qualification_diagnostics.get(signal["symbol"], {}),
+                    **feedback.get("evidenceBySymbol", {}).get(signal["symbol"], {}),
+                },
                 "historicalStrategyApproval": (approved_by_symbol.get(signal["symbol"], {}).get("profile", "momentum")
                     if isinstance(approved_by_symbol.get(signal["symbol"]), dict) else "momentum"),
                 "filters": checks,
+                "entryEligible": signal["symbol"] in report.get("entry_eligible_symbols", [])
+                    if request.get("enforceEntryQualification") is True else None,
                 "reason": ("ORDER_PROPOSED" if selected else
+                           "NO_VALIDATED_ENTRY_STRATEGY" if
+                           request.get("enforceEntryQualification") is True and
+                           signal["symbol"] not in report.get("entry_eligible_symbols", []) else
                            ",".join(failed) if failed else result.get("reason", "NO_ORDER"))})
         result["assetDiagnostics"] = diagnostics
     json.dump(result, sys.stdout, separators=(",", ":"))

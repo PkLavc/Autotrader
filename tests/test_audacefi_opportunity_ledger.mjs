@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { updateOpportunityLedger } from '../integrations/audacefi/opportunity-ledger.mjs';
+import { mergeMaturedArchive, updateOpportunityLedger } from '../integrations/audacefi/opportunity-ledger.mjs';
 
 test('records rejected signals once and marks their later net outcomes', () => {
   const t0 = Date.parse('2026-11-09T00:00:00Z');
@@ -41,4 +41,22 @@ test('does not mark a future outcome before the requested horizon matures', () =
 test('rejects malformed persisted state', () => {
   assert.throws(() => updateOpportunityLedger([{ symbol: 'SOL' }], [], 1),
     /OPPORTUNITY_LEDGER_INVALID/);
+});
+
+test('matured outcomes survive active-ledger rotation and merge idempotently', () => {
+  const start = Date.parse('2026-01-01T00:00:00Z');
+  const rows = Array.from({ length: 200 }, (_, i) => ({
+    symbol: i % 2 ? 'SOL' : 'ETH', observedAt: start + i * 86_400_000,
+    referencePriceUsd: 100, reason: 'FILTERED', indicators: {}, outcomes: {
+      '24h': { markedAt: start + (i + 1) * 86_400_000,
+        netReturnAfterEstimatedCosts: .01 },
+    },
+  }));
+  const first = mergeMaturedArchive([], rows);
+  const newer = { ...rows[0], observedAt: start + 200 * 86_400_000 };
+  const second = mergeMaturedArchive(first, [newer, ...rows.slice(-199)]);
+  assert.equal(first.length, 200);
+  assert.equal(second.length, 201);
+  assert.equal(mergeMaturedArchive(second, [newer]).length, 201);
+  assert.equal(second[0].observedAt, rows[0].observedAt);
 });

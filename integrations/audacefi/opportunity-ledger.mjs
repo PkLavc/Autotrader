@@ -3,6 +3,7 @@
 const HORIZONS = Object.freeze({ '1h': 60 * 60_000, '6h': 6 * 60 * 60_000,
   '24h': 24 * 60 * 60_000 });
 const COST = 0.003;
+const MAX_ARCHIVE = 4000;
 
 function validRow(row) {
   return row && typeof row === 'object' && Number.isInteger(row.observedAt) &&
@@ -60,4 +61,34 @@ export function updateOpportunityLedger(previous, diagnostics, now = Date.now())
         ? signal.indicators : {}, outcomes: {} });
   }
   return rows.slice(-200);
+}
+
+// The operational ledger stays small. Matured labels are copied to a separate
+// encrypted-journal archive before rotation, keyed by symbol and observation
+// bucket so reruns are idempotent.
+export function mergeMaturedArchive(previous, ledger) {
+  if (!Array.isArray(previous) || previous.length > MAX_ARCHIVE ||
+      !Array.isArray(ledger) || ledger.length > 250)
+    throw Error('OPPORTUNITY_ARCHIVE_INVALID');
+  const archive = new Map();
+  for (const row of previous) {
+    const outcome = row?.outcomes?.['24h'];
+    if (!row || !Number.isInteger(row.observedAt) ||
+        !/^[A-Z0-9]{2,12}$/.test(row.symbol || '') ||
+        !outcome || !Number.isInteger(outcome.markedAt) ||
+        !Number.isFinite(outcome.netReturnAfterEstimatedCosts))
+      throw Error('OPPORTUNITY_ARCHIVE_ROW_INVALID');
+  }
+  for (const row of ledger) if (!validRow(row)) throw Error('OPPORTUNITY_ARCHIVE_ROW_INVALID');
+  for (const row of [...previous, ...ledger]) {
+    const outcome = row.outcomes['24h'];
+    if (!outcome || !Number.isInteger(outcome.markedAt) ||
+        !Number.isFinite(outcome.netReturnAfterEstimatedCosts)) continue;
+    const key = `${row.symbol}:${row.observedAt}`;
+    archive.set(key, { symbol: row.symbol, observedAt: row.observedAt,
+      strategy: row.strategy, strategySelected: row.strategySelected,
+      indicators: row.indicators, outcomes: { '24h': outcome } });
+  }
+  return [...archive.values()].sort((a, b) => a.observedAt - b.observedAt)
+    .slice(-MAX_ARCHIVE);
 }
