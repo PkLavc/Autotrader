@@ -12,12 +12,14 @@ const keyFor = index => `autotrader_s1_competitive_${String(Math.floor(index / 2
 const planFile = (directory, index) => join(directory, `operation-${String(index).padStart(2, '0')}.json`);
 const hold = reason => console.log('AUDACEFI_AUTO_HOLD=' + reason);
 
-function decision(context, portfolio) {
+function decision(context, portfolio, adaptiveState) {
   const env = Object.fromEntries(['PATH', 'PYTHONPATH', 'LANG', 'LC_ALL', 'HOME', 'SSL_CERT_FILE']
     .filter(name => typeof process.env[name] === 'string').map(name => [name, process.env[name]]));
   env.PYTHONPATH = process.cwd();
   const raw = execFileSync('python', ['-m', 'integrations.audacefi.live_decision'], {
-    input: JSON.stringify({ context, portfolio, fetchSignals: true, signalMode: 'intraday' }),
+    input: JSON.stringify({ context, portfolio, fetchSignals: true,
+      signalMode: 'intraday', adaptiveState,
+      activeProfile: adaptiveState.active }),
     encoding: 'utf8', timeout: 90_000, maxBuffer: 65536, env,
   });
   const result = JSON.parse(raw);
@@ -162,9 +164,35 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
       positions: hasPosition ? { [active.symbol]: { value_usdc: quantity * price,
         price_usdc: price, entry_price_usdc: entryPrice,
         peak_price_usdc: Math.max(entryPrice, peakPrice) } } : {} };
+    let adaptiveState = { active: 'baseline' };
+    try {
+      adaptiveState = JSON.parse(await readFile(join(journalDirectory, 'adaptive-state.json'), 'utf8'));
+    } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+    if (!['baseline', 'steady', 'breakout', 'early'].includes(adaptiveState?.active))
+      throw Error('ADAPTIVE_STORED_PROFILE_INVALID');
     let result;
-    try { result = decision(context, portfolio); }
+    try { result = decision(context, portfolio, adaptiveState); }
     catch { hold('STRATEGY_DATA_UNAVAILABLE'); return; }
+    const nextState = result.adaptiveState;
+    if (!nextState || !['baseline', 'steady', 'breakout', 'early'].includes(nextState.active) ||
+        !Number.isInteger(nextState.window) || nextState.window !== signalWindow ||
+        !Number.isInteger(nextState.count) || nextState.count < 0 || nextState.count > 2 ||
+        (nextState.pending !== null && !['steady', 'breakout', 'early'].includes(nextState.pending)))
+      throw Error('ADAPTIVE_STATE_INVALID');
+    let observations = [];
+    try { observations = JSON.parse(await readFile(join(journalDirectory, 'adaptive-decisions.json'), 'utf8')); }
+    catch (error) { if (error?.code !== 'ENOENT') throw error; }
+    if (!Array.isArray(observations) || observations.length > 256) throw Error('ADAPTIVE_LOG_INVALID');
+    observations.push({ window: signalWindow, status: result.status,
+      reason: result.reason || 'SIGNAL', profile: result.activeProfile,
+      candidate: result.adaptive?.profile || null,
+      validation: result.adaptive?.status || 'NOT_AVAILABLE',
+      ...(result.adaptive?.holdout ? { holdout: result.adaptive.holdout } : {}) });
+    await writeFile(join(journalDirectory, 'adaptive-decisions.json'),
+      JSON.stringify(observations.slice(-192)) + '\\n', { mode: 0o600 });
+    await save(journalDirectory, 'adaptive-state.json', nextState, checkpoint);
+    console.log('AUDACEFI_ADAPTIVE_STATUS=' + (result.adaptive?.status || 'NOT_AVAILABLE'));
+    console.log('AUDACEFI_ADAPTIVE_ACTIVE=' + nextState.active);
     console.log('AUDACEFI_AUTO_DECISION=' + result.status);
     if (/^[A-Z_]{1,64}$/.test(result.reason ?? ''))
       console.log('AUDACEFI_AUTO_REASON=' + result.reason);
