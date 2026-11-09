@@ -2,6 +2,8 @@
 Description=AudaceFi daily Kronos shadow forecast and outcome tracker
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=1h
+StartLimitBurst=3
 
 [Service]
 Type=oneshot
@@ -28,5 +30,3 @@ ReadWritePaths=/var/lib/autotrader/audacefi
 TimeoutStartSec=3600
 Restart=on-failure
 RestartSec=120s
-StartLimitIntervalSec=1h
-StartLimitBurst=3

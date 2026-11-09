@@ -2,6 +2,8 @@
 Description=AudaceFi historical research and verified GitHub publication (no trades)
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=1h
+StartLimitBurst=3
 
 [Service]
 Type=oneshot
@@ -30,6 +32,4 @@ ReadWritePaths=/var/lib/autotrader/audacefi
 TimeoutStartSec=1200
 Restart=on-failure
 RestartSec=120s
-StartLimitIntervalSec=1h
-StartLimitBurst=3
 ExecStartPost=/opt/autotrader/.venv/bin/python -m integrations.audacefi.oracle_publish
