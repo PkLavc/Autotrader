@@ -86,6 +86,13 @@ def summarize(name: str, body: dict | list | None) -> None:
                 isinstance(token, dict) and token.get("eligible") is True
                 for token in tokens
             )))
+            print("ALLOWLIST_ELIGIBLE_SYMBOLS=" + ",".join(sorted(
+                token["symbol"] for token in tokens
+                if isinstance(token, dict) and token.get("eligible") is True
+                and isinstance(token.get("symbol"), str)
+                and token["symbol"].isupper() and token["symbol"].isalnum()
+                and len(token["symbol"]) <= 12
+            )))
             for symbol in ("SOL", "BTC", "ETH"):
                 print(symbol + "_ELIGIBLE=" + str(any(
                     isinstance(token, dict) and token.get("eligible") is True and
