@@ -25,6 +25,6 @@ if (!body.includes(loop) && source.includes(loop)) {
   if (!prefix.includes(loop) || !prefix.includes(mismatch)) throw Error('VERIFIER_BALANCE_DIAGNOSTIC_CHANGED');
   const changedPrefix = prefix.replace(loop,
     'for (const [position, { address, mint, owner, delta }] of expected.entries()) {').replace(mismatch,
-    'if (post - pre !== delta) {\n            console.log("DIRECT_PILOT_BALANCE_ROLE=" + position);\n            throw new Error("FINALIZED_BENCH_BALANCE_MISMATCH");\n        }');
+    'if (post - pre !== delta) {\n            console.log("DIRECT_PILOT_BALANCE_ROLE=" + position);\n            const observed = post - pre;\n            const deviation = delta === 0n ? 0n : (observed - delta) * 10000n / (delta < 0n ? -delta : delta);\n            console.log("DIRECT_PILOT_BALANCE_DEVIATION_BPS=" + deviation.toString());\n            throw new Error("FINALIZED_BENCH_BALANCE_MISMATCH");\n        }');
   await writeFile(file, changedPrefix + body + source.slice(end));
 } else throw Error('VERIFIER_BALANCE_DIAGNOSTIC_CHANGED');
