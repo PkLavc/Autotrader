@@ -204,17 +204,22 @@ def main() -> int:
             f.write("## AudaceFi — historical 15m strategy qualification\n\n")
             f.write(f"Official allowlist: {len(symbols)} assets. Twelve completed months: {', '.join(months)}.\n\n")
             f.write(f"{checked} supported histories, {qualified} independently validated candidate(s).\n\n")
-            f.write("| Token | Status | Bars | Candidate | Baseline holdout net | Recovery holdout net | Drawdown | Swaps | Est. costs USDC | Decision |\n")
-            f.write("|---|---|---:|---|---:|---:|---:|---:|---:|---|\n")
+            f.write("| Token | Status | Bars | Baseline OOS net | Recovery OOS net | Baseline swaps | Recovery swaps | Baseline cost USDC | Recovery cost USDC | Recovery full-curve DD | Daily DD | 5d DD | Decision |\n")
+            f.write("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|\n")
             for item in results:
                 comparison = item.get("comparison", {})
                 base = comparison.get("baseline", {}).get("holdout", {})
                 recovery = comparison.get("recovery", {}).get("holdout", {})
                 f.write(f"| {item['symbol']} | {item['status']} | {item.get('historyBars', 0)} | "
-                        f"{item.get('profile', '—')} | "
                         f"{100 * base.get('net_return', 0):.2f}% | "
                         f"{100 * recovery.get('net_return', 0):.2f}% | "
+                        f"{base.get('swaps', 0)} | "
+                        f"{recovery.get('swaps', 0)} | "
+                        f"{base.get('estimated_costs_usdc', 0):.2f} | "
+                        f"{recovery.get('estimated_costs_usdc', 0):.2f} | "
                         f"{100 * recovery.get('max_drawdown', 0):.2f}% | "
+                        f"{100 * recovery.get('max_intraday_drawdown', 0):.2f}% | "
+                        f"{100 * recovery.get('max_competition_drawdown', 0):.2f}% | "
                         f"{recovery.get('swaps', 0)} | "
                         f"{recovery.get('estimated_costs_usdc', 0):.2f} | "
                         f"{item.get('decisionReason', item.get('reason', 'n/a'))} |\n")

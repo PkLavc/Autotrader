@@ -157,8 +157,10 @@ def walk_forward(rows: list[list], symbol: str = "SOL") -> dict:
              test["usdc_only_at_end"] is True and
              test["net_return"] > 0 and
              test["net_return"] > baseline_test["net_return"] + .003 and
-             test["max_drawdown"] <= .018 and
-             training["recovery"]["max_drawdown"] <= .018)
+             test["max_intraday_drawdown"] <= .018 and
+             training["recovery"]["max_intraday_drawdown"] <= .018 and
+             test["max_competition_drawdown"] <= .018 and
+             training["recovery"]["max_competition_drawdown"] <= .018)
     status = ("VALIDATED_HISTORICAL_CANDIDATE" if valid else
               "REJECTED_OOS" if train_edge else "NO_TRAINING_EDGE")
     if not train_edge:
@@ -174,7 +176,10 @@ def walk_forward(rows: list[list], symbol: str = "SOL") -> dict:
         reason = "RECOVERY_HOLDOUT_NOT_PROFITABLE_NET_OF_COSTS"
     elif test["net_return"] <= baseline_test["net_return"] + .003:
         reason = "RECOVERY_HOLDOUT_EDGE_BELOW_30_BPS"
-    elif test["max_drawdown"] > .018 or training["recovery"]["max_drawdown"] > .018:
+    elif (test["max_intraday_drawdown"] > .018 or
+          training["recovery"]["max_intraday_drawdown"] > .018 or
+          test["max_competition_drawdown"] > .018 or
+          training["recovery"]["max_competition_drawdown"] > .018):
         reason = "DRAWDOWN_EXCEEDS_LIVE_1_8_PERCENT_GUARD"
     else:
         reason = "VALIDATED_12M_OOS_ADVANTAGE"

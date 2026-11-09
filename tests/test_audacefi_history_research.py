@@ -100,6 +100,8 @@ def test_continuous_chronological_train_and_holdout_curves():
     assert result["holdoutStartUtc"] > result["trainEndUtc"]
     assert result["costModel"]["maximumRollingSwaps24h"] == 10
     assert result["baselineHoldout"]["max_rolling_swaps_24h"] <= 10
+    assert result["baselineHoldout"]["max_intraday_drawdown"] == 0
+    assert result["baselineHoldout"]["max_competition_drawdown"] == 0
     assert result["status"] == "NO_TRAINING_EDGE"
 
 

@@ -73,9 +73,9 @@ Historical simulation and the live signal path use the same completed-candle
 signal calculations and `league_strategy.decide` rules for entries, stops,
 reversals and required USDC exits. Simulated orders fill on the next 15-minute
 close. The comparison uses an untouched chronological final quarter of twelve
-months of verified Binance spot history; equity and drawdown remain continuous
-inside each training or holdout curve rather than being compounded from
-independent short folds.
+months of verified Binance spot history. Full-curve drawdown stays continuous
+inside each training or holdout period; daily and five-day competition drawdowns
+are also measured separately for the official risk gate.
 
 The simulator applies the 35% position and total exposure caps, a 1.8% guard
 (stricter than the displayed 2% platform maximum), no more than ten swaps in
@@ -86,8 +86,9 @@ liquidation. Cost figures are estimates, not quotes or observed fills.
 Short, overlapping live evaluations are diagnostic only and cannot promote a
 strategy. Recovery remains disabled unless its twelve-month holdout is
 profitable net of costs, beats baseline by at least 30 bps, has at least six
-completed trades, and stays within the live drawdown guard in both training
-and holdout. The live runner remains the only order executor; the history job
+completed trades, and stays within the live daily and five-day drawdown guard
+in both training and holdout. Full-curve drawdown remains visible as a separate
+research metric and is not mislabeled as the per-competition 2% rule. The live runner remains the only order executor; the history job
 and Oracle research are read-only. Backtests do not guarantee live gains.
 
 ## Historical data, AutoTrader reuse and Oracle VM
@@ -96,24 +97,27 @@ The [historical training workflow](../../.github/workflows/audacefi-history-trai
 runs daily and on demand. It downloads twelve **completed** months of public
 15-minute Binance spot archives for the active AudaceFi-eligible symbols,
 verifies official SHA-256 checksums, rejects missing candles and tests fixed
-strategies in chronological, non-overlapping train/holdout folds. A missing
+the momentum baseline against recovery on a chronological 75%/25%
+train/holdout split, simulating each partition as one continuous equity curve. A missing
 USDT spot archive may fall back to a separately verified USDC pair. These
 stablecoin market prices are proxies; they are **not** AudaceFi Devnet quotes.
 
-The job reuses the stock AutoTrader's
-[`sector_factors`](../../autotrader/learning.py) conservative Bayesian
-feedback calibration on **matured training folds only**, treating each crypto
-symbol as a separate feedback group. The stock Kronos forecaster is already
+The job calls the stock AutoTrader's
+[`sector_factors`](../../autotrader/learning.py) only with one independent
+chronological training curve per asset; it does not count overlapping slices
+of the same price series as separate learning evidence. The stock Kronos forecaster is already
 adapted to daily crypto candles in
 [`CryptoKronosEngine`](crypto_research.py) but remains optional research:
 it is **not** a validated 15-minute live trading model. Nothing in this
 workflow places orders or automatically promotes a historical result to
 the live strategy.
 
-First four-month baseline run (November 9): 15 explicitly eligible symbols,
-6 with uninterrupted available historical coverage, and **zero** new
-candidates that passed the chosen out-of-sample thresholds. The result is a
-reproducible evidence baseline, not proof of a profitable trading edge.
+Corrected twelve-month run (November 9): 15 explicitly eligible symbols,
+5 with complete verified history, and **zero** recovery candidates that beat
+baseline on the supported SOL/ETH holdout. Recovery cut holdout swaps from
+150 to 42 on SOL but worsened net return from -1.09% to -4.11%; on ETH it cut
+swaps from 144 to 16 but worsened return from -1.62% to -1.87%. Neither
+profile met the strict out-of-sample approval gate; none was promoted.
 
 The [Oracle worker deployment](../../deploy/oracle/README.md) runs this
 historical research and a daily Kronos five-day shadow forecast on WBTC, ETH

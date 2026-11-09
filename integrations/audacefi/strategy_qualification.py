@@ -26,8 +26,10 @@ def qualification(report: dict, run_id: str) -> dict:
         row["comparison"].get("recovery", {}).get("train", {}).get("max_rolling_swaps_24h", 11) <= 10 and
         row["comparison"].get("recovery", {}).get("holdout", {}).get("max_rolling_swaps_24h", 11) <= 10 and
         row["comparison"].get("recovery", {}).get("holdout", {}).get("usdc_only_at_end") is True and
-        row["comparison"].get("recovery", {}).get("holdout", {}).get("max_drawdown", 1) <= .018 and
-        row["comparison"].get("recovery", {}).get("train", {}).get("max_drawdown", 1) <= .018
+        row["comparison"].get("recovery", {}).get("holdout", {}).get("max_intraday_drawdown", 1) <= .018 and
+        row["comparison"].get("recovery", {}).get("train", {}).get("max_intraday_drawdown", 1) <= .018 and
+        row["comparison"].get("recovery", {}).get("holdout", {}).get("max_competition_drawdown", 1) <= .018 and
+        row["comparison"].get("recovery", {}).get("train", {}).get("max_competition_drawdown", 1) <= .018
         for row in results
     )
     try:

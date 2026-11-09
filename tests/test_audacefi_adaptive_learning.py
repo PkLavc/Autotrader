@@ -78,8 +78,13 @@ def test_recovery_is_not_promoted_from_short_live_validation():
 
 def test_recovery_requires_12_month_out_of_sample_advantage():
     comparison = {"recovery": {"train": {"net_return": .03, "trades": 12,
-                                          "max_drawdown": .01, "max_rolling_swaps_24h": 4},
+                                          "max_drawdown": .04,
+                                          "max_intraday_drawdown": .01,
+                                          "max_competition_drawdown": .01,
+                                          "max_rolling_swaps_24h": 4},
                                 "holdout": {"net_return": .02, "trades": 8, "max_drawdown": .01,
+                                            "max_intraday_drawdown": .01,
+                                            "max_competition_drawdown": .01,
                                             "max_rolling_swaps_24h": 4,
                                             "usdc_only_at_end": True}},
                   "baseline": {"train": {"net_return": .02},

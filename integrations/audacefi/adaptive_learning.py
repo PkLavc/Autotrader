@@ -88,7 +88,7 @@ def _simulate(rows: list[tuple[int, float, float]], preset: dict,
     first, last = max(0, first), min(len(rows), last)
     if last - first < 100:
         return _metrics(STARTING_EQUITY_USDC, STARTING_EQUITY_USDC, [], 0,
-                        0.0, 0.0, [], True)
+                        0.0, 0.0, [], True, 0.0, 0.0)
     policy = policy_for("baseline", LeaguePolicy(
         max_position_weight=.35, max_total_exposure=.35,
         risk_budget_per_trade=.012, maximum_season_drawdown=.018,
@@ -115,11 +115,14 @@ def _simulate(rows: list[tuple[int, float, float]], preset: dict,
 
     equity = peak_all = STARTING_EQUITY_USDC
     max_drawdown = 0.0
+    max_intraday_drawdown = max_competition_drawdown = 0.0
     completed: list[float] = []
     costs = turnover = 0.0
     # Keep each simulated competition within the official maximum duration.
     # Equity and its reported drawdown curve continue across these windows.
     all_swaps: list[int] = []
+    daily_peak = equity
+    current_day = None
     episode_starts = list(range(first, last, SEASON_CANDLES))
     for episode_begin in episode_starts:
         episode_end = min(last, episode_begin + SEASON_CANDLES)
@@ -133,8 +136,6 @@ def _simulate(rows: list[tuple[int, float, float]], preset: dict,
         entry_price = peak_price = 0.0
         entry_cash = 0.0
         season_peak = equity
-        daily_peak = equity
-        current_day = None
         pending = None
         for index in range(max(episode_begin, 96), episode_end):
             ts, close, _ = rows[index]
@@ -182,6 +183,9 @@ def _simulate(rows: list[tuple[int, float, float]], preset: dict,
             daily_peak = max(daily_peak, mark)
             peak_all = max(peak_all, mark)
             max_drawdown = max(max_drawdown, 1 - mark / peak_all)
+            max_intraday_drawdown = max(max_intraday_drawdown, 1 - mark / daily_peak)
+            max_competition_drawdown = max(max_competition_drawdown,
+                                           1 - mark / season_peak)
             if held_symbol:
                 peak_price = max(peak_price, close)
 
@@ -241,14 +245,20 @@ def _simulate(rows: list[tuple[int, float, float]], preset: dict,
         equity = cash + quantity * (rows[episode_end - 1][1] if quantity else 0)
         peak_all = max(peak_all, equity)
         max_drawdown = max(max_drawdown, 1 - equity / peak_all)
+        max_intraday_drawdown = max(max_intraday_drawdown,
+                                    1 - equity / max(daily_peak, equity))
+        max_competition_drawdown = max(max_competition_drawdown,
+                                       1 - equity / max(season_peak, equity))
 
     return _metrics(STARTING_EQUITY_USDC, equity, completed, max_drawdown,
-                    costs, turnover, all_swaps, not held_symbol)
+                    costs, turnover, all_swaps, not held_symbol,
+                    max_intraday_drawdown, max_competition_drawdown)
 
 
 def _metrics(start: float, ending: float, completed: list[float],
              max_drawdown: float, costs: float, turnover: float,
-             swap_times: list[int], usdc_only_at_end: bool) -> dict:
+             swap_times: list[int], usdc_only_at_end: bool,
+             max_intraday_drawdown: float, max_competition_drawdown: float) -> dict:
     rolling_max = max((sum(1 for when in swap_times if when <= at < when + 24*3600)
                        for at in swap_times), default=0)
     return {"trades": len(completed), "swaps": len(swap_times),
@@ -257,6 +267,8 @@ def _metrics(start: float, ending: float, completed: list[float],
             "net_return": round(ending / start - 1, 8),
             "net_pnl_usdc": round(ending - start, 4),
             "max_drawdown": round(max_drawdown, 8),
+            "max_intraday_drawdown": round(max_intraday_drawdown, 8),
+            "max_competition_drawdown": round(max_competition_drawdown, 8),
             "win_rate": round(sum(value > 0 for value in completed) / len(completed), 6)
             if completed else 0.0,
             "estimated_costs_usdc": round(costs, 4),
