@@ -15,6 +15,8 @@ import json
 import os
 import re
 import sys
+import tempfile
+from hashlib import sha256
 from urllib.error import HTTPError
 
 from autotrader.config import StrategyConfig
@@ -22,6 +24,8 @@ from autotrader.learning import sector_factors
 from .adaptive_learning import PRESETS, _simulate, validate_candles
 from .history_research import complete_months, load_history, walk_forward
 from .live_probe import read_route
+
+HISTORY_CACHE_SCHEMA = "audacefi-walk-forward-v1"
 
 
 def stock_learning_calibration(bars: list[list], symbol: str) -> float:
@@ -129,14 +133,48 @@ def research_one(symbol: str, months: list[str]) -> dict:
                 raise
             quote = "USDC"
             bars = load_history(symbol, months, quote=quote, cache_dir=cache_dir)
+        result_cache = os.environ.get("AUDACEFI_HISTORY_RESULT_CACHE")
+        fingerprint_input = json.dumps([HISTORY_CACHE_SCHEMA, symbol, quote, months, bars],
+                                       separators=(",", ":"), allow_nan=False).encode()
+        fingerprint = sha256(fingerprint_input).hexdigest()
+        cache_path = (Path(result_cache) / (symbol + ".json")
+                      if result_cache else None)
+        if cache_path is not None:
+            try:
+                cached = json.loads(cache_path.read_text(encoding="utf-8"))
+                if (isinstance(cached, dict) and cached.get("schema") == HISTORY_CACHE_SCHEMA and
+                        cached.get("fingerprint") == fingerprint and
+                        isinstance(cached.get("result"), dict)):
+                    return {"symbol": symbol, "proxyQuote": quote,
+                            "historyBars": len(bars), "cachedEvaluation": True,
+                            **cached["result"]}
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                pass
         outcome = walk_forward(bars, symbol=symbol)
         calibration = stock_learning_calibration(bars, symbol)
-        return {
+        result = {
             "symbol": symbol, "proxyQuote": quote,
             "historyBars": len(bars),
             "bayesianPriorMultiplier": calibration,
             **outcome,
         }
+        if cache_path is not None:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            payload = json.dumps({"schema": HISTORY_CACHE_SCHEMA,
+                "fingerprint": fingerprint, "result": result},
+                sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+            fd, temporary = tempfile.mkstemp(prefix=".result-", dir=cache_path.parent)
+            try:
+                os.fchmod(fd, 0o600)
+                with os.fdopen(fd, "wb") as stream:
+                    stream.write(payload)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, cache_path)
+            finally:
+                if os.path.exists(temporary):
+                    os.unlink(temporary)
+        return result
     except Exception as exc:
         # Public archive presence varies by market. Do not fabricate candles.
         if type(exc).__name__ not in {

@@ -183,3 +183,23 @@ def test_oracle_publication_rejects_expired_research_evidence(tmp_path):
         encoding="utf-8")
     with pytest.raises(ValueError, match="ORACLE_ALLOWLIST_EXPIRED"):
         publish(report, tmp_path / "state")
+
+
+def test_history_evaluation_cache_skips_unchanged_tokens(monkeypatch, tmp_path):
+    bars = [[1_730_000_700 + i * 900, 100 + i, 50_000] for i in range(320)]
+    calls = {"walk": 0, "load": 0}
+    def load(*args, **kwargs):
+        calls["load"] += 1
+        return bars
+    def walk(*args, **kwargs):
+        calls["walk"] += 1
+        return {"status": "NO_TRAINING_EDGE"}
+    monkeypatch.setattr(history_job, "load_history", load)
+    monkeypatch.setattr(history_job, "walk_forward", walk)
+    monkeypatch.setattr(history_job, "stock_learning_calibration", lambda *_: 1.0)
+    monkeypatch.setenv("AUDACEFI_HISTORY_RESULT_CACHE", str(tmp_path))
+    first = history_job.research_one("SOL", ["2026-10"])
+    second = history_job.research_one("SOL", ["2026-10"])
+    assert calls == {"walk": 1, "load": 2}
+    assert first["status"] == second["status"] == "NO_TRAINING_EDGE"
+    assert second["cachedEvaluation"] is True

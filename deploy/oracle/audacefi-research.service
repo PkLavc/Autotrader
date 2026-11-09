@@ -14,6 +14,7 @@ Environment=PYTHONPATH=/opt/autotrader
 Environment=AUDACEFI_ALLOWLIST_SNAPSHOT=/opt/autotrader/deploy/oracle/audacefi-s1-allowlist.snapshot.json
 Environment=AUDACEFI_HISTORY_REPORT=/var/lib/autotrader/audacefi/audacefi-historical-qualification.json
 Environment=AUDACEFI_HISTORY_CACHE_DIR=/var/lib/autotrader/audacefi/history-cache
+Environment=AUDACEFI_HISTORY_RESULT_CACHE=/var/lib/autotrader/audacefi/evaluations
 Environment=AUDACEFI_STATE_DIR=/var/lib/autotrader/audacefi
 ExecStartPre=/usr/bin/git -C /opt/autotrader pull --ff-only origin main
 ExecStart=/opt/autotrader/.venv/bin/python -m integrations.audacefi.history_job
