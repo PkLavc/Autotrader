@@ -1,5 +1,5 @@
 [Unit]
-Description=AudaceFi historical research (read-only, no trades)
+Description=AudaceFi historical research and verified GitHub publication (no trades)
 After=network-online.target
 Wants=network-online.target
 
@@ -11,12 +11,14 @@ WorkingDirectory=/opt/autotrader
 Environment=PYTHONPATH=/opt/autotrader
 Environment=AUDACEFI_ALLOWLIST_SNAPSHOT=/opt/autotrader/deploy/oracle/audacefi-s1-allowlist.snapshot.json
 Environment=AUDACEFI_HISTORY_REPORT=/var/lib/autotrader/audacefi/audacefi-historical-qualification.json
+Environment=AUDACEFI_HISTORY_CACHE_DIR=/var/lib/autotrader/audacefi/history-cache
+Environment=AUDACEFI_STATE_DIR=/var/lib/autotrader/audacefi
 ExecStart=/opt/autotrader/.venv/bin/python -m integrations.audacefi.history_job
 StateDirectory=autotrader/audacefi
 StateDirectoryMode=0700
 UMask=0077
 Nice=10
-CPUQuota=25%
+CPUQuota=35%
 MemoryHigh=1200M
 MemoryMax=1536M
 TasksMax=32
@@ -26,3 +28,8 @@ ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/var/lib/autotrader/audacefi
 TimeoutStartSec=1200
+Restart=on-failure
+RestartSec=120s
+StartLimitIntervalSec=1h
+StartLimitBurst=3
+ExecStartPost=/opt/autotrader/.venv/bin/python -m integrations.audacefi.oracle_publish

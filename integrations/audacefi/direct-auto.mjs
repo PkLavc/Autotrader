@@ -1,10 +1,10 @@
 // Season 1 spot operator. All plans and risk state are stored in the encrypted
 // journal branch. The stock AutoTrader is not imported or modified.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 import { readFile, writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { mergeMaturedArchive, updateOpportunityLedger } from './opportunity-ledger.mjs';
+import { readVerifiedQualification } from './qualification_integrity.mjs';
 
 const MAX_OPERATIONS = 40;
 const PILOT_SWAPS = 2;
@@ -14,15 +14,15 @@ const keyFor = index => `autotrader_s1_competitive_${String(Math.floor(index / 2
 const planFile = (directory, index) => join(directory, `operation-${String(index).padStart(2, '0')}.json`);
 const hold = reason => console.log('AUDACEFI_AUTO_HOLD=' + reason);
 
-function decision(context, portfolio, adaptiveState, opportunityRows, realizedRows) {
+async function decision(context, portfolio, adaptiveState, opportunityRows, realizedRows) {
   const env = Object.fromEntries(['PATH', 'PYTHONPATH', 'LANG', 'LC_ALL', 'HOME', 'SSL_CERT_FILE']
     .filter(name => typeof process.env[name] === 'string').map(name => [name, process.env[name]]));
   env.PYTHONPATH = process.cwd();
   let historicalStrategies = {};
   let historicalDiagnostics = {};
   try {
-    const qualification = JSON.parse(readFileSync(
-      'integrations/audacefi/strategy-qualification.json', 'utf8'));
+    const qualification = await readVerifiedQualification(
+      'integrations/audacefi/strategy-qualification.json');
     if (qualification?.schemaVersion === 3 &&
         Array.isArray(qualification?.approvedSymbols) &&
         qualification.approvedBySymbol && typeof qualification.approvedBySymbol === 'object' &&
@@ -268,7 +268,7 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
       !row || !['SOL', 'ETH'].includes(row.symbol) || typeof row.profile !== 'string' ||
       !Number.isFinite(row.pnl))) throw Error('ADAPTIVE_REALIZED_FEEDBACK_INVALID');
     let result;
-    try { result = decision(context, portfolio, adaptiveState, opportunityRows, realizedRows); }
+    try { result = await decision(context, portfolio, adaptiveState, opportunityRows, realizedRows); }
     catch { hold('STRATEGY_DATA_UNAVAILABLE'); return; }
     const nextState = result.adaptiveState;
     if (!nextState || !['baseline', 'steady', 'breakout', 'early', 'recovery', 'mean_reversion', 'multi_trend'].includes(nextState.active) ||

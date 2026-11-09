@@ -16,6 +16,7 @@ on:
       - 'integrations/audacefi/strategy_qualification.py'
       - 'integrations/audacefi/direct-auto.mjs'
       - 'integrations/audacefi/adaptive-handoff.mjs'
+      - 'integrations/audacefi/qualification_integrity.mjs'
       - 'integrations/audacefi/handoff-journal.mjs'
       - 'tests/test_audacefi_adaptive_learning.py'
       - 'tests/test_audacefi_adaptive_feedback.py'
@@ -25,6 +26,7 @@ on:
       - 'tests/test_audacefi_history_research.py'
       - 'tests/fixtures/audacefi-historical-baseline-evidence.json'
       - 'tests/test_audacefi_handoff_journal.mjs'
+      - 'tests/test_audacefi_qualification_integrity.mjs'
       - '.github/workflows/audacefi-adaptive-ci.yml'
 
 permissions:
@@ -50,6 +52,8 @@ jobs:
         run: node --test tests/test_audacefi_handoff_journal.mjs
       - name: Verify rejected-opportunity outcome ledger
         run: node --test tests/test_audacefi_opportunity_ledger.mjs
+      - name: Verify Oracle qualification integrity gate
+        run: node --test tests/test_audacefi_qualification_integrity.mjs
       - name: Syntax-check live executor
         run: |
           node --check integrations/audacefi/direct-auto.mjs

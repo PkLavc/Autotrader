@@ -1,6 +1,7 @@
 """Translate verified historical research into a narrow live-strategy gate."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -143,6 +144,20 @@ def main() -> int:
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, output_path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+    checksum_path = Path(str(output_path) + ".sha256")
+    digest = hashlib.sha256(output_path.read_bytes()).hexdigest() + "\n"
+    fd, temporary = tempfile.mkstemp(prefix=".qualification-sha256-",
+                                     dir=checksum_path.parent)
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="ascii") as stream:
+            stream.write(digest)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, checksum_path)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)

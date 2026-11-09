@@ -12,6 +12,7 @@ on:
       - 'integrations/audacefi/opportunity-ledger.mjs'
       - 'integrations/audacefi/live_decision.py'
       - 'integrations/audacefi/league_strategy.py'
+      - 'integrations/audacefi/strategy-qualification.json'
 
 permissions:
   contents: read

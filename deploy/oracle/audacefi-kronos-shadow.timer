@@ -1,9 +1,9 @@
 [Unit]
-Description=Daily bounded Kronos shadow inference
+Description=Continuous bounded Kronos shadow inference every six hours
 
 [Timer]
-OnCalendar=*-*-* 12:00:00 UTC
-RandomizedDelaySec=5m
+OnCalendar=*-*-* 03,09,15,21:00:00 UTC
+RandomizedDelaySec=2m
 Persistent=true
 Unit=audacefi-kronos-shadow.service
 

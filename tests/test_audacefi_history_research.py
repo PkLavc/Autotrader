@@ -87,6 +87,24 @@ def test_loader_refuses_gap_between_months():
                                       loader=lambda url, _: urls[url])
 
 
+def test_verified_archives_are_cached_and_reused_incrementally(tmp_path):
+    zipped, checksum, _ = archive()
+    url = history_research.archive_url("SOL", "2026-08")
+    calls = []
+    def loader(request, _):
+        calls.append(request)
+        return (checksum + " archive.zip").encode() if request.endswith(".CHECKSUM") else zipped
+
+    first = history_research.load_history("SOL", ["2026-08"], loader=loader,
+                                          cache_dir=tmp_path)
+    first_call_count = len(calls)
+    second = history_research.load_history("SOL", ["2026-08"], loader=loader,
+                                           cache_dir=tmp_path)
+    assert first == second
+    assert len(calls) == first_call_count + 1
+    assert calls[-1] == url + ".CHECKSUM"
+
+
 def test_short_history_is_not_automatically_qualified():
     assert history_research.walk_forward([[i * 900, 100, 5000]
                                           for i in range(1000)])["status"] == "INSUFFICIENT_HISTORY"
@@ -155,3 +173,13 @@ def test_expired_or_unfrozen_allowlist_snapshot_fails_closed(tmp_path):
     with pytest.raises(RuntimeError, match="HISTORY_SNAPSHOT_INVALID"):
         history_job.eligible_symbols("", snapshot_path=str(path),
             now=datetime(2026, 11, 10, 8, tzinfo=timezone.utc))
+
+
+def test_oracle_publication_rejects_expired_research_evidence(tmp_path):
+    from integrations.audacefi.oracle_publish import publish
+    report = tmp_path / "report.json"
+    report.write_text('{"readOnly":true,"liveExecutionAuthorized":false,'
+        '"allowlistExpiresAtUtc":"2026-11-08T00:00:00Z","results":[]}',
+        encoding="utf-8")
+    with pytest.raises(ValueError, match="ORACLE_ALLOWLIST_EXPIRED"):
+        publish(report, tmp_path / "state")

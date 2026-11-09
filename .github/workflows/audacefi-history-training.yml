@@ -15,6 +15,11 @@ on:
       - 'integrations/audacefi/adaptive_learning.py'
       - 'integrations/audacefi/strategy_qualification.py'
       - 'integrations/audacefi/adaptive_feedback.py'
+      - 'deploy/oracle/audacefi-research.service'
+      - 'deploy/oracle/audacefi-research.timer'
+      - 'deploy/oracle/audacefi-kronos-shadow.service'
+      - 'deploy/oracle/audacefi-kronos-shadow.timer'
+      - 'integrations/audacefi/oracle_publish.py'
       - 'tests/test_audacefi_history_research.py'
 
 permissions:
@@ -48,7 +53,7 @@ jobs:
           python -m integrations.audacefi.strategy_qualification
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add integrations/audacefi/strategy-qualification.json
+          git add integrations/audacefi/strategy-qualification.json integrations/audacefi/strategy-qualification.json.sha256
           if ! git diff --cached --quiet; then
             git commit -m "chore(audacefi): update historical strategy qualification"
             git fetch origin main

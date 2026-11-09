@@ -74,9 +74,12 @@ assets, five-day predictions and realized comparisons against five-day
 momentum. The allowlist snapshot expires at the Season 1 end time and then the
 historical service safely stops without using stale symbols.
 
-Both systemd services have CPU and memory limits. Historical research is
-limited to 25% CPU and 1.5 GiB RAM; Kronos shadow inference is limited to 25%
-CPU and 3 GiB RAM. The schedules run at 08:00 and 12:00 UTC, respectively.
+Historical research runs every six hours at 00:00, 06:00, 12:00 and 18:00 UTC.
+Kronos shadow runs every six hours at 03:00, 09:00, 15:00 and 21:00 UTC, so the
+CPU and memory intensive jobs do not overlap. Failed jobs retry after two
+minutes, up to three attempts per hour. Research is capped at 35% CPU and
+1.5 GiB RAM; Kronos is capped at 25% CPU and 3 GiB RAM. These limits reserve
+capacity for Ark and the VM's other services.
 
 ## Moving live trading to Oracle later
 
@@ -98,10 +101,10 @@ copied unmodified into the Solana Devnet order executor.
 ## Research result handoff
 
 The GitHub executor reads the versioned
-`integrations/audacefi/strategy-qualification.json` file from the public
-repository. The Oracle checkout is read-only and has no credential or
-authenticated bridge to publish its private qualification file. Until an
-Oracle-to-GitHub result bridge is provisioned and verified, the daily GitHub
-historical-training workflow remains the source of the live strategy gate.
-The Oracle independently trains and measures the same candidates, but does not
-activate them. Do not copy a private Oracle artifact into the public repository.
+`integrations/audacefi/strategy-qualification.json` file and verifies its
+`.sha256` sidecar before accepting entry approvals. The Oracle research service
+publishes only that file and checksum with a repository-scoped deploy key stored
+under `/var/lib/autotrader/.ssh`; it has no AudaceFi or wallet credentials.
+Qualification pushes trigger the GitHub safe-rollout workflow, which reconciles
+the existing executor before a new revision can run. GitHub Actions remains the
+only order executor.

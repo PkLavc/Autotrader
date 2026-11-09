@@ -1,9 +1,9 @@
 [Unit]
-Description=Daily AudaceFi verified historical research
+Description=Continuous AudaceFi verified historical research every six hours
 
 [Timer]
-OnCalendar=*-*-* 08:00:00 UTC
-RandomizedDelaySec=5m
+OnCalendar=*-*-* 00,06,12,18:00:00 UTC
+RandomizedDelaySec=2m
 Persistent=true
 Unit=audacefi-research.service
 

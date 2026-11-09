@@ -15,8 +15,11 @@ from hashlib import sha256
 from io import BytesIO, StringIO, TextIOWrapper
 import json
 import math
+import os
+from pathlib import Path
 import random
 import re
+import tempfile
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from zipfile import ZipFile, BadZipFile
@@ -109,14 +112,41 @@ def parse_archive(data: bytes, expected_hash: str) -> list[list]:
 
 
 def load_history(symbol: str, months: list[str], loader=download,
-                 quote: str = "USDT") -> list[list]:
+                 quote: str = "USDT", cache_dir: str | Path | None = None) -> list[list]:
     all_rows = []
     for month in months:
         url = archive_url(symbol, month, quote)
         checksum = loader(url + ".CHECKSUM", 512).decode("ascii").strip().split()
         if not checksum:
             raise ValueError("ARCHIVE_CHECKSUM_UNAVAILABLE")
-        data = loader(url, MAX_ZIP)
+        data = None
+        cache_path = (Path(cache_dir) / (symbol + quote) / (month + ".zip")
+                      if cache_dir is not None else None)
+        if cache_path is not None:
+            try:
+                cached = cache_path.read_bytes()
+                if sha256(cached).hexdigest() == checksum[0].lower():
+                    data = cached
+            except OSError:
+                pass
+        if data is None:
+            data = loader(url, MAX_ZIP)
+            # Cache only checksum-verified immutable monthly archives. A
+            # checksum mismatch aborts before any bytes are persisted.
+            parse_archive(data, checksum[0])
+            if cache_path is not None:
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                fd, temporary = tempfile.mkstemp(prefix=".archive-", dir=cache_path.parent)
+                try:
+                    os.fchmod(fd, 0o600)
+                    with os.fdopen(fd, "wb") as stream:
+                        stream.write(data)
+                        stream.flush()
+                        os.fsync(stream.fileno())
+                    os.replace(temporary, cache_path)
+                finally:
+                    if os.path.exists(temporary):
+                        os.unlink(temporary)
         rows = parse_archive(data, checksum[0])
         if not rows:
             raise ValueError("ARCHIVE_EMPTY")

@@ -26,3 +26,7 @@ ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/var/lib/autotrader/audacefi
 TimeoutStartSec=3600
+Restart=on-failure
+RestartSec=120s
+StartLimitIntervalSec=1h
+StartLimitBurst=3
