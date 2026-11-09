@@ -229,3 +229,27 @@ def test_universe_scan_rejects_bad_mints_before_price_or_route_research():
     assert valid_mint("So11111111111111111111111111111111111111112")
     assert valid_mint("111") is False
     assert valid_mint("not-a-mint") is False
+
+
+def test_additional_exchange_candle_sources_parse_only_closed_valid_bars(monkeypatch):
+    import json
+    from datetime import datetime, timezone
+    from integrations.audacefi import universe_research
+    now = datetime.fromtimestamp(1_800_000_000, timezone.utc)
+    ts = (int(now.timestamp()) // 900 - 2) * 900
+    class Reply:
+        def __init__(self, content): self.content = content
+        def __enter__(self): return self
+        def __exit__(self, *_): return False
+        def read(self, _): return self.content
+    kraken = {"error": [], "result": {"XETHZUSD": [
+        [ts, "100", "101", "99", "100.5", "100.2", "12.5", 5],
+        [ts + 900, "100.5", "101", "100", "100.8", "100.6", "10", 4]], "last": ts + 900}}
+    monkeypatch.setattr(universe_research, "urlopen",
+        lambda *_a, **_k: Reply(json.dumps(kraken).encode()))
+    rows = universe_research.kraken_closed_bars("ETH", now)
+    assert rows == [[ts, 100.5, 12.5]]
+    okx = {"code": "0", "data": [[str(ts * 1000), "100", "101", "99", "100.5", "12.5"]]}
+    monkeypatch.setattr(universe_research, "urlopen",
+        lambda *_a, **_k: Reply(json.dumps(okx).encode()))
+    assert universe_research.okx_closed_bars("ETH", now) == [[ts, 100.5, 12.5]]

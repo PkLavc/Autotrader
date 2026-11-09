@@ -128,8 +128,8 @@ promote a strategy by themselves.
 
 The six-times-daily universe scan now checks all currently eligible symbols
 against the frozen allowlist and AudaceFi Devnet mint mapping, then cross-checks
-recent completed Coinbase and Binance candles against the authenticated
-AudaceFi mark price and a liquidity floor. A short scan reports current signal
+recent completed Coinbase, Binance, Kraken and OKX candles against the
+authenticated AudaceFi mark price and a liquidity floor. A short scan reports current signal
 candidates only; it does not treat a few candles as historical performance.
 Quote-route availability remains unverified until an authorized Devnet buy and
 sell are both confirmed. The live signer and executor remain restricted to

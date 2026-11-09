@@ -93,6 +93,63 @@ def binance_closed_bars(symbol: str, now: datetime) -> list:
         return []
 
 
+def kraken_closed_bars(symbol: str, now: datetime) -> list:
+    aliases = {"BTC": "XBT"}
+    pair = aliases.get(symbol, symbol) + "USD"
+    if not re.fullmatch(r"[A-Z0-9]{2,12}", pair) or symbol == "USDC":
+        return []
+    req = Request("https://api.kraken.com/0/public/OHLC?pair=" + pair + "&interval=15",
+        headers={"Accept": "application/json", "User-Agent": "Autotrader-AudaceFi-Research/1.0"})
+    try:
+        with urlopen(req, timeout=10) as response:
+            content = response.read(200_001)
+        if len(content) > 200_000:
+            return []
+        body = json.loads(content)
+        result = body.get("result") if isinstance(body, dict) and not body.get("error") else None
+        book = next((value for name, value in result.items() if name != "last" and isinstance(value, list)), None) if isinstance(result, dict) else None
+        rows = []
+        for row in book or []:
+            if not isinstance(row, list) or len(row) < 7:
+                continue
+            ts, close, volume = int(row[0]), float(row[4]), float(row[6])
+            if (ts % 900 == 0 and ts + 900 <= now.timestamp() - 30 and
+                    math.isfinite(close) and close > 0 and
+                    math.isfinite(volume) and volume > 0):
+                rows.append([ts, close, volume])
+        return sorted(rows)[-300:]
+    except (HTTPError, URLError, OSError, ValueError, TypeError, KeyError, OverflowError):
+        return []
+
+
+def okx_closed_bars(symbol: str, now: datetime) -> list:
+    if not re.fullmatch(r"[A-Z0-9]{2,12}", symbol) or symbol == "USDC":
+        return []
+    req = Request("https://www.okx.com/api/v5/market/candles?instId=" + symbol +
+                  "-USDT&bar=15m&limit=300",
+        headers={"Accept": "application/json", "User-Agent": "Autotrader-AudaceFi-Research/1.0"})
+    try:
+        with urlopen(req, timeout=10) as response:
+            content = response.read(200_001)
+        if len(content) > 200_000:
+            return []
+        body = json.loads(content)
+        rows = []
+        if not isinstance(body, dict) or body.get("code") != "0" or not isinstance(body.get("data"), list):
+            return []
+        for row in body["data"]:
+            if not isinstance(row, list) or len(row) < 6:
+                continue
+            ts, close, volume = int(row[0]) // 1000, float(row[4]), float(row[5])
+            if (ts % 900 == 0 and ts + 900 <= now.timestamp() - 30 and
+                    math.isfinite(close) and close > 0 and
+                    math.isfinite(volume) and volume > 0):
+                rows.append([ts, close, volume])
+        return sorted(rows)[-300:]
+    except (HTTPError, URLError, OSError, ValueError, TypeError, OverflowError):
+        return []
+
+
 def audacefi_price(key: str, mint: str) -> float | None:
     status, market = read_route(key, "/api/v1/market/prices?mints=" + mint)
     value = market.get("prices", {}).get(mint) if status == 200 and isinstance(market, dict) else None
@@ -118,27 +175,35 @@ def research(token: dict, now: datetime, key: str, bench: dict, season: dict) ->
                 valid_mint(row.get("mintDevnet"))]
     if len(mappings) != 1:
         return {"symbol": symbol, "state": "DEVNET_MINT_MAPPING_INVALID"}
-    coinbase = validate_candles(coinbase_closed_bars(symbol, now))
-    binance = validate_candles(binance_closed_bars(symbol, now))
+    sources = {
+        "COINBASE": validate_candles(coinbase_closed_bars(symbol, now)),
+        "BINANCE": validate_candles(binance_closed_bars(symbol, now)),
+        "KRAKEN": validate_candles(kraken_closed_bars(symbol, now)),
+        "OKX": validate_candles(okx_closed_bars(symbol, now)),
+    }
+    available = {name: bars for name, bars in sources.items() if bars}
     price_audacefi = audacefi_price(key, mint)
-    if not coinbase or not binance or price_audacefi is None:
-        missing = []
-        if not coinbase: missing.append("COINBASE")
-        if not binance: missing.append("BINANCE")
+    if len(available) < 2 or price_audacefi is None:
+        missing = sorted(set(sources) - set(available))
         if price_audacefi is None: missing.append("AUDACEFI_PRICE")
         return {"symbol": symbol, "state": "MULTI_SOURCE_COVERAGE_INCOMPLETE",
-                "missingSources": missing, "routeState": "NOT_TESTED_WITHOUT_CREATING_INTENT"}
-    close_cb, close_bn = coinbase[-1][1], binance[-1][1]
-    if (now.timestamp() - (coinbase[-1][0] + 900) > 1800 or
-            now.timestamp() - (binance[-1][0] + 900) > 1800 or
-            abs(coinbase[-1][0] - binance[-1][0]) > 900):
+                "missingSources": missing, "availableSources": sorted(available),
+                "routeState": "NOT_TESTED_WITHOUT_CREATING_INTENT"}
+    latest = {name: bars[-1] for name, bars in available.items()}
+    if (any(now.timestamp() - (row[0] + 900) > 1800 for row in latest.values()) or
+            max(row[0] for row in latest.values()) - min(row[0] for row in latest.values()) > 900):
         return {"symbol": symbol, "state": "MULTI_SOURCE_CANDLES_NOT_SYNCHRONIZED",
+                "availableSources": sorted(available),
                 "routeState": "NOT_TESTED_WITHOUT_CREATING_INTENT"}
-    if (abs(close_cb / close_bn - 1) > .01 or
-            abs(close_cb / price_audacefi - 1) > .01):
+    prices = [row[1] for row in latest.values()]
+    reference_price = sorted(prices)[len(prices) // 2]
+    if (max(abs(price / reference_price - 1) for price in prices) > .01 or
+            abs(reference_price / price_audacefi - 1) > .01):
         return {"symbol": symbol, "state": "CROSS_SOURCE_PRICE_MISMATCH",
+                "availableSources": sorted(available),
                 "routeState": "NOT_TESTED_WITHOUT_CREATING_INTENT"}
-    bars = coinbase
+    # Prefer Coinbase where available, otherwise the fullest validated source.
+    bars = available.get("COINBASE") or max(available.values(), key=len)
     latest = bars[-1][1]
     m3 = latest / bars[-13][1] - 1
     m6 = latest / bars[-25][1] - 1
@@ -167,10 +232,11 @@ def research(token: dict, now: datetime, key: str, bench: dict, season: dict) ->
         if result.get("status") == "PROPOSED":
             current_candidates.append(name)
     return {"symbol": symbol, "state": "OBSERVED",
-            "sourcesValidated": ["COINBASE", "BINANCE", "AUDACEFI_MARK_PRICE"],
+            "sourcesValidated": sorted(available) + ["AUDACEFI_MARK_PRICE"],
             "mintState": "ALLOWLIST_AND_DEVNET_BENCH_MATCH",
-            "crossSourceSpreadPct": round(100 * max(abs(close_cb / close_bn - 1),
-                                                   abs(close_cb / price_audacefi - 1)), 4),
+            "crossSourceSpreadPct": round(100 * max(
+                [abs(price / reference_price - 1) for price in prices] +
+                [abs(reference_price / price_audacefi - 1)]), 4),
             "routeState": "NOT_TESTED_WITHOUT_CREATING_INTENT",
             "m3Pct": round(100 * m3, 3),
             "m6Pct": round(100 * m6, 3),
