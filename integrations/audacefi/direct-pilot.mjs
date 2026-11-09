@@ -18,7 +18,7 @@ const ADMIN = 'DiMwgbncNbPKAznQrQ24Dk6TB97NWatetRG3Ptfx7Psk';
 const OPERATION_KEY = 'autotrader_s1_pilot_buy_sol_25_v2';
 const strBoolean = value => String(Boolean(value));
 const mode = process.argv[2];
-if (!['preflight', 'execute', 'reconcile', 'verify10'].includes(mode)) throw Error('PILOT_MODE_REQUIRED');
+if (!['preflight', 'execute', 'reconcile', 'verify10', 'finalize10'].includes(mode)) throw Error('PILOT_MODE_REQUIRED');
 if (mode === 'execute' && process.env.AUDACEFI_ENABLE_EXECUTION !== 'true')
   throw Error('EXECUTION_FLAG_REQUIRED');
 
@@ -97,7 +97,7 @@ if (mode === 'preflight') {
   console.log('DIRECT_PILOT_PREFLIGHT_ONLY=true');
   process.exit(0);
 }
-if (mode === 'reconcile' || mode === 'verify10') {
+if (mode === 'reconcile' || mode === 'verify10' || mode === 'finalize10') {
   if (capacity.reservedOperations !== 1) throw Error('PILOT_JOURNAL_RESERVATION_UNEXPECTED');
   const saved = await reconcileOperation(client, journal, OPERATION_KEY);
   if (!saved) {
@@ -143,6 +143,11 @@ if (mode === 'reconcile' || mode === 'verify10') {
     const final = await finalizeOperation(client, journal, OPERATION_KEY, adapters.verifyFinal);
     await checkpoint();
     console.log('DIRECT_PILOT_FINALITY=' + final);
+    if (final === 'confirmed') {
+      const status = await client.readSubmissionStatus(saved.intentId);
+      console.log('DIRECT_PILOT_RESULT_STATUS=' + (status.resultStatusKnown
+        ? (status.resultStatus ?? 'pending') : 'omitted'));
+    }
     if (final !== 'confirmed') process.exitCode = 1;
   }
   process.exit();

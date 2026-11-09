@@ -7,7 +7,7 @@ on:
         description: 'Preflight or the fixed 25 USDC Devnet pilot'
         required: true
         type: choice
-        options: [preflight, execute, reconcile, verify10]
+        options: [preflight, execute, reconcile, verify10, finalize10]
         default: preflight
 
 permissions:
@@ -35,7 +35,7 @@ jobs:
           npm ci --ignore-scripts
           npm run build
       - name: Instrument strict verifier for safe reconciliation diagnostics
-        if: inputs.mode == 'reconcile' || inputs.mode == 'verify10'
+        if: inputs.mode == 'reconcile' || inputs.mode == 'verify10' || inputs.mode == 'finalize10'
         run: node integrations/audacefi/verifier-diagnostics.mjs "${{ inputs.mode }}"
       - name: Qualify direct API, journal, and optional fixed pilot
         env:
