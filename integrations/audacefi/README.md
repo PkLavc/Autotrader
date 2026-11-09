@@ -103,7 +103,7 @@ candle window. A green CI result is not proof of a profitable trade.
 ## Historical data, AutoTrader reuse and Oracle VM
 
 The [historical training workflow](../../.github/workflows/audacefi-history-training.yml)
-runs daily and on demand. It downloads four **completed** months of public
+runs daily and on demand. It downloads twelve **completed** months of public
 15-minute Binance spot archives for the active AudaceFi-eligible symbols,
 verifies official SHA-256 checksums, rejects missing candles and tests fixed
 strategies in chronological, non-overlapping train/holdout folds. A missing
@@ -120,16 +120,18 @@ it is **not** a validated 15-minute live trading model. Nothing in this
 workflow places orders or automatically promotes a historical result to
 the live strategy.
 
-First successful four-month run (November 9): 15 explicitly eligible symbols,
+First four-month baseline run (November 9): 15 explicitly eligible symbols,
 6 with uninterrupted available historical coverage, and **zero** new
 candidates that passed the chosen out-of-sample thresholds. The result is a
 reproducible evidence baseline, not proof of a profitable trading edge.
 
-An [Oracle VM read-only worker template](../../deploy/oracle/README.md)
-is provided for a future dedicated learning/Kronos process. Oracle is not
-deployed or started by these commits. The live GitHub worker remains the
-single trading executor until a separately verified cross-host handoff
-prevents concurrent orders.
+The [Oracle worker deployment](../../deploy/oracle/README.md) runs this
+historical research and a daily Kronos five-day shadow forecast on WBTC, ETH
+and SOL. It records realized forecast errors against five-day momentum without
+promoting a model or sending orders. It uses a public frozen allowlist snapshot
+that expires with Season 1 and carries no API or wallet secrets. The live
+GitHub worker remains the only trading executor until a separately verified
+cross-host handoff prevents concurrent orders.
 
 ## Safe operation
 
