@@ -24,6 +24,7 @@ jobs:
       - name: Verify authenticated season/allowlist/bench endpoints
         env:
           AUDACEFI_API_KEY: ${{ secrets.AUDACEFI_API_KEY }}
+          AUDACEFI_WALLET_ADDRESS: ${{ secrets.AUDACEFI_WALLET_ADDRESS }}
         run: python3 -m integrations.audacefi.live_probe
       - name: Record invariant (no writes)
         if: always()

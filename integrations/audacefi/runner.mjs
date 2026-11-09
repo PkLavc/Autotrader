@@ -11,20 +11,25 @@ if (!allowed.has(action)) throw new Error('UNSUPPORTED_ACTION');
 const kit = await import(pathToFileURL(kitPath).href);
 const { AudaceFiClient, SolanaRpcReader, createReferenceAdapters, FileJournal, runAiAgent, finalizeOperation } = kit;
 const key = process.env.AUDACEFI_API_KEY;
-const origin = process.env.AUDACEFI_API_ORIGIN;
+const origin = process.env.AUDACEFI_API_ORIGIN || 'https://sandbox.audacefi.app';
 const category = process.env.AUDACEFI_CATEGORY || 'crypto-bro';
-if (!key || !origin) throw new Error('AUDACEFI_ONBOARDING_KEY_AND_ORIGIN_REQUIRED');
+if (!key) throw new Error('AUDACEFI_ONBOARDING_KEY_REQUIRED');
+if (action !== 'state' && origin === 'https://sandbox.audacefi.app') {
+  // The official /api proxy refuses write-enabled generic clients. Ranked
+  // execution requires the separately issued, signed official approval.
+  throw new Error('OFFICIAL_RANKED_GATEWAY_AND_SIGNED_APPROVAL_REQUIRED');
+}
 const client = new AudaceFiClient({
   origin,
   credential: async () => key,
-  ...(action === 'state' ? {} : { writes: 'explicitly-authorized' }),
+  ...(action === 'state' ? { apiBasePath: '/api' } : { writes: 'explicitly-authorized' }),
 });
 
 if (action === 'state') {
   const state = await client.readState(category, 'real');
   console.log(JSON.stringify({
     action: 'state', mode: state.mode, category: state.category,
-    season: state.season.active, wallet: state.wallet.state,
+    seasonActive: state.season.active?.status === 'active', wallet: state.wallet.state,
     executionAuthorized: false,
   }, null, 2));
   process.exit(0);

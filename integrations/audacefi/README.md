@@ -2,6 +2,33 @@
 
 Optional and isolated integration for the AudaceFi Solana devnet league. It does not alter the equity strategy, Alpaca broker, stock paper ledger, research schedule, or account fleet. No automatic orders are enabled. A small scheduled read-only season watcher is enabled.
 
+## Season 1 live qualification (2026-11-09)
+
+The authenticated Actions probe found an active `devnet_onchain` season, a
+ready linked wallet, a frozen allowlist with 19 eligible tokens matching that
+season, and a responding bench endpoint. The official allowlist query is
+`/api/v1/me/allowlist?category=crypto_bro&mode=real`; the earlier
+`category=crypto-bro` request returned HTTP 400. The probe also compares the
+API-linked wallet to `AUDACEFI_WALLET_ADDRESS` without printing either address.
+
+This is not an execution qualification. The current official kit (stable
+`9abd82702795929722554906b3ac14a7c861181a`) requires the AudaceFi-issued
+deployment profile, issuer trust key, and current signed approval for its
+official ranked gateway. Its public documentation says that release package
+and issuance channel are pending. The repository's Actions secrets contain
+only the API key, linked wallet address and wallet recovery phrase; no
+approval package or verified deployment pins exist. The bench GET response
+exposes `mints`, `poster` and `programId`, which are insufficient to establish
+the required independent ProgramData hash and signed approval. The official
+`/api` proxy disallows write-enabled generic SDK clients. The existing
+`runner.mjs` therefore refuses execute/finalize against that origin rather
+than allowing an unqualified transaction attempt.
+
+The remaining work needs AudaceFi's official release package and approved
+route, then a durable private journal across Actions runs, reconciled portfolio
+and daily risk limits, both buy and sell execution, independent finality and
+ranked-history checks. No scheduled order workflow or confirmed trade exists.
+
 ## Crypto Bro league strategy (v1, isolated from stock Autotrader)
 
 **Goal:** maximize **net percentage USDC return** during the official five-day
@@ -62,9 +89,8 @@ and (for BUY preparation) `season_id`, `wallet_address`,
 the authenticated API/schema and actual official wallet must be validated.
 No test fixture authorizes a trade.
 
-**Deployment blockers:** The season watcher last returned
-`WAITING_FOR_SEASON` on 2026-11-04. There is no confirmed active season
-or qualified league wallet, and no verified durable trading journal or
+**Deployment blockers:** The season is active and the league wallet is ready,
+but the official signed deployment approval is not available. There is no verified durable trading journal or
 complete SELL-to-USDC execution adapter. The current daily forecast cadence
 cannot protect against intraday crypto moves; the paper strategy must undergo
 point-in-time five-day league backtests, execution/slippage stress tests and
@@ -128,7 +154,7 @@ One-time operator setup:
 
 - The [Season 1 watcher](../../.github/workflows/audacefi-season-watch.yml) runs a read-only API check every six hours; it uses the API key but **never** the wallet recovery phrase.
 - When the season is closed, it reports WAITING_FOR_SEASON. When the league wallet and season are active, it marks DEPLOYMENT_PENDING and opens one GitHub issue identifying the remaining deployment requirements.
-- [Official SDK preflight](../../.github/workflows/audacefi-kit-preflight.yml) uses pinned source revision d2dc6c8d5c9359c1e143f8d41172dd279da934b5 and no secrets.
+- [Official SDK preflight](../../.github/workflows/audacefi-kit-preflight.yml) uses pinned source revision 9abd82702795929722554906b3ac14a7c861181a and no secrets.
 - Trading remains disabled because the official season-specific wallet, qualified chain/API profile, token allowlist, durable journal (must persist across GitHub Actions runners), and budget policy have not been verified. Never treat a green CI result as permission to submit orders.
 ## 1. Prepare locally
 
@@ -168,7 +194,12 @@ Complete AudaceFi onboarding for an individual API key (sandbox: https://sandbox
 
 This is an authenticated read-only query; API origin is an HTTPS origin verified during onboarding, not guessed from the sandbox URL.
 
-## 3. Optional devnet-only execution — disabled by default
+## 3. Optional isolated validation-target execution — disabled by default
+
+The commands below describe the legacy low-level runner for a separately
+qualified validation origin. They do not execute on the official sandbox
+proxy. Official ranked execution must use the signed-approval gateway in the
+current kit, with the missing AudaceFi release package.
 
 Only after reviewing both the upstream kit and your authorized deployment:
 - Create private profile.local.json implementing the official BenchProfile (authorized genesis, program and ProgramData hash, USDC and devnet mint mappings, and an independently approved durable API capability). Do not copy source test-fixture values.

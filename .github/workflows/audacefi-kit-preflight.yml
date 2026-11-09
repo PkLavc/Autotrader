@@ -25,8 +25,8 @@ jobs:
         shell: bash
         run: |
           git clone --quiet https://github.com/AudaceFi/audacefi-integration-kit.git vendor/audacefi-integration-kit
-          git -C vendor/audacefi-integration-kit checkout --detach d2dc6c8d5c9359c1e143f8d41172dd279da934b5
-          test "$(git -C vendor/audacefi-integration-kit rev-parse HEAD)" = d2dc6c8d5c9359c1e143f8d41172dd279da934b5
+          git -C vendor/audacefi-integration-kit checkout --detach 9abd82702795929722554906b3ac14a7c861181a
+          test "$(git -C vendor/audacefi-integration-kit rev-parse HEAD)" = 9abd82702795929722554906b3ac14a7c861181a
       - name: Run source checks without secrets
         working-directory: vendor/audacefi-integration-kit
         run: |

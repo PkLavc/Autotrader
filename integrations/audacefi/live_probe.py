@@ -94,6 +94,7 @@ def main() -> int:
         return 1
     ok = True
     active_season_id = None
+    expected_wallet = os.environ.get("AUDACEFI_WALLET_ADDRESS", "")
     for name, route in ROUTES:
         try:
             status, body = read_route(key, route)
@@ -104,6 +105,11 @@ def main() -> int:
                     season = body.get("season")
                     active = season.get("active") if isinstance(season, dict) else None
                     active_season_id = active.get("id") if isinstance(active, dict) else None
+                    wallet = body.get("wallet")
+                    linked = wallet.get("walletAddress") if isinstance(wallet, dict) else None
+                    matched = bool(expected_wallet and linked == expected_wallet)
+                    print("LINKED_WALLET_MATCH=" + str(matched).lower())
+                    ok = ok and matched
                 if name == "allowlist" and isinstance(body, dict):
                     matched = bool(active_season_id and body.get("seasonId") == active_season_id)
                     print("ALLOWLIST_SEASON_MATCH=" + str(matched).lower())
