@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: audacefi-direct-pilot
@@ -84,3 +85,10 @@ jobs:
             if [ "$AUDACEFI_SESSION_MINUTES" = 0 ] || [ "$SECONDS" -ge "$end" ]; then break; fi
             sleep 180
           done
+      - name: Queue the next long session if this one expires
+        if: ${{ !cancelled() && (github.event_name == 'schedule' || inputs.session_minutes == '330') }}
+        env:
+          AUDACEFI_API_KEY: ${{ secrets.AUDACEFI_API_KEY }}
+          AUDACEFI_WALLET_ADDRESS: ${{ secrets.AUDACEFI_WALLET_ADDRESS }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node integrations/audacefi/queue-next-session.mjs
