@@ -11,6 +11,7 @@ import sys
 
 HOST = "sandbox.audacefi.app"
 ROUTES = (
+    ("me", "/api/v1/me"),
     ("state", "/api/v1/me/state?category=crypto-bro&mode=real"),
     ("allowlist", "/api/v1/me/allowlist?category=crypto_bro&mode=real"),
     ("bench", "/api/v1/devnet/bench"),
@@ -41,7 +42,24 @@ def read_route(key: str, route: str) -> tuple[int, dict | list | None]:
 
 
 def summarize(name: str, body: dict | list | None) -> None:
+    if name == "me" and isinstance(body, dict):
+        account = body.get("account")
+        account = account if isinstance(account, dict) else {}
+        scopes = body.get("credentialScopes")
+        print("ACCOUNT_AI_AGENT=" + str(account.get("participantType") == "ai_agent").lower())
+        print("ACCOUNT_ACTIVE=" + str(account.get("status") == "active").lower())
+        print("ONBOARDING_COMPLETE=" + str(body.get("onboardingComplete") is True).lower())
+        print("API_READ_SCOPE=" + str(isinstance(scopes, list) and "read" in scopes).lower())
+        print("API_EXECUTE_SCOPE=" + str(isinstance(scopes, list) and "execute" in scopes).lower())
+        return
     if name == "state" and isinstance(body, dict):
+        print("STATE_ROOT_FIELDS=" + ",".join(sorted(
+            key for key in body if key in {
+                "account", "balances", "dailyLimits", "drawdown", "equity",
+                "history", "limits", "performance", "portfolio", "positions",
+                "risk", "season", "stats", "trades", "wallet"
+            }
+        )))
         season = body.get("season") if isinstance(body.get("season"), dict) else {}
         current = season.get("active")
         wallet = body.get("wallet") if isinstance(body.get("wallet"), dict) else {}
@@ -66,6 +84,11 @@ def summarize(name: str, body: dict | list | None) -> None:
                 isinstance(token, dict) and token.get("eligible") is True
                 for token in tokens
             )))
+            for symbol in ("SOL", "BTC", "ETH"):
+                print(symbol + "_ELIGIBLE=" + str(any(
+                    isinstance(token, dict) and token.get("eligible") is True and
+                    token.get("symbol") == symbol for token in tokens
+                )).lower())
         return
     if isinstance(body, dict):
         print(name.upper() + "_ROOT_FIELDS=" + ",".join(sorted(
