@@ -46,12 +46,14 @@ def complete_months(now: datetime, count: int = 4) -> list[str]:
     return list(reversed(months))
 
 
-def archive_url(symbol: str, month: str) -> str:
+def archive_url(symbol: str, month: str, quote: str = "USDT") -> str:
     if not re.fullmatch(r"[A-Z0-9]{2,12}", symbol):
         raise ValueError("INVALID_SYMBOL")
     if not re.fullmatch(r"20[0-9]{2}-(0[1-9]|1[0-2])", month):
         raise ValueError("INVALID_MONTH")
-    market = symbol + "USDT"
+    if quote not in {"USDT", "USDC"}:
+        raise ValueError("UNSUPPORTED_QUOTE_ASSET")
+    market = symbol + quote
     return (f"{ORIGIN}/data/spot/monthly/klines/{market}/15m/"
             f"{market}-15m-{month}.zip")
 
@@ -104,10 +106,11 @@ def parse_archive(data: bytes, expected_hash: str) -> list[list]:
     return rows
 
 
-def load_history(symbol: str, months: list[str], loader=download) -> list[list]:
+def load_history(symbol: str, months: list[str], loader=download,
+                 quote: str = "USDT") -> list[list]:
     all_rows = []
     for month in months:
-        url = archive_url(symbol, month)
+        url = archive_url(symbol, month, quote)
         checksum = loader(url + ".CHECKSUM", 512).decode("ascii").strip().split()
         if not checksum:
             raise ValueError("ARCHIVE_CHECKSUM_UNAVAILABLE")
