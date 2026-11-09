@@ -53,14 +53,10 @@ encrypted journal before each order. The separate
 operation events. Each operation uses a stable idempotency key. An ambiguous
 submission blocks new orders until the existing intent is reconciled.
 
-**New competitive entries are currently paused** by
-`AUDACEFI_ALLOW_ENTRY=false`. The initial completed-candle momentum rule lost
-money in historical replays; broader SOL/ETH and eligible-altcoin replays also
-failed to show a stable edge. The running workflow still reconciles state and
-would sell an existing position when required. The two pilot trades were real,
-but the competitive operator is not currently buying. A replacement signal
-must be validated before entries are enabled, and the long session must then
-be restarted to check out the new code.
+Competitive entries are enabled with `AUDACEFI_ALLOW_ENTRY=true`. Each cycle
+still requires a valid signal, a reconciled wallet and journal, and the season's
+risk and trading limits before submitting an order. The operator may hold when
+those conditions do not permit a trade.
 
 The present operator supports one SOL or ETH spot position at a time. It caps
 an entry at 35% of equity or 3,500 fictitious USDC, reserves a sell under a
