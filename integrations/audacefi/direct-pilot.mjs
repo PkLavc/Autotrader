@@ -16,10 +16,11 @@ const PROGRAM_DATA = 'CjiQe8dV8xUgxRm6MPCuvmQdYQTtugvRTDR4LhVRpdCj';
 const PROGRAM_DATA_SHA = '321fc0efa1b7329b84da3613c82fef0d0d68e621c177084f5bbb23be79aa25a5';
 const ADMIN = 'DiMwgbncNbPKAznQrQ24Dk6TB97NWatetRG3Ptfx7Psk';
 const OPERATION_KEY = 'autotrader_s1_pilot_buy_sol_25_v2';
+const SELL_KEY = 'autotrader_s1_pilot_sell_sol_v1';
 const strBoolean = value => String(Boolean(value));
 const mode = process.argv[2];
-if (!['preflight', 'execute', 'reconcile', 'verify10', 'finalize10', 'history'].includes(mode)) throw Error('PILOT_MODE_REQUIRED');
-if (mode === 'execute' && process.env.AUDACEFI_ENABLE_EXECUTION !== 'true')
+if (!['preflight', 'execute', 'reconcile', 'verify10', 'finalize10', 'history', 'sell'].includes(mode)) throw Error('PILOT_MODE_REQUIRED');
+if (['execute', 'sell'].includes(mode) && process.env.AUDACEFI_ENABLE_EXECUTION !== 'true')
   throw Error('EXECUTION_FLAG_REQUIRED');
 
 const key = process.env.AUDACEFI_API_KEY;
@@ -164,6 +165,47 @@ if (mode === 'history') {
     }
   }
   process.exit(0);
+}
+if (mode === 'sell') {
+  if (capacity.reservedOperations !== 1 || capacity.unresolvedOperations !== 0)
+    throw Error('PILOT_SELL_JOURNAL_STATE_INVALID');
+  const buy = await journal.read(OPERATION_KEY);
+  if (buy.events.at(-1)?.stage !== 'FINAL_CONFIRMED') throw Error('PILOT_BUY_NOT_FINAL');
+  const accountWallet = await get('/v1/me/wallet?category=crypto_bro');
+  if (accountWallet.seasonId !== season.id || accountWallet.walletAddress !== expectedAddress ||
+      accountWallet.swapCount !== 1 || !Array.isArray(accountWallet.holdings) ||
+      accountWallet.holdings.some(item => !['USDC', 'SOL'].includes(item.symbol)) ||
+      !accountWallet.holdings.some(item => item.symbol === 'SOL'))
+    throw Error('PILOT_SELL_WALLET_STATE_INVALID');
+  const holding = await adapters.readSpotHoldings(expectedAddress, sol.mint);
+  const assetRaw = BigInt(holding.assetRaw);
+  if (assetRaw <= 0n || assetRaw > 10_000_000_000n) throw Error('PILOT_SELL_BALANCE_INVALID');
+  const operation = {
+    operationKey: SELL_KEY, seasonId: season.id, category: 'crypto-bro',
+    playerPublicKey: expectedAddress, tokenInMint: sol.mint, tokenOutMint: usdc.mint,
+    amountIn: Number(assetRaw) / 1e9, amountInRaw: assetRaw.toString(), inputDecimals: 9,
+    limits: { outputDecimals: 6, notAfterMs: Date.now() + 60_000 },
+  };
+  let outcome;
+  try {
+    outcome = await runAiAgent({ client, journal, operation, ports: adapters.ports });
+    await checkpoint();
+  } catch (error) {
+    await checkpoint();
+    throw Error('DIRECT_SELL_ABORTED_' + (error?.code ??
+      (String(error?.message).match(/^[A-Z_]{1,64}$/)?.[0] ?? 'UNCLASSIFIED')));
+  }
+  console.log('DIRECT_SELL_SUBMISSION_STATE=' + outcome.state);
+  if (outcome.state !== 'SUBMITTED' && outcome.state !== 'RECORDED') throw Error('DIRECT_SELL_NOT_SUBMITTED');
+  let final = 'unknown';
+  for (let attempt = 0; attempt < 8 && final === 'unknown'; attempt++) {
+    if (attempt) await new Promise(resolve => setTimeout(resolve, 5000));
+    final = await finalizeOperation(client, journal, SELL_KEY, adapters.verifyFinal);
+    await checkpoint();
+  }
+  console.log('DIRECT_SELL_FINALITY=' + final);
+  if (final === 'confirmed') console.log('DIRECT_SELL_TXID=' + outcome.txid);
+  process.exit(final === 'confirmed' ? 0 : 1);
 }
 if (mode === 'reconcile' || mode === 'verify10' || mode === 'finalize10') {
   if (capacity.reservedOperations !== 1) throw Error('PILOT_JOURNAL_RESERVATION_UNEXPECTED');

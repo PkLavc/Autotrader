@@ -7,7 +7,7 @@ on:
         description: 'Preflight or the fixed 25 USDC Devnet pilot'
         required: true
         type: choice
-        options: [preflight, execute, reconcile, verify10, finalize10, history]
+        options: [preflight, execute, reconcile, verify10, finalize10, history, sell]
         default: preflight
 
 permissions:
@@ -35,7 +35,7 @@ jobs:
           npm ci --ignore-scripts
           npm run build
       - name: Instrument strict verifier for safe reconciliation diagnostics
-        if: inputs.mode == 'reconcile' || inputs.mode == 'verify10' || inputs.mode == 'finalize10'
+        if: inputs.mode == 'reconcile' || inputs.mode == 'verify10' || inputs.mode == 'finalize10' || inputs.mode == 'sell'
         run: node integrations/audacefi/verifier-diagnostics.mjs "${{ inputs.mode }}"
       - name: Qualify direct API, journal, and optional fixed pilot
         env:
@@ -43,7 +43,7 @@ jobs:
           AUDACEFI_WALLET_ADDRESS: ${{ secrets.AUDACEFI_WALLET_ADDRESS }}
           AUDACEFI_WALLET_RECOVERY_PHRASE: ${{ secrets.AUDACEFI_WALLET_RECOVERY_PHRASE }}
           AUDACEFI_JOURNAL_KEY: ${{ secrets.AUDACEFI_JOURNAL_KEY }}
-          AUDACEFI_ENABLE_EXECUTION: ${{ inputs.mode == 'execute' && 'true' || 'false' }}
-          AUDACEFI_DEVNET_ACK: ${{ inputs.mode == 'execute' && 'true' || 'false' }}
+          AUDACEFI_ENABLE_EXECUTION: ${{ (inputs.mode == 'execute' || inputs.mode == 'sell') && 'true' || 'false' }}
+          AUDACEFI_DEVNET_ACK: ${{ (inputs.mode == 'execute' || inputs.mode == 'sell') && 'true' || 'false' }}
           GITHUB_TOKEN: ${{ github.token }}
         run: node integrations/audacefi/direct-pilot.mjs "${{ inputs.mode }}"
