@@ -16,7 +16,7 @@ from urllib.request import Request, urlopen
 from autotrader.data import load_daily_history
 from .crypto_research import completed_crypto_bars
 from .league_strategy import LeaguePolicy, decide
-from .adaptive_learning import evaluate, policy_for
+from .adaptive_learning import evaluate, policy_for, update_promotion
 
 
 def completed_intraday_signal(symbol: str, now: datetime) -> dict:
@@ -124,6 +124,12 @@ def main() -> int:
     if intraday:
         result["adaptive"] = adaptive
         result["activeProfile"] = profile
+        # The next profile is promoted only after three distinct, successful
+        # completed-candle windows. It applies on the NEXT decision.
+        result["adaptiveState"] = update_promotion(
+            request.get("adaptiveState"), adaptive,
+            window=int(now.timestamp() // 900),
+        )
     json.dump(result, sys.stdout, separators=(",", ":"))
     return 0
 
