@@ -118,11 +118,14 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
   catch (error) { if (error?.code !== 'ENOENT') throw error; }
   if (risk && (!Number.isFinite(risk.dailyPeak) || risk.dailyPeak < 0 ||
       !Number.isFinite(risk.seasonPeak) || risk.seasonPeak < risk.dailyPeak ||
+      (risk.signalWindow !== undefined && (!Number.isInteger(risk.signalWindow) || risk.signalWindow < 0)) ||
       !/^\d{4}-\d{2}-\d{2}$/.test(risk.day))) throw Error('AUTO_RISK_STATE_INVALID');
   const day = new Date(now).toISOString().slice(0, 10);
   const dailyPeak = risk?.day === day ? Math.max(risk.dailyPeak, equity) : equity;
   const seasonPeak = Math.max(risk?.seasonPeak ?? 10_000, dailyPeak);
-  await save(journalDirectory, 'risk-state.json', { day, dailyPeak, seasonPeak }, checkpoint);
+  await save(journalDirectory, 'risk-state.json', {
+    day, dailyPeak, seasonPeak, ...(risk?.signalWindow !== undefined ? { signalWindow: risk.signalWindow } : {}),
+  }, checkpoint);
   const riskStop = equity <= 9800 || equity <= dailyPeak * .982 || equity <= seasonPeak * .982;
   let peakPrice = price;
   if (hasPosition && price !== null) {
@@ -136,6 +139,9 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
   const entryPrice = hasPosition ? buyPlan.operation.amountIn / quantity : null;
   const protectiveStop = hasPosition && price !== null &&
     price <= Math.max(entryPrice * .965, peakPrice * .975);
+  if (!hasPosition && process.env.AUDACEFI_ALLOW_ENTRY !== 'true') {
+    hold('STRATEGY_REVIEW_PAUSE'); return;
+  }
   let side = null;
   let chosen = active;
   let amount = null;
@@ -144,6 +150,9 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
   else if (!hasPosition && (remaining <= 24 * HOUR || riskStop)) {
     hold(riskStop ? 'DRAWDOWN_GUARD' : 'ENTRY_WINDOW_CLOSED'); return;
   } else {
+    const signalWindow = Math.floor(now / (15 * 60_000));
+    if (risk?.signalWindow === signalWindow) { hold('WAITING_FOR_NEW_CANDLE'); return; }
+    await save(journalDirectory, 'risk-state.json', { day, dailyPeak, seasonPeak, signalWindow }, checkpoint);
     const context = { verified: true, category: 'crypto-bro', restrictions_verified: true,
       wallet_ready: true, network: 'solana-devnet', season_status: 'active',
       start_utc: season.startsAt, end_utc: season.endsAt,

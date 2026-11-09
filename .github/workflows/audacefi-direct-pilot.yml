@@ -61,6 +61,7 @@ jobs:
           AUDACEFI_JOURNAL_KEY: ${{ secrets.AUDACEFI_JOURNAL_KEY }}
           AUDACEFI_ENABLE_EXECUTION: ${{ (github.event_name == 'schedule' || inputs.mode == 'execute' || inputs.mode == 'sell' || inputs.mode == 'auto') && 'true' || 'false' }}
           AUDACEFI_DEVNET_ACK: ${{ (github.event_name == 'schedule' || inputs.mode == 'execute' || inputs.mode == 'sell' || inputs.mode == 'auto') && 'true' || 'false' }}
+          AUDACEFI_ALLOW_ENTRY: 'false'
           GITHUB_TOKEN: ${{ github.token }}
           AUDACEFI_SESSION_MINUTES: ${{ github.event_name == 'schedule' && '330' || inputs.session_minutes || '0' }}
         run: |

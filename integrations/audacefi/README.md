@@ -57,6 +57,12 @@ hours before it. Price gaps or service outages can still breach a stop, so no
 risk or ranking outcome is guaranteed. The existing stock AutoTrader is not
 involved in this workflow.
 
+New competitive entries are temporarily paused by `AUDACEFI_ALLOW_ENTRY=false`
+in the workflow after a short historical replay showed negative net results for
+the initial intraday momentum rule. Reconciliation and position exits remain
+enabled. Remove this pause only after the replacement signal is validated and
+the account still satisfies the live risk checks.
+
 ## Crypto Bro league strategy (v1, isolated from stock Autotrader)
 
 **Goal:** maximize **net percentage USDC return** during the official five-day
