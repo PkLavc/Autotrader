@@ -30,9 +30,9 @@ deltas remain strictly checked.
 
 [The trading workflow](../../.github/workflows/audacefi-direct-pilot.yml)
 runs at minutes 17 and 47 during the active Season 1 calendar. A scheduled
-session checks every three minutes for 330 minutes, then dispatches its
-successor if the authenticated season remains active. One active and one
-pending session are allowed. GitHub can delay or drop scheduled triggers;
+session checks every three minutes for 330 minutes, then is configured to
+dispatch its successor if the authenticated season remains active. One active
+and one pending session are allowed. GitHub can delay or drop scheduled triggers;
 continuous availability cannot be guaranteed.
 
 `direct-auto.mjs` reconciles AudaceFi wallet holdings, Solana balances and an
@@ -81,6 +81,7 @@ workflow. `runner.mjs` is a separate legacy route.
 
     python -m pytest -q tests/test_audacefi.py
     node --test integrations/audacefi/wallet-signer.test.mjs
+    node --test integrations/audacefi/queue-next-session.test.mjs
     node --check integrations/audacefi/direct-auto.mjs
     node --check integrations/audacefi/queue-next-session.mjs
 
