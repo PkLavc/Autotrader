@@ -74,13 +74,24 @@ jobs:
           case "$AUDACEFI_SESSION_MINUTES" in 0|330) ;; *) exit 2 ;; esac
           end=$((SECONDS + AUDACEFI_SESSION_MINUTES * 60))
           failures=0
+          queued_next=0
           while :; do
             if node integrations/audacefi/direct-pilot.mjs auto; then
               failures=0
             else
               failures=$((failures + 1))
               echo "AUDACEFI_SESSION_CONSECUTIVE_FAILURES=$failures"
-              if [ "$failures" -ge 3 ]; then exit 1; fi
+              if [ "$failures" -ge 3 ]; then
+                # Keep a 20-minute backoff before the post-job continuation.
+                if [ "$AUDACEFI_SESSION_MINUTES" = 330 ] && [ "$SECONDS" -lt 1260 ]; then
+                  sleep $((1260 - SECONDS))
+                fi
+                exit 1
+              fi
+            fi
+            # A pending successor survives an unexpected stop of this session.
+            if [ "$AUDACEFI_SESSION_MINUTES" = 330 ] && [ "$queued_next" = 0 ] && [ "$SECONDS" -ge 1260 ]; then
+              if node integrations/audacefi/queue-next-session.mjs; then queued_next=1; fi
             fi
             if [ "$AUDACEFI_SESSION_MINUTES" = 0 ] || [ "$SECONDS" -ge "$end" ]; then break; fi
             sleep 180

@@ -37,7 +37,8 @@ deltas remain strictly checked.
 [The trading workflow](../../.github/workflows/audacefi-direct-pilot.yml)
 runs at minutes 17 and 47 during the active Season 1 calendar. A scheduled
 session checks every three minutes for 330 minutes, then is configured to
-dispatch its successor if the authenticated season remains active. One active
+dispatch its successor if the authenticated season remains active. It also
+queues a backup after 21 minutes so a failed session can hand off. One active
 and one pending session are allowed. GitHub can delay or drop scheduled triggers;
 continuous availability cannot be guaranteed.
 
