@@ -139,12 +139,21 @@ if (mode === 'history') {
             console.log('DIRECT_PILOT_PLAYER_PLACEMENT_COUNT=' + placements.length);
             if (placements[0])
               console.log('DIRECT_PILOT_PLAYER_PLACEMENT_FIELDS=' + Object.keys(placements[0]).sort().join(','));
+            const crypto = placements.find(item => item.category === 'crypto_bro' || item.category === 'crypto-bro');
+            if (crypto) {
+              console.log('DIRECT_PILOT_PLAYER_LAST_SWAP_PRESENT=' + strBoolean(Boolean(crypto.lastSwapAt)));
+              console.log('DIRECT_PILOT_PLAYER_RANK_PRESENT=' + strBoolean(Number.isInteger(crypto.rank)));
+            }
           } else if (placements && typeof placements === 'object')
             console.log('DIRECT_PILOT_PLAYER_PLACEMENT_KEYS=' + Object.keys(placements).sort().join(','));
         }
       }
       if (name === 'WALLET') {
         console.log('DIRECT_PILOT_WALLET_FIELDS=' + Object.keys(body).sort().join(','));
+        if (Number.isInteger(body.swapCount))
+          console.log('DIRECT_PILOT_WALLET_SWAP_COUNT=' + body.swapCount);
+        if (Array.isArray(body.holdings))
+          console.log('DIRECT_PILOT_WALLET_HOLDING_COUNT=' + body.holdings.length);
       }
     } catch (error) {
       console.log(`DIRECT_PILOT_${name}_HTTP=` + (String(error?.message).match(/^DIRECT_GET_HTTP_([0-9]{3})$/)?.[1] ?? 'error'));
