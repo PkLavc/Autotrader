@@ -1,0 +1,48 @@
+name: AudaceFi adaptive safe rollout
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audacefi-adaptive-rollout.yml'
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: audacefi-adaptive-rollout
+  cancel-in-progress: false
+
+jobs:
+  rollout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate the handoff script
+        run: node --check integrations/audacefi/adaptive-handoff.mjs
+      - name: Switch only while the old worker is flat and idle
+        env:
+          AUDACEFI_API_KEY: ${{ secrets.AUDACEFI_API_KEY }}
+          AUDACEFI_WALLET_ADDRESS: ${{ secrets.AUDACEFI_WALLET_ADDRESS }}
+          AUDACEFI_JOURNAL_KEY: ${{ secrets.AUDACEFI_JOURNAL_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 25); do
+            outcome=$(node integrations/audacefi/adaptive-handoff.mjs)
+            echo "$outcome"
+            if grep -Eq 'AUDACEFI_HANDOFF=(LATEST_DISPATCHED|LATEST_ALREADY_QUEUED|LATEST_ALREADY_RUNNING)' <<< "$outcome"; then
+              echo 'Verified safe handoff or an already running current revision.' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 35
+          done
+          echo 'Idle-window handoff not yet safe; old operator was left intact.' >> "$GITHUB_STEP_SUMMARY"
+          exit 1
