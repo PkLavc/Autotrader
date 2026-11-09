@@ -145,6 +145,10 @@ def main() -> int:
             print("DIRECT_SUBMISSION_LOOKUP_ERROR_CODE=" + error_code(submission))
         else:
             print("DIRECT_SUBMISSION_LOOKUP_FIELDS=" + field_names(submission))
+            print("DIRECT_DURABLE_PROTOCOL_MATCH=" + str(
+                submission.get("protocol") == "audacefi.bench.submission.v1"
+            ).lower())
+            print("DIRECT_SUBMISSION_EMPTY=" + str(submission.get("submission") is None).lower())
         quote_status, quote = request(key, "POST", "/api/v1/swap-intents/" + body["intentId"] + "/quote", {"amountInRaw": "25000000"})
         print("DIRECT_QUOTE_HTTP=" + str(quote_status))
         if quote_status not in (200, 201):

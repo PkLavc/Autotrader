@@ -11,21 +11,32 @@ season, and a responding bench endpoint. The official allowlist query is
 `category=crypto-bro` request returned HTTP 400. The probe also compares the
 API-linked wallet to `AUDACEFI_WALLET_ADDRESS` without printing either address.
 
-This is not an execution qualification. The current official kit (stable
+The direct API also accepted a fixed, idempotent 25-USDC BUY intention for SOL
+and returned a matching quote (HTTP 200 for each). A second request with the
+same key returned `replayed=true`, and the account-owned submission lookup
+returned HTTP 200. No wallet signature, cosignature, transaction submission or
+trade occurred. The API did not echo the kit's exact-input binding marker, so
+an ambiguous intention cannot be automatically resumed under that kit contract.
+
+The signed approval below is a requirement of the current official kit's
+ranked gateway; the successful direct intention and quote show it is not a
+server prerequisite for those stages. Whether the direct API requires any
+additional approval at submission has not been established. The kit (stable
 `9abd82702795929722554906b3ac14a7c861181a`) requires the AudaceFi-issued
 deployment profile, issuer trust key, and current signed approval for its
 official ranked gateway. Its public documentation says that release package
 and issuance channel are pending. The repository's Actions secrets contain
 only the API key, linked wallet address and wallet recovery phrase; no
 approval package or verified deployment pins exist. The bench GET response
-exposes `mints`, `poster` and `programId`, which are insufficient to establish
-the required independent ProgramData hash and signed approval. The official
-`/api` proxy disallows write-enabled generic SDK clients. The existing
-`runner.mjs` therefore refuses execute/finalize against that origin rather
-than allowing an unqualified transaction attempt.
+includes the program, mints, poster and other configuration, but not an
+independently pinned ProgramData hash or signed approval. The SDK disallows
+write-enabled generic clients on the official `/api` proxy. The existing
+`runner.mjs` therefore refuses execute/finalize through that SDK route. This
+does not imply the direct API itself rejects writes.
 
-The remaining work needs AudaceFi's official release package and approved
-route, then a durable private journal across Actions runs, reconciled portfolio
+The remaining work needs either AudaceFi's official release package for the
+kit or a separately verified direct API adapter, then a durable private journal
+across Actions runs, reconciled portfolio
 and daily risk limits, both buy and sell execution, independent finality and
 ranked-history checks. No scheduled order workflow or confirmed trade exists.
 
@@ -89,8 +100,9 @@ and (for BUY preparation) `season_id`, `wallet_address`,
 the authenticated API/schema and actual official wallet must be validated.
 No test fixture authorizes a trade.
 
-**Deployment blockers:** The season is active and the league wallet is ready,
-but the official signed deployment approval is not available. There is no verified durable trading journal or
+**Deployment blockers:** The season is active and the league wallet is ready.
+The kit's signed deployment approval is unavailable. The direct API has not
+yet been qualified through signing and finality. There is no verified durable trading journal or
 complete SELL-to-USDC execution adapter. The current daily forecast cadence
 cannot protect against intraday crypto moves; the paper strategy must undergo
 point-in-time five-day league backtests, execution/slippage stress tests and

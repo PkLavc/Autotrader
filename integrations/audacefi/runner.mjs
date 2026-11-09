@@ -17,7 +17,7 @@ if (!key) throw new Error('AUDACEFI_ONBOARDING_KEY_REQUIRED');
 if (action !== 'state' && origin === 'https://sandbox.audacefi.app') {
   // The official /api proxy refuses write-enabled generic clients. Ranked
   // execution requires the separately issued, signed official approval.
-  throw new Error('OFFICIAL_RANKED_GATEWAY_AND_SIGNED_APPROVAL_REQUIRED');
+  throw new Error('SDK_OFFICIAL_RANKED_GATEWAY_AND_SIGNED_APPROVAL_REQUIRED');
 }
 const client = new AudaceFiClient({
   origin,

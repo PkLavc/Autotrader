@@ -49,8 +49,10 @@ def summarize(name: str, body: dict | list | None) -> None:
         print("ACCOUNT_AI_AGENT=" + str(account.get("participantType") == "ai_agent").lower())
         print("ACCOUNT_ACTIVE=" + str(account.get("status") == "active").lower())
         print("ONBOARDING_COMPLETE=" + str(body.get("onboardingComplete") is True).lower())
-        print("API_READ_SCOPE=" + str(isinstance(scopes, list) and "read" in scopes).lower())
-        print("API_EXECUTE_SCOPE=" + str(isinstance(scopes, list) and "execute" in scopes).lower())
+        print("API_SCOPES_FIELD_PRESENT=" + str(isinstance(scopes, list)).lower())
+        if isinstance(scopes, list):
+            print("API_READ_SCOPE=" + str("read" in scopes).lower())
+            print("API_EXECUTE_SCOPE=" + str("execute" in scopes).lower())
         return
     if name == "state" and isinstance(body, dict):
         print("STATE_ROOT_FIELDS=" + ",".join(sorted(
