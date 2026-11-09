@@ -187,6 +187,10 @@ def update_promotion(state: object, suggestion: dict, *, window: int) -> dict:
     if active not in PRESETS:
         active = "baseline"
     prev = old.get("window", -1)
+    cooling = old.get("cooldownUntilWindow", -1)
+    if isinstance(cooling, int) and cooling > window:
+        return {"active": "baseline", "pending": None, "count": 0,
+                "window": window, "cooldownUntilWindow": cooling}
     if not isinstance(prev, int) or prev >= window:
         return {"active": active, "pending": old.get("pending"),
                 "count": old.get("count", 0), "window": prev}
