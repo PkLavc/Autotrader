@@ -101,10 +101,14 @@ if (mode === 'history') {
   const saved = await reconcileOperation(client, journal, OPERATION_KEY);
   if (!saved) throw Error('PILOT_HISTORY_SUBMISSION_MISSING');
   for (const [name, route] of [
-    ['FEED', '/v1/me/feed?category=crypto_bro'],
+    ['FEED', '/v1/me/feed?category=crypto-bro'],
     ['DISCIPLINE', '/v1/me/discipline?category=crypto_bro'],
     ['PLACEMENT', '/v1/me/placement?category=crypto_bro'],
     ['INTENT_RESULT', `/v1/swap-intents/${saved.intentId}/result`],
+    ['WALLET', '/v1/me/wallet'],
+    ['PROFILE', '/v1/me/profile'],
+    ['PLAYER', `/v1/players/${accountId}`],
+    ['SEASON', `/v1/seasons/${season.id}`],
   ]) {
     try {
       const body = await get(route);
@@ -112,6 +116,8 @@ if (mode === 'history') {
       console.log(`DIRECT_PILOT_${name}_TX_MATCH=` + strBoolean(JSON.stringify(body).includes(saved.txid)));
       if (Array.isArray(body?.items)) console.log(`DIRECT_PILOT_${name}_ITEM_COUNT=${body.items.length}`);
       if (Array.isArray(body?.entries)) console.log(`DIRECT_PILOT_${name}_ENTRY_COUNT=${body.entries.length}`);
+      if (Array.isArray(body?.trades)) console.log(`DIRECT_PILOT_${name}_TRADE_COUNT=${body.trades.length}`);
+      if (typeof body?.trades === 'number') console.log(`DIRECT_PILOT_${name}_TRADE_COUNT=${body.trades}`);
       if (typeof body?.tradesToday === 'number') console.log(`DIRECT_PILOT_${name}_TRADES_TODAY=${body.tradesToday}`);
     } catch (error) {
       console.log(`DIRECT_PILOT_${name}_HTTP=` + (String(error?.message).match(/^DIRECT_GET_HTTP_([0-9]{3})$/)?.[1] ?? 'error'));
