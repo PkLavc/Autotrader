@@ -19,8 +19,8 @@ const OPERATION_KEY = 'autotrader_s1_pilot_buy_sol_25_v2';
 const SELL_KEY = 'autotrader_s1_pilot_sell_sol_v1';
 const strBoolean = value => String(Boolean(value));
 const mode = process.argv[2];
-if (!['preflight', 'execute', 'reconcile', 'verify10', 'finalize10', 'history', 'sell'].includes(mode)) throw Error('PILOT_MODE_REQUIRED');
-if (['execute', 'sell'].includes(mode) && process.env.AUDACEFI_ENABLE_EXECUTION !== 'true')
+if (!['preflight', 'execute', 'reconcile', 'verify10', 'finalize10', 'history', 'sell', 'auto'].includes(mode)) throw Error('PILOT_MODE_REQUIRED');
+if (['execute', 'sell', 'auto'].includes(mode) && process.env.AUDACEFI_ENABLE_EXECUTION !== 'true')
   throw Error('EXECUTION_FLAG_REQUIRED');
 
 const key = process.env.AUDACEFI_API_KEY;
@@ -43,7 +43,7 @@ const season = state.season.active;
 const now = Date.now();
 if (!season || season.status !== 'active' || season.executionMode !== 'devnet_onchain' ||
     !season.startsAt || !season.endsAt || Date.parse(season.startsAt) > now ||
-    Date.parse(season.endsAt) <= now + 16 * 3600_000 ||
+    Date.parse(season.endsAt) <= now + (mode === 'auto' ? 5 * 60_000 : 16 * 3600_000) ||
     state.wallet.state !== 'ok' || state.wallet.walletAddress !== expectedAddress ||
     state.wallet.seasonId !== season.id) throw Error('PILOT_SEASON_OR_WALLET_INVALID');
 const allow = await client.readAllowlist('crypto-bro', season.id);
@@ -85,9 +85,11 @@ const journalStore = await openDurableJournal('/tmp/audacefi-journal', {
   githubToken: process.env.GITHUB_TOKEN,
   encryptionKey: process.env.AUDACEFI_JOURNAL_KEY,
   mainSha: process.env.GITHUB_SHA,
+  ...(mode === 'auto' ? { branch: 'audacefi-auto-journal' } : {}),
 });
-const policy = { maxOperations: 3, inputBudgets: {
-  [usdc.mint]: '25000000', [sol.mint]: '10000000000',
+const policy = { maxOperations: mode === 'auto' ? 6 : 3, inputBudgets: {
+  [usdc.mint]: mode === 'auto' ? '75000000' : '25000000',
+  [sol.mint]: '10000000000',
 } };
 const journal = await FileJournal.create(journalStore.directory, policy);
 const { checkpoint } = await journalStore.wrap(journal);
@@ -96,6 +98,13 @@ console.log('DIRECT_PILOT_JOURNAL_READY=true');
 console.log('DIRECT_PILOT_RESERVED_OPERATIONS=' + capacity.reservedOperations);
 if (mode === 'preflight') {
   console.log('DIRECT_PILOT_PREFLIGHT_ONLY=true');
+  process.exit(0);
+}
+if (mode === 'auto') {
+  const { runAuto } = await import('./direct-auto.mjs');
+  await runAuto({ client, journal, journalDirectory: journalStore.directory,
+    checkpoint, adapters, runAiAgent, reconcileOperation, finalizeOperation,
+    get, season, expectedAddress, usdc, sol });
   process.exit(0);
 }
 if (mode === 'history') {
@@ -168,7 +177,11 @@ if (mode === 'history') {
         if (body.lastLpv && typeof body.lastLpv === 'object')
           console.log('DIRECT_PILOT_WALLET_LPV_FIELDS=' + Object.keys(body.lastLpv).sort().join(','));
       }
-      if (name === 'MARKET') console.log('DIRECT_PILOT_MARKET_FIELDS=' + Object.keys(body).sort().join(','));
+      if (name === 'MARKET') {
+        console.log('DIRECT_PILOT_MARKET_FIELDS=' + Object.keys(body).sort().join(','));
+        console.log('DIRECT_PILOT_MARKET_SOL_PRICED=' + strBoolean(body.prices?.[sol.mint]?.status === 'priced'));
+        console.log('DIRECT_PILOT_MARKET_AGE_MINUTES=' + Math.round((Date.now() - Date.parse(body.asOf)) / 60000));
+      }
     } catch (error) {
       console.log(`DIRECT_PILOT_${name}_HTTP=` + (String(error?.message).match(/^DIRECT_GET_HTTP_([0-9]{3})$/)?.[1] ?? 'error'));
     }

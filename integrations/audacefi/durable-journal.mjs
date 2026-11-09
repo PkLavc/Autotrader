@@ -8,12 +8,15 @@ const BRANCH = 'audacefi-journal';
 const FILE = 'journal.json.enc';
 const VERSION = 1;
 
-export async function openDurableJournal(directory, { repository, githubToken, encryptionKey, mainSha }) {
+export async function openDurableJournal(directory, { repository, githubToken, encryptionKey, mainSha,
+  branch = BRANCH, file = FILE }) {
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository) ||
-      !githubToken || !/^[0-9a-f]{40}$/.test(mainSha)) throw Error('JOURNAL_GITHUB_CONFIG_INVALID');
+      !githubToken || !/^[0-9a-f]{40}$/.test(mainSha) ||
+      !/^audacefi-[a-z-]{1,40}$/.test(branch) || !/^[A-Za-z0-9._-]{1,80}$/.test(file))
+    throw Error('JOURNAL_GITHUB_CONFIG_INVALID');
   const key = Buffer.from(encryptionKey?.trim() ?? '', 'base64');
   if (key.length !== 32 || key.toString('base64') !== encryptionKey?.trim()) throw Error('JOURNAL_KEY_INVALID');
-  const aad = Buffer.from(`audacefi-journal-v1:${repository}:${BRANCH}:${FILE}`);
+  const aad = Buffer.from(`audacefi-journal-v1:${repository}:${branch}:${file}`);
   const base = `https://api.github.com/repos/${repository}`;
   async function api(method, route, body) {
     const response = await fetch(base + route, {
@@ -31,11 +34,11 @@ export async function openDurableJournal(directory, { repository, githubToken, e
     if (!response.ok) throw Error(`JOURNAL_GITHUB_HTTP_${response.status}`);
     return { status: response.status, data: await response.json() };
   }
-  const ref = await api('GET', `/git/ref/heads/${BRANCH}`);
+  const ref = await api('GET', `/git/ref/heads/${branch}`);
   if (ref.status === 404) {
-    await api('POST', '/git/refs', { ref: `refs/heads/${BRANCH}`, sha: mainSha });
+    await api('POST', '/git/refs', { ref: `refs/heads/${branch}`, sha: mainSha });
   }
-  const contentRoute = `/contents/${FILE}?ref=${BRANCH}`;
+  const contentRoute = `/contents/${file}?ref=${branch}`;
   const loaded = await api('GET', contentRoute);
   let sha = loaded.data?.sha;
   await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -76,10 +79,10 @@ export async function openDurableJournal(directory, { repository, githubToken, e
     const body = Buffer.concat([cipher.update(plain), cipher.final()]);
     const sealed = Buffer.concat([nonce, cipher.getAuthTag(), body]);
     plain.fill(0);
-    const saved = await api('PUT', `/contents/${FILE}`, {
+    const saved = await api('PUT', `/contents/${file}`, {
       message: 'checkpoint encrypted AudaceFi journal',
       content: sealed.toString('base64'),
-      branch: BRANCH,
+      branch,
       ...(sha ? { sha } : {}),
     });
     if (typeof saved.data?.content?.sha !== 'string') throw Error('JOURNAL_CHECKPOINT_UNCONFIRMED');

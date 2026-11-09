@@ -1,13 +1,15 @@
-name: AudaceFi direct Devnet pilot
+name: AudaceFi direct Devnet trading
 
 on:
+  schedule:
+    - cron: '17,47 * 9-13 11 *'
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Preflight or the fixed 25 USDC Devnet pilot'
+        description: 'Direct Devnet trading mode'
         required: true
         type: choice
-        options: [preflight, execute, reconcile, verify10, finalize10, history, sell]
+        options: [preflight, execute, reconcile, verify10, finalize10, history, sell, auto]
         default: preflight
 
 permissions:
@@ -35,15 +37,23 @@ jobs:
           npm ci --ignore-scripts
           npm run build
       - name: Instrument strict verifier for safe reconciliation diagnostics
-        if: inputs.mode == 'reconcile' || inputs.mode == 'verify10' || inputs.mode == 'finalize10' || inputs.mode == 'sell'
-        run: node integrations/audacefi/verifier-diagnostics.mjs "${{ inputs.mode }}"
+        if: github.event_name == 'schedule' || inputs.mode == 'reconcile' || inputs.mode == 'verify10' || inputs.mode == 'finalize10' || inputs.mode == 'sell' || inputs.mode == 'auto'
+        run: node integrations/audacefi/verifier-diagnostics.mjs "${{ inputs.mode || 'auto' }}"
+      - uses: actions/setup-python@v7
+        if: github.event_name == 'schedule' || inputs.mode == 'auto'
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install crypto signal dependencies
+        if: github.event_name == 'schedule' || inputs.mode == 'auto'
+        run: pip install -r requirements.txt
       - name: Qualify direct API, journal, and optional fixed pilot
         env:
           AUDACEFI_API_KEY: ${{ secrets.AUDACEFI_API_KEY }}
           AUDACEFI_WALLET_ADDRESS: ${{ secrets.AUDACEFI_WALLET_ADDRESS }}
           AUDACEFI_WALLET_RECOVERY_PHRASE: ${{ secrets.AUDACEFI_WALLET_RECOVERY_PHRASE }}
           AUDACEFI_JOURNAL_KEY: ${{ secrets.AUDACEFI_JOURNAL_KEY }}
-          AUDACEFI_ENABLE_EXECUTION: ${{ (inputs.mode == 'execute' || inputs.mode == 'sell') && 'true' || 'false' }}
-          AUDACEFI_DEVNET_ACK: ${{ (inputs.mode == 'execute' || inputs.mode == 'sell') && 'true' || 'false' }}
+          AUDACEFI_ENABLE_EXECUTION: ${{ (github.event_name == 'schedule' || inputs.mode == 'execute' || inputs.mode == 'sell' || inputs.mode == 'auto') && 'true' || 'false' }}
+          AUDACEFI_DEVNET_ACK: ${{ (github.event_name == 'schedule' || inputs.mode == 'execute' || inputs.mode == 'sell' || inputs.mode == 'auto') && 'true' || 'false' }}
           GITHUB_TOKEN: ${{ github.token }}
-        run: node integrations/audacefi/direct-pilot.mjs "${{ inputs.mode }}"
+        run: node integrations/audacefi/direct-pilot.mjs "${{ inputs.mode || 'auto' }}"

@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 
 const file = resolve(import.meta.dirname, '../../vendor/audacefi-integration-kit/dist/reference.js');
 const source = await readFile(file, 'utf8');
-const useTenBps = ['verify10', 'finalize10', 'sell'].includes(process.argv[2]);
+const useTenBps = ['verify10', 'finalize10', 'sell', 'auto'].includes(process.argv[2]);
 const start = source.indexOf('    async function verifyFinal(saved, expected) {');
 const end = source.indexOf('    async function readSpotHoldings(', start);
 if (start < 0 || end < 0) throw Error('VERIFIER_DIAGNOSTIC_SOURCE_CHANGED');
