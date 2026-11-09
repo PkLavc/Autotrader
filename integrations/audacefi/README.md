@@ -15,8 +15,14 @@ completed and finalized a 25 USDC SOL purchase and a full sale to USDC:
 
 Both transactions finalized on Solana Devnet and were reported through the
 AudaceFi `/result` route. The authenticated wallet then showed two swaps and
-USDC-only holdings. At 2026-11-09 04:58 UTC, it showed 9,999.8987 USDC LPV
-and rank 99/105. These are timestamped observations.
+USDC-only holdings. At 2026-11-09 05:28 UTC, it showed 9,999.8987 USDC LPV
+and rank 98/105. These are timestamped observations.
+
+A later read-only `history` run matched each finalized hash to its exact
+server-side `/submission` record. The wallet still reported two swaps and the
+player record a last-swap timestamp. The account feed did not include those
+hashes, and `GET /result` returned 404; an exact row in the panel's visual
+trade history has not been independently observed.
 
 The official kit's signed deployment approval is required for its ranked
 gateway. The supported direct API accepted both trades without that package.
