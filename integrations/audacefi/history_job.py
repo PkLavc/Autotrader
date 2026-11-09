@@ -38,7 +38,7 @@ def stock_learning_calibration(bars: list[list], symbol: str) -> float:
         # Only *matured* outcomes from past completed blocks.
         observations.append({"sector": symbol,
                              "excess_return": baseline["net_return"]})
-    cfg = StrategyConfig(adaptive_min_total_evaluations=40,
+    cfg = StrategyConfig(adaptive_min_total_evaluations=20,
                          adaptive_min_sector_evaluations=12)
     factors = sector_factors({"completed": observations}, cfg)
     factor = factors.get(symbol, 1.0)
