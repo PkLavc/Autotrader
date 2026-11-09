@@ -105,11 +105,17 @@ def summarize(name: str, body: dict | list | None) -> None:
         return
     if name == "discipline" and isinstance(body, dict):
         print("DISCIPLINE_FIELDS=" + ",".join(sorted(body)))
-        for field in ("limits", "today", "risk", "drawdown", "trades", "status"):
+        for field in ("season", "state", "limits", "today", "risk", "drawdown", "trades", "status"):
             value = body.get(field)
             if isinstance(value, dict):
                 print("DISCIPLINE_" + field.upper() + "_FIELDS=" +
                       ",".join(sorted(value)))
+        entries = body.get("entries")
+        if isinstance(entries, list):
+            print("DISCIPLINE_ENTRY_COUNT=" + str(len(entries)))
+            if entries and isinstance(entries[0], dict):
+                print("DISCIPLINE_ENTRY_FIELDS=" +
+                      ",".join(sorted(entries[0])))
         return
     if isinstance(body, dict):
         print(name.upper() + "_ROOT_FIELDS=" + ",".join(sorted(
