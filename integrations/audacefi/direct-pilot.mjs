@@ -7,7 +7,7 @@ import { createDirectClient } from './direct-client.mjs';
 
 const kitPath = resolve(import.meta.dirname, '../../vendor/audacefi-integration-kit/dist/index.js');
 const { FileJournal, SolanaRpcReader, createReferenceAdapters, runAiAgent,
-  finalizeOperation, SOLANA_DEVNET_GENESIS } = await import(pathToFileURL(kitPath).href);
+  reconcileOperation, finalizeOperation, SOLANA_DEVNET_GENESIS } = await import(pathToFileURL(kitPath).href);
 const { wallet } = await import('./wallet-signer.mjs');
 
 const ORIGIN = 'https://sandbox.audacefi.app';
@@ -16,8 +16,9 @@ const PROGRAM_DATA = 'CjiQe8dV8xUgxRm6MPCuvmQdYQTtugvRTDR4LhVRpdCj';
 const PROGRAM_DATA_SHA = '321fc0efa1b7329b84da3613c82fef0d0d68e621c177084f5bbb23be79aa25a5';
 const ADMIN = 'DiMwgbncNbPKAznQrQ24Dk6TB97NWatetRG3Ptfx7Psk';
 const OPERATION_KEY = 'autotrader_s1_pilot_buy_sol_25_v2';
+const strBoolean = value => String(Boolean(value));
 const mode = process.argv[2];
-if (!['preflight', 'execute'].includes(mode)) throw Error('PILOT_MODE_REQUIRED');
+if (!['preflight', 'execute', 'reconcile'].includes(mode)) throw Error('PILOT_MODE_REQUIRED');
 if (mode === 'execute' && process.env.AUDACEFI_ENABLE_EXECUTION !== 'true')
   throw Error('EXECUTION_FLAG_REQUIRED');
 
@@ -95,6 +96,37 @@ console.log('DIRECT_PILOT_RESERVED_OPERATIONS=' + capacity.reservedOperations);
 if (mode === 'preflight') {
   console.log('DIRECT_PILOT_PREFLIGHT_ONLY=true');
   process.exit(0);
+}
+if (mode === 'reconcile') {
+  if (capacity.reservedOperations !== 1) throw Error('PILOT_JOURNAL_RESERVATION_UNEXPECTED');
+  const saved = await reconcileOperation(client, journal, OPERATION_KEY);
+  if (!saved) {
+    console.log('DIRECT_PILOT_SERVER_SUBMISSION=absent');
+    process.exitCode = 1;
+  } else {
+    console.log('DIRECT_PILOT_SERVER_SUBMISSION=' + saved.state);
+    console.log('DIRECT_PILOT_TXID=' + saved.txid);
+    const chain = await rpc.call('getSignatureStatuses', [[saved.txid], { searchTransactionHistory: true }]);
+    const row = chain?.value?.[0];
+    console.log('DIRECT_PILOT_RPC_SIGNATURE_KNOWN=' + strBoolean(row !== null && row !== undefined));
+    if (row) {
+      console.log('DIRECT_PILOT_RPC_CONFIRMATION=' + (row.confirmationStatus ?? 'unknown'));
+      console.log('DIRECT_PILOT_RPC_ERROR=' + strBoolean(row.err !== null));
+    }
+    const final = await finalizeOperation(client, journal, OPERATION_KEY, adapters.verifyFinal);
+    await checkpoint();
+    console.log('DIRECT_PILOT_FINALITY=' + final);
+    if (final !== 'confirmed') process.exitCode = 1;
+    else {
+      try {
+        const evidence = await client.readRankedEvidence(saved.intentId);
+        console.log('DIRECT_PILOT_RANKED_EVIDENCE=' + (
+          evidence?.evidence?.trade?.txid === saved.txid ? 'matched' : 'pending'
+        ));
+      } catch { console.log('DIRECT_PILOT_RANKED_EVIDENCE=unavailable'); }
+    }
+  }
+  process.exit();
 }
 if (capacity.reservedOperations !== 0 || capacity.unresolvedOperations !== 0)
   throw Error('PILOT_EXISTING_OPERATION_REQUIRES_RECONCILIATION');
