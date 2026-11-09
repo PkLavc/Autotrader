@@ -137,38 +137,44 @@ def evaluate(candles_by_symbol: dict[str, object]) -> dict:
     """
     if not isinstance(candles_by_symbol, dict):
         return {"status": "INSUFFICIENT_DATA"}
-    candidates = []
+    train_candidates = []
+    held_out: dict[tuple[str, str], tuple[list, int]] = {}
     for symbol in ("SOL", "ETH"):
         rows = validate_candles(candles_by_symbol.get(symbol))
         if not rows:
             continue
-        # A full 255+ bar window provides 96 warm-up bars + two disjoint
-        # stretches. Final nine bars are excluded to ensure finality.
+        # Training ends before holdout starts; each trade fully closes inside
+        # its own segment. No future close can influence a train signal.
         split = len(rows) - 88
         train = {name: _simulate(rows, p, 96, split) for name, p in PRESETS.items()}
-        test = {name: _simulate(rows, p, split, len(rows)) for name, p in PRESETS.items()}
         for name, result in train.items():
             if name == "baseline" or result["trades"] < MIN_TRAIN_TRADES or result["net_return"] <= 0:
                 continue
-            validation = test[name]
-            baseline = test["baseline"]
-            if (validation["trades"] >= MIN_TEST_TRADES and
-                validation["net_return"] > REQUIRED_TEST_EDGE and
-                validation["net_return"] > baseline["net_return"] + REQUIRED_TEST_EDGE and
-                validation["win_rate"] >= .5 and
-                validation["max_drawdown"] <= .012 and
-                result["max_drawdown"] <= .012):
-                candidates.append((validation["net_return"], result["net_return"],
-                                   symbol, name, result, validation))
-    if not candidates:
+            # Save validation data WITHOUT inspecting its performance during
+            # selection. Select on training alone; then open the holdout once.
+            train_candidates.append((result["net_return"], symbol, name, result))
+            held_out[(symbol, name)] = (rows, split)
+    if not train_candidates:
         return {"status": "NO_VALIDATED_IMPROVEMENT", "symbolsChecked": sorted(
             s for s in ("SOL", "ETH") if validate_candles(candles_by_symbol.get(s))
         )}
-    # All variants are evaluated, but a winning pair is adopted only after
-    # three sequential confirmations by the persistent journal policy.
-    best = max(candidates, key=lambda row: (row[0], row[1], row[2], row[3]))
-    return {"status": "VALIDATED_CANDIDATE", "symbol": best[2], "profile": best[3],
-            "train": best[4], "holdout": best[5],
+    # One candidate is nominated using training only (not best holdout P&L).
+    winner = max(train_candidates, key=lambda item: (item[0], item[1], item[2]))
+    train_return, symbol, name, training = winner
+    rows, split = held_out[(symbol, name)]
+    validation = _simulate(rows, PRESETS[name], split, len(rows))
+    baseline = _simulate(rows, PRESETS["baseline"], split, len(rows))
+    if not (validation["trades"] >= MIN_TEST_TRADES and
+            validation["net_return"] > REQUIRED_TEST_EDGE and
+            validation["net_return"] > baseline["net_return"] + REQUIRED_TEST_EDGE and
+            validation["win_rate"] >= .5 and
+            validation["max_drawdown"] <= .012 and
+            training["max_drawdown"] <= .012):
+        return {"status": "NO_VALIDATED_IMPROVEMENT", "symbolsChecked": sorted(
+            s for s in ("SOL", "ETH") if validate_candles(candles_by_symbol.get(s))
+        )}
+    return {"status": "VALIDATED_CANDIDATE", "symbol": symbol, "profile": name,
+            "train": training, "holdout": validation,
             "costBps": round(ROUND_TRIP_COST * 10000)}
 
 
