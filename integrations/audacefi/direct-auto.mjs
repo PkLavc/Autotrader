@@ -98,6 +98,50 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
   if (remaining <= 0) throw Error('AUTO_SEASON_ENDED');
   if (!hasPosition && count === MAX_OPERATIONS) { hold('LIFETIME_TRADE_BUDGET_COMPLETE'); return; }
   const cash = Number(usdcRaw) / 1e6;
+  // Closed-loop feedback comes from reconciled, finalized Devnet holdings,
+  // never from a hypothetical backtest or a model's claimed success.
+  if (!hasPosition && count >= 2 && count % 2 === 0) {
+    const pair = count / 2;
+    const buy = plans[count - 2], sell = plans[count - 1];
+    let feedback = { lastClosedPair: 0, outcomes: [] };
+    try { feedback = JSON.parse(await readFile(join(journalDirectory, 'adaptive-performance.json'), 'utf8')); }
+    catch (error) { if (error?.code !== 'ENOENT') throw error; }
+    if (!Number.isInteger(feedback?.lastClosedPair) || feedback.lastClosedPair < 0 ||
+        !Array.isArray(feedback.outcomes) || feedback.outcomes.length > 32)
+      throw Error('ADAPTIVE_FEEDBACK_INVALID');
+    if (feedback.lastClosedPair < pair) {
+      if (buy?.side !== 'buy' || sell?.side !== 'sell') throw Error('ADAPTIVE_FEEDBACK_ORDER_INVALID');
+      const before = buy.cashBefore;
+      if (before !== undefined && (!Number.isFinite(before) || before <= 0))
+        throw Error('ADAPTIVE_FEEDBACK_ENTRY_INVALID');
+      if (before !== undefined) {
+        const pnl = Math.round((cash - before) * 1e6) / 1e6;
+        if (!Number.isFinite(pnl) || Math.abs(pnl) > 5000)
+          throw Error('ADAPTIVE_FEEDBACK_PNL_INVALID');
+        feedback.outcomes.push({ pair, pnl, profile: buy.profile || 'baseline' });
+        console.log('AUDACEFI_ADAPTIVE_REALIZED_PNL_USDC=' + pnl);
+      }
+      // Older competitive trades predate cashBefore: mark as observed, never
+      // fabricate an outcome or block later true accounting.
+      feedback = { lastClosedPair: pair, outcomes: feedback.outcomes.slice(-24) };
+      await save(journalDirectory, 'adaptive-performance.json', feedback, checkpoint);
+      const recent = feedback.outcomes.slice(-3);
+      if (recent.length === 3 && recent.every(row => row.pnl < 0) &&
+          recent.reduce((sum, row) => sum + row.pnl, 0) < -20) {
+        let active = { active: 'baseline' };
+        try { active = JSON.parse(await readFile(join(journalDirectory, 'adaptive-state.json'), 'utf8')); }
+        catch (error) { if (error?.code !== 'ENOENT') throw error; }
+        if (active?.active !== 'baseline') {
+          await save(journalDirectory, 'adaptive-state.json', {
+            active: 'baseline', pending: null, count: 0,
+            window: Math.floor(Date.now() / 900000),
+            cooldownUntilWindow: Math.floor(Date.now() / 900000) + 16,
+          }, checkpoint);
+          console.log('AUDACEFI_ADAPTIVE_LIVE_ROLLBACK=true');
+        }
+      }
+    }
+  }
   const responses = await Promise.allSettled(assets.map(asset =>
     get(`/v1/market/prices?mints=${encodeURIComponent(asset.mint)}`)));
   const markets = Object.fromEntries(assets.map((asset, index) =>
@@ -145,6 +189,7 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
     hold('STRATEGY_REVIEW_PAUSE'); return;
   }
   let side = null;
+  let modelProfile = 'baseline';
   let chosen = active;
   let amount = null;
   if (hasPosition && (remaining <= 16 * HOUR || riskStop || protectiveStop || price === null))
@@ -191,6 +236,7 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
     await writeFile(join(journalDirectory, 'adaptive-decisions.json'),
       JSON.stringify(observations.slice(-192)) + '\n', { mode: 0o600 });
     await save(journalDirectory, 'adaptive-state.json', nextState, checkpoint);
+    modelProfile = result.activeProfile;
     console.log('AUDACEFI_ADAPTIVE_STATUS=' + (result.adaptive?.status || 'NOT_AVAILABLE'));
     console.log('AUDACEFI_ADAPTIVE_ACTIVE=' + nextState.active);
     console.log('AUDACEFI_AUTO_DECISION=' + result.status);
@@ -240,6 +286,7 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
   } catch (error) { if (error?.code !== 'ENOENT') throw error; }
   await writeFile(planFile(journalDirectory, count), JSON.stringify({
     index: count, side, symbol: chosen.symbol, createdAt: now, operation,
+    ...(side === 'buy' ? { cashBefore: cash, profile: modelProfile } : {}),
   }) + '\n', { flag: 'wx', mode: 0o600 });
   await checkpoint();
   let outcome;
