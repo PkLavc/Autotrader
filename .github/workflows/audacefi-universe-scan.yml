@@ -1,0 +1,30 @@
+name: AudaceFi eligible token adaptive shadow scan
+
+on:
+  workflow_dispatch:
+  schedule:
+    # At most six low-priority public-market scans per day.
+    - cron: '41 */4 9-13 11 *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/audacefi-universe-scan.yml'
+      - 'integrations/audacefi/universe_research.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audacefi-universe-scan
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Research official eligible tokens (never place orders)
+        env:
+          AUDACEFI_API_KEY: ${{ secrets.AUDACEFI_API_KEY }}
+        run: python3 -m integrations.audacefi.universe_research
