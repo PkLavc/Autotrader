@@ -33,6 +33,17 @@ def test_new_matured_results_promote_only_the_oos_approved_asset_policy():
         PRESETS["recovery"]["intraday_m3_min"]
 
 
+def test_four_non_overlapping_live_labels_complete_a_disjoint_online_update():
+    now = 1_700_000_000_000 + 8 * 24 * 60 * 60_000
+    result = select_by_asset(_approved(), _ledger(count=4), now_ms=now)
+    evidence = result["evidenceBySymbol"]["SOL"]
+    assert result["activeBySymbol"]["SOL"] == "recovery"
+    assert evidence["status"] == "PROMOTED_FROM_MATURED_OOS_FEEDBACK"
+    assert evidence["trainingObservations"] == 2
+    assert evidence["validationObservations"] == 2
+    assert evidence["samples"] == 4
+
+
 def test_matured_results_change_the_next_shared_strategy_decision():
     import io
     import json
@@ -93,12 +104,12 @@ def test_recent_negative_matured_results_rollback_to_momentum_automatically():
 
 
 def test_unmatured_or_future_outcomes_cannot_affect_selection():
-    now = 1_700_000_000_000 + 7 * 24 * 60 * 60_000
-    rows = _ledger(count=6)
+    now = 1_700_000_000_000 + 4 * 24 * 60 * 60_000
+    rows = _ledger(count=4)
     rows[-1]["outcomes"]["24h"]["markedAt"] += 48 * 60 * 60_000
     result = select_by_asset(_approved(), rows, now_ms=now)
     assert result["activeBySymbol"]["SOL"] == "recovery"
-    assert result["evidenceBySymbol"]["SOL"]["samples"] == 5
+    assert result["evidenceBySymbol"]["SOL"]["samples"] == 3
     assert result["evidenceBySymbol"]["SOL"]["status"] == \
         "HISTORICAL_OOS_BOOTSTRAP_AWAITING_LIVE_FEEDBACK"
 

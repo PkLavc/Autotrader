@@ -11,7 +11,9 @@ from typing import Any
 from .adaptive_learning import PRESETS
 
 SUPPORTED = {"SOL", "ETH"}
-MIN_OBSERVATIONS = 6
+# Four full, non-overlapping 24h marks allow a two-observation training prefix
+# and a disjoint two-observation forward validation within the remaining season.
+MIN_OBSERVATIONS = 4
 MIN_VALIDATION = 2
 MAX_DRAWDOWN = .018
 MIN_EDGE = .003
@@ -229,7 +231,7 @@ def select_by_asset(approved: object, ledger: object, *, now_ms: int,
             saved_params = prior.get("activeParametersBySymbol", {}).get(symbol)
             if selected == profile and isinstance(saved_params, dict):
                 result["activeParametersBySymbol"][symbol] = saved_params
-        elif (candidate_trades >= 3 and candidate_return > 0 and
+        elif (candidate_trades >= MIN_VALIDATION and candidate_return > 0 and
                 candidate_return > base_return + MIN_EDGE and
                 candidate_dd <= MAX_DRAWDOWN and train_edge > 0 and newest > old_newest):
             selected = profile
