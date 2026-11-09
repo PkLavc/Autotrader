@@ -78,8 +78,6 @@ def publish(report_path: Path = REPORT, state: Path = STATE) -> dict:
     if not work.exists():
         _run(["git", "clone", "--depth", "1", "--filter=blob:none", "--sparse",
               REPOSITORY, str(work)])
-        _run(["git", "-C", str(work), "sparse-checkout", "set", TARGET,
-              TARGET + ".sha256"])
     else:
         origin = _run(["git", "-C", str(work), "remote", "get-url", "origin"])
         if origin != REPOSITORY:
@@ -87,6 +85,9 @@ def publish(report_path: Path = REPORT, state: Path = STATE) -> dict:
         _run(["git", "-C", str(work), "fetch", "--depth", "1", "origin", "main"])
         _run(["git", "-C", str(work), "checkout", "-B", "main", "origin/main"])
         _run(["git", "-C", str(work), "reset", "--hard", "origin/main"])
+    # Cone mode takes directories, not individual files. Limit the worktree to
+    # this project's module while keeping both the gate and checksum available.
+    _run(["git", "-C", str(work), "sparse-checkout", "set", "integrations/audacefi"])
 
     target = work / TARGET
     sidecar = Path(str(target) + ".sha256")
