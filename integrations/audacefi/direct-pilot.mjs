@@ -154,6 +154,10 @@ if (mode === 'history') {
           console.log('DIRECT_PILOT_WALLET_SWAP_COUNT=' + body.swapCount);
         if (Array.isArray(body.holdings))
           console.log('DIRECT_PILOT_WALLET_HOLDING_COUNT=' + body.holdings.length);
+        if (Array.isArray(body.holdings) && body.holdings[0])
+          console.log('DIRECT_PILOT_WALLET_HOLDING_FIELDS=' + Object.keys(body.holdings[0]).sort().join(','));
+        if (body.lastLpv && typeof body.lastLpv === 'object')
+          console.log('DIRECT_PILOT_WALLET_LPV_FIELDS=' + Object.keys(body.lastLpv).sort().join(','));
       }
     } catch (error) {
       console.log(`DIRECT_PILOT_${name}_HTTP=` + (String(error?.message).match(/^DIRECT_GET_HTTP_([0-9]{3})$/)?.[1] ?? 'error'));
