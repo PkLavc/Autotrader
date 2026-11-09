@@ -74,7 +74,8 @@ async function seasonFlat() {
     return false;
   const balance = await audace('/v1/me/wallet?category=crypto_bro');
   return balance?.seasonId === season.id && balance?.walletAddress === walletAddress &&
-    balance?.swapCount === 2 && Array.isArray(balance.holdings) &&
+    Number.isInteger(balance?.swapCount) && balance.swapCount >= 2 &&
+    Array.isArray(balance.holdings) &&
     balance.holdings.every(row => row.symbol === 'USDC' || Number(row.amount) === 0);
 }
 
