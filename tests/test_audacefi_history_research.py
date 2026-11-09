@@ -7,6 +7,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from hashlib import sha256
 from io import BytesIO
+from urllib.error import HTTPError
 from zipfile import ZipFile, ZIP_DEFLATED
 
 import pytest
@@ -116,6 +117,14 @@ def test_api_unavailable_does_not_fabricate_eligible_symbols(monkeypatch):
     monkeypatch.setattr(history_job, "read_route", lambda key, route: (403, None))
     with pytest.raises(RuntimeError, match="HISTORY_SEASON_UNVERIFIED"):
         history_job.eligible_symbols("fake")
+
+
+def test_missing_market_report_uses_safe_http_status_code(monkeypatch):
+    monkeypatch.setattr(history_job, "load_history", lambda *args, **kwargs: (_ for _ in ()).throw(
+        HTTPError("https://data.binance.vision/public", 403, "forbidden", {}, None)))
+    result = history_job.research_one("SOL", ["2026-10"])
+    assert result == {"symbol": "SOL", "status": "HISTORY_UNAVAILABLE",
+                      "reason": "HTTP_403"}
 
 
 def test_time_bounded_frozen_allowlist_supports_secretless_oracle_research(tmp_path):

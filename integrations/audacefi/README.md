@@ -96,16 +96,16 @@ and Oracle research are read-only. Backtests do not guarantee live gains.
 The [historical training workflow](../../.github/workflows/audacefi-history-training.yml)
 runs daily and on demand. It downloads twelve **completed** months of public
 15-minute Binance spot archives for the active AudaceFi-eligible symbols,
-verifies official SHA-256 checksums, rejects missing candles and tests fixed
-the momentum baseline against recovery on a chronological 75%/25%
-train/holdout split, simulating each partition as one continuous equity curve. A missing
+verifies official SHA-256 checksums, rejects missing candles and compares the
+current momentum baseline with recovery on a chronological 75%/25% train/holdout
+split. Each partition is simulated as one continuous equity curve. A missing
 USDT spot archive may fall back to a separately verified USDC pair. These
 stablecoin market prices are proxies; they are **not** AudaceFi Devnet quotes.
 
 The job calls the stock AutoTrader's
 [`sector_factors`](../../autotrader/learning.py) only with one independent
-chronological training curve per asset; it does not count overlapping slices
-of the same price series as separate learning evidence. The stock Kronos forecaster is already
+chronological training curve per asset; overlapping slices of the same prices
+are not treated as separate evidence. The stock Kronos forecaster is already
 adapted to daily crypto candles in
 [`CryptoKronosEngine`](crypto_research.py) but remains optional research:
 it is **not** a validated 15-minute live trading model. Nothing in this
@@ -113,11 +113,16 @@ workflow places orders or automatically promotes a historical result to
 the live strategy.
 
 Corrected twelve-month run (November 9): 15 explicitly eligible symbols,
-5 with complete verified history, and **zero** recovery candidates that beat
-baseline on the supported SOL/ETH holdout. Recovery cut holdout swaps from
-150 to 42 on SOL but worsened net return from -1.09% to -4.11%; on ETH it cut
-swaps from 144 to 16 but worsened return from -1.62% to -1.87%. Neither
-profile met the strict out-of-sample approval gate; none was promoted.
+5 with complete verified history, and **zero** recovery candidates approved.
+On the untouched holdout, SOL momentum returned -1.09% (150 swaps; estimated
+costs 793.44 USDC) versus recovery -4.11% (42 swaps; 212.24 USDC). ETH momentum
+returned -1.62% (144 swaps; 755.98 USDC) versus recovery -1.87% (16 swaps;
+81.14 USDC). Recovery reduced activity and costs, but lost more net USDC on
+both assets. Recovery also breached the 1.8% daily/five-day guard during
+training on both SOL (2.02%/2.62%) and ETH (1.84%/2.36%). Full-curve holdout max drawdown was SOL 8.37%/6.10% and ETH 7.27%/1.88%
+(momentum/recovery). All reported costs use estimated 10 bps fees and 5 bps slippage per swap; they are
+not observed AudaceFi fills. The result is evidence to keep momentum and reject
+recovery, not proof of live profitability.
 
 The [Oracle worker deployment](../../deploy/oracle/README.md) runs this
 historical research and a daily Kronos five-day shadow forecast on WBTC, ETH

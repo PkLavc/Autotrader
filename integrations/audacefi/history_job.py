@@ -15,6 +15,7 @@ import json
 import os
 import re
 import sys
+from urllib.error import HTTPError
 
 from autotrader.config import StrategyConfig
 from autotrader.learning import sector_factors
@@ -143,8 +144,15 @@ def research_one(symbol: str, months: list[str]) -> dict:
             "IncompleteRead", "RemoteDisconnected", "EOFError",
         }:
             raise
+        if isinstance(exc, HTTPError) and 100 <= exc.code <= 599:
+            reason = f"HTTP_{exc.code}"
+        elif isinstance(exc, ValueError) and re.fullmatch(
+                r"[A-Z0-9_]{1,64}", str(exc)):
+            reason = str(exc)
+        else:
+            reason = type(exc).__name__
         return {"symbol": symbol, "status": "HISTORY_UNAVAILABLE",
-                "reason": type(exc).__name__}
+                "reason": reason}
 
 
 def main() -> int:
@@ -180,7 +188,7 @@ def main() -> int:
     qualified = sum(row.get("status") == "VALIDATED_HISTORICAL_CANDIDATE"
                     for row in results)
     outcome = {
-        "schemaVersion": 1, "basis": "binance_verified_spot_monthly_15m_usdt_proxy",
+        "schemaVersion": 1, "basis": "binance_verified_spot_monthly_15m_usdt_or_usdc_proxy",
         "readOnly": True, "liveExecutionAuthorized": False,
         "months": months, "eligibleSymbols": len(symbols),
         "allowlistSource": allowlist_source,
