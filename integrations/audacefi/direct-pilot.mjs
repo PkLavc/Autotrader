@@ -119,6 +119,11 @@ if (mode === 'history') {
       if (Array.isArray(body?.trades)) console.log(`DIRECT_PILOT_${name}_TRADE_COUNT=${body.trades.length}`);
       if (typeof body?.trades === 'number') console.log(`DIRECT_PILOT_${name}_TRADE_COUNT=${body.trades}`);
       if (typeof body?.tradesToday === 'number') console.log(`DIRECT_PILOT_${name}_TRADES_TODAY=${body.tradesToday}`);
+      if (name === 'PLAYER' || name === 'FEED') {
+        console.log(`DIRECT_PILOT_${name}_FIELDS=` + Object.keys(body).sort().join(','));
+        if (Array.isArray(body?.items) && body.items[0])
+          console.log(`DIRECT_PILOT_${name}_ITEM_FIELDS=` + Object.keys(body.items[0]).sort().join(','));
+      }
     } catch (error) {
       console.log(`DIRECT_PILOT_${name}_HTTP=` + (String(error?.message).match(/^DIRECT_GET_HTTP_([0-9]{3})$/)?.[1] ?? 'error'));
     }
