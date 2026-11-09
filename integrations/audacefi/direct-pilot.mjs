@@ -105,7 +105,7 @@ if (mode === 'history') {
     ['DISCIPLINE', '/v1/me/discipline?category=crypto_bro'],
     ['PLACEMENT', '/v1/me/placement?category=crypto_bro'],
     ['INTENT_RESULT', `/v1/swap-intents/${saved.intentId}/result`],
-    ['WALLET', '/v1/me/wallet'],
+    ['WALLET', '/v1/me/wallet?category=crypto_bro'],
     ['PROFILE', '/v1/me/profile'],
     ['PLAYER', `/v1/players/${accountId}`],
     ['SEASON', `/v1/seasons/${season.id}`],
@@ -134,7 +134,17 @@ if (mode === 'history') {
             if (value && typeof value === 'object' && !Array.isArray(value))
               console.log(`DIRECT_PILOT_PLAYER_${field.toUpperCase()}_FIELDS=` + Object.keys(value).sort().join(','));
           }
+          const placements = body.currentSeason?.placements;
+          if (Array.isArray(placements)) {
+            console.log('DIRECT_PILOT_PLAYER_PLACEMENT_COUNT=' + placements.length);
+            if (placements[0])
+              console.log('DIRECT_PILOT_PLAYER_PLACEMENT_FIELDS=' + Object.keys(placements[0]).sort().join(','));
+          } else if (placements && typeof placements === 'object')
+            console.log('DIRECT_PILOT_PLAYER_PLACEMENT_KEYS=' + Object.keys(placements).sort().join(','));
         }
+      }
+      if (name === 'WALLET') {
+        console.log('DIRECT_PILOT_WALLET_FIELDS=' + Object.keys(body).sort().join(','));
       }
     } catch (error) {
       console.log(`DIRECT_PILOT_${name}_HTTP=` + (String(error?.message).match(/^DIRECT_GET_HTTP_([0-9]{3})$/)?.[1] ?? 'error'));
