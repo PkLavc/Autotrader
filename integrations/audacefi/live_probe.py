@@ -11,8 +11,8 @@ import sys
 
 HOST = "sandbox.audacefi.app"
 ROUTES = (
-    ("state", "/api/v1/me/state?category=crypto-bro"),
-    ("allowlist", "/api/v1/me/allowlist?category=crypto-bro"),
+    ("state", "/api/v1/me/state?category=crypto-bro&mode=real"),
+    ("allowlist", "/api/v1/me/allowlist?category=crypto_bro&mode=real"),
     ("bench", "/api/v1/devnet/bench"),
 )
 MAX_BYTES = 256 * 1024
@@ -53,8 +53,19 @@ def summarize(name: str, body: dict | list | None) -> None:
             print("EXECUTION_MODE=" + (
                 current.get("executionMode") if current.get("executionMode") in
                 {"devnet-onchain", "devnet_onchain", "paper", "offchain"} else "other"))
+            print("SEASON_HAS_DATES=" + str(bool(current.get("startsAt") and current.get("endsAt"))).lower())
         print("WALLET_READY=" + str(wallet.get("state") == "ok").lower())
         print("WALLET_LINKED=" + str(bool(wallet.get("walletAddress"))).lower())
+        return
+    if name == "allowlist" and isinstance(body, dict):
+        tokens = body.get("tokens")
+        print("ALLOWLIST_FROZEN=" + str(body.get("allowlistFrozen") is True).lower())
+        print("ALLOWLIST_SEASON_PRESENT=" + str(isinstance(body.get("seasonId"), str)).lower())
+        if isinstance(tokens, list):
+            print("ALLOWLIST_ELIGIBLE_COUNT=" + str(sum(
+                isinstance(token, dict) and token.get("eligible") is True
+                for token in tokens
+            )))
         return
     if isinstance(body, dict):
         print(name.upper() + "_ROOT_FIELDS=" + ",".join(sorted(
@@ -82,13 +93,29 @@ def main() -> int:
         print("AUDACEFI_KEY_MALFORMED")
         return 1
     ok = True
+    active_season_id = None
     for name, route in ROUTES:
         try:
             status, body = read_route(key, route)
             print(name.upper() + "_HTTP=" + str(status))
             if status == 200:
                 summarize(name, body)
-            elif status in (401, 403):
+                if name == "state" and isinstance(body, dict):
+                    season = body.get("season")
+                    active = season.get("active") if isinstance(season, dict) else None
+                    active_season_id = active.get("id") if isinstance(active, dict) else None
+                if name == "allowlist" and isinstance(body, dict):
+                    matched = bool(active_season_id and body.get("seasonId") == active_season_id)
+                    print("ALLOWLIST_SEASON_MATCH=" + str(matched).lower())
+                    ok = ok and matched
+            if status != 200 and isinstance(body, dict):
+                # Only a bounded machine code is safe to expose from an error DTO.
+                code = body.get("code")
+                if isinstance(code, str) and 1 <= len(code) <= 64 and all(
+                    char.isupper() or char.isdigit() or char == "_" for char in code
+                ):
+                    print(name.upper() + "_ERROR_CODE=" + code)
+            if status != 200:
                 ok = False
         except (OSError, ValueError, http.client.HTTPException):
             print(name.upper() + "_CONNECT_FAILED")
