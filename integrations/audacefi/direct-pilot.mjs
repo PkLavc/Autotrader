@@ -114,6 +114,7 @@ if (mode === 'history') {
     ['PROFILE', '/v1/me/profile'],
     ['PLAYER', `/v1/players/${accountId}`],
     ['SEASON', `/v1/seasons/${season.id}`],
+    ['MARKET', `/v1/market/prices?mints=${encodeURIComponent(sol.mint)}`],
   ]) {
     try {
       const body = await get(route);
@@ -167,6 +168,7 @@ if (mode === 'history') {
         if (body.lastLpv && typeof body.lastLpv === 'object')
           console.log('DIRECT_PILOT_WALLET_LPV_FIELDS=' + Object.keys(body.lastLpv).sort().join(','));
       }
+      if (name === 'MARKET') console.log('DIRECT_PILOT_MARKET_FIELDS=' + Object.keys(body).sort().join(','));
     } catch (error) {
       console.log(`DIRECT_PILOT_${name}_HTTP=` + (String(error?.message).match(/^DIRECT_GET_HTTP_([0-9]{3})$/)?.[1] ?? 'error'));
     }
