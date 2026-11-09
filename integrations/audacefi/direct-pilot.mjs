@@ -18,7 +18,7 @@ const ADMIN = 'DiMwgbncNbPKAznQrQ24Dk6TB97NWatetRG3Ptfx7Psk';
 const OPERATION_KEY = 'autotrader_s1_pilot_buy_sol_25_v2';
 const strBoolean = value => String(Boolean(value));
 const mode = process.argv[2];
-if (!['preflight', 'execute', 'reconcile', 'verify10', 'finalize10'].includes(mode)) throw Error('PILOT_MODE_REQUIRED');
+if (!['preflight', 'execute', 'reconcile', 'verify10', 'finalize10', 'history'].includes(mode)) throw Error('PILOT_MODE_REQUIRED');
 if (mode === 'execute' && process.env.AUDACEFI_ENABLE_EXECUTION !== 'true')
   throw Error('EXECUTION_FLAG_REQUIRED');
 
@@ -95,6 +95,28 @@ console.log('DIRECT_PILOT_JOURNAL_READY=true');
 console.log('DIRECT_PILOT_RESERVED_OPERATIONS=' + capacity.reservedOperations);
 if (mode === 'preflight') {
   console.log('DIRECT_PILOT_PREFLIGHT_ONLY=true');
+  process.exit(0);
+}
+if (mode === 'history') {
+  const saved = await reconcileOperation(client, journal, OPERATION_KEY);
+  if (!saved) throw Error('PILOT_HISTORY_SUBMISSION_MISSING');
+  for (const [name, route] of [
+    ['FEED', '/v1/me/feed?category=crypto_bro'],
+    ['DISCIPLINE', '/v1/me/discipline?category=crypto_bro'],
+    ['PLACEMENT', '/v1/me/placement?category=crypto_bro'],
+    ['INTENT_RESULT', `/v1/swap-intents/${saved.intentId}/result`],
+  ]) {
+    try {
+      const body = await get(route);
+      console.log(`DIRECT_PILOT_${name}_HTTP=200`);
+      console.log(`DIRECT_PILOT_${name}_TX_MATCH=` + strBoolean(JSON.stringify(body).includes(saved.txid)));
+      if (Array.isArray(body?.items)) console.log(`DIRECT_PILOT_${name}_ITEM_COUNT=${body.items.length}`);
+      if (Array.isArray(body?.entries)) console.log(`DIRECT_PILOT_${name}_ENTRY_COUNT=${body.entries.length}`);
+      if (typeof body?.tradesToday === 'number') console.log(`DIRECT_PILOT_${name}_TRADES_TODAY=${body.tradesToday}`);
+    } catch (error) {
+      console.log(`DIRECT_PILOT_${name}_HTTP=` + (String(error?.message).match(/^DIRECT_GET_HTTP_([0-9]{3})$/)?.[1] ?? 'error'));
+    }
+  }
   process.exit(0);
 }
 if (mode === 'reconcile' || mode === 'verify10' || mode === 'finalize10') {

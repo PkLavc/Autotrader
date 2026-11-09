@@ -7,7 +7,7 @@ on:
         description: 'Preflight or the fixed 25 USDC Devnet pilot'
         required: true
         type: choice
-        options: [preflight, execute, reconcile, verify10, finalize10]
+        options: [preflight, execute, reconcile, verify10, finalize10, history]
         default: preflight
 
 permissions:
