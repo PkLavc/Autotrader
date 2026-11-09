@@ -1,0 +1,40 @@
+name: AudaceFi adaptive learning qualification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'integrations/audacefi/adaptive_learning.py'
+      - 'integrations/audacefi/live_decision.py'
+      - 'integrations/audacefi/league_strategy.py'
+      - 'integrations/audacefi/direct-auto.mjs'
+      - 'tests/test_audacefi_adaptive_learning.py'
+      - 'tests/test_audacefi_live_decision.py'
+      - 'tests/test_audacefi_league_strategy.py'
+      - '.github/workflows/audacefi-adaptive-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-adaptive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: pip install -r requirements.txt
+      - name: Python adaptive, market and risk tests
+        run: pytest -q tests/test_audacefi_adaptive_learning.py tests/test_audacefi_live_decision.py tests/test_audacefi_league_strategy.py
+      - name: Syntax-check live executor
+        run: |
+          node --check integrations/audacefi/direct-auto.mjs
+          node --check integrations/audacefi/direct-pilot.mjs
+          python -m compileall -q integrations/audacefi
