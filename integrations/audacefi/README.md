@@ -1,6 +1,7 @@
 # AudaceFi integration — Autotrader
 
-Optional and isolated integration for the AudaceFi Solana devnet league. It does not alter the equity strategy, Alpaca broker, stock paper ledger, research schedule, or account fleet. No automatic orders are enabled. A small scheduled read-only season watcher is enabled.
+Isolated integration for the AudaceFi Solana Devnet league. It does not alter
+the equity strategy, Alpaca broker, stock paper ledger or its schedule.
 
 ## Season 1 live qualification (2026-11-09)
 
@@ -11,34 +12,44 @@ season, and a responding bench endpoint. The official allowlist query is
 `category=crypto-bro` request returned HTTP 400. The probe also compares the
 API-linked wallet to `AUDACEFI_WALLET_ADDRESS` without printing either address.
 
-The direct API also accepted a fixed, idempotent 25-USDC BUY intention for SOL
-and returned a matching quote (HTTP 200 for each). A second request with the
-same key returned `replayed=true`, and the account-owned submission lookup
-returned HTTP 200. No wallet signature, cosignature, transaction submission or
-trade occurred. The API did not echo the kit's exact-input binding marker, so
-an ambiguous intention cannot be automatically resumed under that kit contract.
+The direct API completed a 25-USDC SOL purchase and a full SOL-to-USDC sale.
+The pinned SDK builder checked both signed messages; the server accepted their
+durable submissions and `/result`; the Solana Devnet transactions finalized
+without errors. The authenticated wallet advanced from zero to two swaps and
+returned to USDC-only holdings after the platform indexer caught up. The
+transactions are:
 
-The signed approval below is a requirement of the current official kit's
-ranked gateway; the successful direct intention and quote show it is not a
-server prerequisite for those stages. Whether the direct API requires any
-additional approval at submission has not been established. The kit (stable
-`9abd82702795929722554906b3ac14a7c861181a`) requires the AudaceFi-issued
-deployment profile, issuer trust key, and current signed approval for its
-official ranked gateway. Its public documentation says that release package
-and issuance channel are pending. The repository's Actions secrets contain
-only the API key, linked wallet address and wallet recovery phrase; no
-approval package or verified deployment pins exist. The bench GET response
-includes the program, mints, poster and other configuration, but not an
-independently pinned ProgramData hash or signed approval. The SDK disallows
-write-enabled generic clients on the official `/api` proxy. The existing
-`runner.mjs` therefore refuses execute/finalize through that SDK route. This
-does not imply the direct API itself rejects writes.
+- BUY: `5hZoXCPpf5Y8gMJiJtTAJzp6opLrNvBTCRkyBpbVmeSrgS8k1NuR4azj7fXS3yn4bzc3q7XhixuBw1qMdYfdBGt8`
+- SELL: `2CB8TpAkRXdvMNnz1TqrwVyGsp6WiRWbsXKWTkV3WeLNWG9vZjMWwZpeS86SbsBhVo6LX67XjUTVpXdf5PMnyKgZ`
 
-The remaining work needs either AudaceFi's official release package for the
-kit or a separately verified direct API adapter, then a durable private journal
-across Actions runs, reconciled portfolio
-and daily risk limits, both buy and sell execution, independent finality and
-ranked-history checks. No scheduled order workflow or confirmed trade exists.
+The SDK's official ranked gateway requires an AudaceFi-signed deployment
+approval, but the direct API allowed both complete trades without it. This
+is a limitation of the kit path, not a prerequisite for every direct API
+operation. The direct adapter pins the Devnet program, ProgramData hash and
+admin independently. The live program used a 10-basis-point fee while the
+kit's official-proxy balance verifier expected 20; the workflow applies the
+observed 10-basis-point value only in final balance verification and still
+checks exact signed message, genesis, signatures, instruction accounts and
+all five token balance deltas. A missing or changed verifier shape fails closed.
+The optional `/ranked-evidence` GET currently returns 404; authenticated
+`/v1/me/wallet?category=crypto_bro` supplied the platform swap count and
+holdings confirmation.
+
+The [direct Devnet trading workflow](../../.github/workflows/audacefi-direct-pilot.yml)
+checks every 30 minutes during November 9–13, 2026 UTC. It reads the active
+season, wallet, allowlist, onchain holdings and current SOL price. The existing
+`league_strategy.decide` controls entries and protective exits using completed
+daily SOL momentum signals from `live_decision.py`. Those fast signals are
+explicitly momentum based and are not the optional Kronos forecast. It holds
+at most one 25-USDC SOL position, reserves at most three further buy/sell
+cycles and closes any position at least 16 hours before the API's official
+season end. The total eight-swap ceiling, including the pilot, stays below
+the displayed ten-trade daily cap. Before any new order, the encrypted journal,
+AudaceFi swap count and Devnet token balances must agree. Any pending write
+is reconciled under its original operation key rather than retried as a new
+trade. The `AUDACEFI_JOURNAL_KEY` Actions secret encrypts the append-only
+journal on the separate `audacefi-auto-journal` branch; no plaintext trading
+state is stored on `main`.
 
 ## Crypto Bro league strategy (v1, isolated from stock Autotrader)
 
@@ -232,4 +243,6 @@ The reference kit's security limits and network qualification requirements still
 
     python -m pytest -q tests/test_audacefi.py
 
-Only a read-only scheduled season watcher was added. The existing CI tests the Python proposal builder; the pinned official SDK is preflighted separately and no automated trading is scheduled.
+The Python strategy tests, pinned SDK build and direct live workflow are
+separate checks. A green workflow without a confirmed transaction and a
+matching authenticated wallet update is not proof of a trade.

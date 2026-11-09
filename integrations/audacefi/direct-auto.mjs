@@ -127,6 +127,8 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
     try { decision = decideWithExistingStrategy(context, portfolio, !hasPosition); }
     catch { hold('STRATEGY_DATA_UNAVAILABLE'); return; }
     console.log('AUDACEFI_AUTO_DECISION=' + decision.status);
+    if (/^[A-Z_]{1,64}$/.test(decision.reason ?? ''))
+      console.log('AUDACEFI_AUTO_REASON=' + decision.reason);
     if (hasPosition && decision.actions.some(item => item.side === 'SELL_TO_USDC' && item.symbol === 'SOL'))
       side = 'sell';
     if (!hasPosition && decision.status === 'PROPOSED' &&
