@@ -45,6 +45,9 @@ def test_binance_official_archives_use_expected_paths():
     )
     with pytest.raises(ValueError):
         history_research.archive_url("../../secrets", "2026-10")
+    assert "SOLUSDC/15m/SOLUSDC" in history_research.archive_url("SOL", "2026-10", "USDC")
+    with pytest.raises(ValueError, match="UNSUPPORTED_QUOTE"):
+        history_research.archive_url("SOL", "2026-10", "BUSD")
 
 
 def test_archive_integrity_microsecond_timestamps_and_rows():
