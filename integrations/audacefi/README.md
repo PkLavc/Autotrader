@@ -100,6 +100,37 @@ tests the bounded policy and executor, while the
 replaces long-running workers only in a verified flat and already-evaluated
 candle window. A green CI result is not proof of a profitable trade.
 
+## Historical data, AutoTrader reuse and Oracle VM
+
+The [historical training workflow](../../.github/workflows/audacefi-history-training.yml)
+runs daily and on demand. It downloads four **completed** months of public
+15-minute Binance spot archives for the active AudaceFi-eligible symbols,
+verifies official SHA-256 checksums, rejects missing candles and tests fixed
+strategies in chronological, non-overlapping train/holdout folds. A missing
+USDT spot archive may fall back to a separately verified USDC pair. These
+stablecoin market prices are proxies; they are **not** AudaceFi Devnet quotes.
+
+The job reuses the stock AutoTrader's
+[`sector_factors`](../../autotrader/learning.py) conservative Bayesian
+feedback calibration on **matured training folds only**, treating each crypto
+symbol as a separate feedback group. The stock Kronos forecaster is already
+adapted to daily crypto candles in
+[`CryptoKronosEngine`](crypto_research.py) but remains optional research:
+it is **not** a validated 15-minute live trading model. Nothing in this
+workflow places orders or automatically promotes a historical result to
+the live strategy.
+
+First successful four-month run (November 9): 15 explicitly eligible symbols,
+6 with uninterrupted available historical coverage, and **zero** new
+candidates that passed the chosen out-of-sample thresholds. The result is a
+reproducible evidence baseline, not proof of a profitable trading edge.
+
+An [Oracle VM read-only worker template](../../deploy/oracle/README.md)
+is provided for a future dedicated learning/Kronos process. Oracle is not
+deployed or started by these commits. The live GitHub worker remains the
+single trading executor until a separately verified cross-host handoff
+prevents concurrent orders.
+
 ## Safe operation
 
 The workflow reads GitHub Actions secrets named `AUDACEFI_API_KEY`,
