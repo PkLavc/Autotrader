@@ -116,8 +116,19 @@ if (mode === 'auto') {
 if (mode === 'history') {
   const saved = await reconcileOperation(client, journal, OPERATION_KEY);
   if (!saved) throw Error('PILOT_HISTORY_SUBMISSION_MISSING');
+  const buyStatus = await client.readSubmissionStatus(saved.intentId);
+  if (buyStatus.submission?.txid !== saved.txid)
+    throw Error('PILOT_BUY_SERVER_HISTORY_MISMATCH');
+  console.log('DIRECT_PILOT_BUY_SERVER_SUBMISSION_MATCH=true');
   const sell = await journal.read(SELL_KEY);
-  console.log('DIRECT_PILOT_SELL_JOURNAL_FINAL=' + strBoolean(sell.events.at(-1)?.stage === 'FINAL_CONFIRMED'));
+  const sellFinal = sell.events.at(-1);
+  if (sellFinal?.stage !== 'FINAL_CONFIRMED' || !sellFinal.intentId || !sellFinal.txid)
+    throw Error('PILOT_SELL_JOURNAL_NOT_FINAL');
+  const sellStatus = await client.readSubmissionStatus(sellFinal.intentId);
+  if (sellStatus.submission?.txid !== sellFinal.txid)
+    throw Error('PILOT_SELL_SERVER_HISTORY_MISMATCH');
+  console.log('DIRECT_PILOT_SELL_SERVER_SUBMISSION_MATCH=true');
+  console.log('DIRECT_PILOT_SELL_JOURNAL_FINAL=true');
   const chainHolding = await adapters.readSpotHoldings(expectedAddress, sol.mint);
   console.log('DIRECT_PILOT_CHAIN_SOL_ZERO=' + strBoolean(BigInt(chainHolding.assetRaw) === 0n));
   for (const [name, route] of [
