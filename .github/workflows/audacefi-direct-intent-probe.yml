@@ -1,0 +1,23 @@
+name: AudaceFi direct API intent qualification (no signature)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audacefi-direct-intent-probe
+  cancel-in-progress: false
+
+jobs:
+  direct-intent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check a fixed, idempotent 25 USDC intent and quote
+        env:
+          AUDACEFI_API_KEY: ${{ secrets.AUDACEFI_API_KEY }}
+          AUDACEFI_WALLET_ADDRESS: ${{ secrets.AUDACEFI_WALLET_ADDRESS }}
+        run: python3 -m integrations.audacefi.direct_intent_probe
