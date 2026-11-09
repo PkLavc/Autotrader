@@ -42,7 +42,7 @@ season, wallet, allowlist, onchain holdings and current SOL price. The existing
 daily SOL momentum signals from `live_decision.py`. Those fast signals are
 explicitly momentum based and are not the optional Kronos forecast. It holds
 at most one 25-USDC SOL position, reserves at most three further buy/sell
-cycles and closes any position at least 16 hours before the API's official
+cycles and begins liquidation when 16 hours remain before the API's official
 season end. The total eight-swap ceiling, including the pilot, stays below
 the displayed ten-trade daily cap. Before any new order, the encrypted journal,
 AudaceFi swap count and Devnet token balances must agree. Any pending write

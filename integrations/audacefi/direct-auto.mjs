@@ -70,7 +70,7 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
   const endMs = Date.parse(season.endsAt);
   const remainingMs = endMs - Date.now();
   const lpv = Number(platform.lastLpv?.lpvUsdc);
-  const riskStop = Number.isFinite(lpv) && lpv > 0 && lpv <= 9800;
+  let riskStop = Number.isFinite(lpv) && lpv > 0 && lpv <= 9800;
   if (count === MAX_OPERATIONS && !hasPosition) { hold('LIFETIME_TRADE_BUDGET_COMPLETE'); return; }
   if (!hasPosition && (remainingMs <= ENTRY_CUTOFF_MS || riskStop)) {
     hold(riskStop ? 'DRAWDOWN_GUARD' : 'ENTRY_WINDOW_CLOSED'); return;
@@ -90,6 +90,7 @@ export async function runAuto({ client, journal, journalDirectory, checkpoint, a
   const quantity = Number(solRaw) / 1e9;
   const positionValue = hasPosition ? quantity * price : 0;
   const equity = cash + positionValue;
+  if (Number.isFinite(equity) && equity <= 9800) riskStop = true;
   if (!Number.isFinite(equity) || equity < 9800 || equity > 10200) {
     if (!hasPosition) { hold('PORTFOLIO_RISK_BOUND'); return; }
   }
