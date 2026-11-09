@@ -67,38 +67,28 @@ liquidation 16 hours before it. A 1.8% portfolio guard and position stops
 reduce risk, but price gaps or outages can still breach the platform's 2%
 intraday drawdown limit. Platform rules and live API state are authoritative.
 
-## Adaptive intraday learning (November 9, 2026)
+## Shared AudaceFi evaluation (November 9, 2026)
 
-The live operator now backtests four fixed, bounded entry configurations on
-completed Coinbase 15-minute candles. A candidate is nominated from training
-data alone, then tested on a separate forward holdout. Performance includes
-60 bps of estimated round-trip fees and slippage. Each validation requires at
-least three holdout trades, a positive net result, bounded drawdown and
-an improvement over the unchanged baseline. Three consecutive new 15-minute
-windows are required before automatic promotion.
+Historical simulation and the live signal path use the same completed-candle
+signal calculations and `league_strategy.decide` rules for entries, stops,
+reversals and required USDC exits. Simulated orders fill on the next 15-minute
+close. The comparison uses an untouched chronological final quarter of twelve
+months of verified Binance spot history; equity and drawdown remain continuous
+inside each training or holdout curve rather than being compounded from
+independent short folds.
 
-Only momentum thresholds may adapt. The existing 35% maximum position size,
-daily trade count, 1.8% risk guard and USDC liquidation rules are immutable
-from this learning process. The live runner records HOLD/BUY/SELL decisions,
-profile evidence and realized round-trip USDC outcomes in the encrypted
-audacefi-competitive-journal branch. After three consecutive losing
-round trips totaling more than 20 USDC, an experimental profile is reverted
-to baseline for a four-hour cooldown. Backtested results do not guarantee
-better live results or first place.
+The simulator applies the 35% position and total exposure caps, a 1.8% guard
+(stricter than the displayed 2% platform maximum), no more than ten swaps in
+any rolling 24 hours, a reserved exit slot, 30 bps estimated round-trip costs
+(20 bps assumed fees and 10 bps assumed slippage), and end-of-season USDC
+liquidation. Cost figures are estimates, not quotes or observed fills.
 
-The [shadow eligible-token scanner](../../.github/workflows/audacefi-universe-scan.yml)
-uses the frozen AudaceFi allowlist and runs read-only every four hours.
-The first live scan found 15 explicitly eligible symbols, but sufficient
-public Coinbase USD candle data for only three; unsupported tokens are marked
-unavailable rather than given invented prices. Live transaction building
-remains SOL/ETH only until other token mints, vaults, fees and SELL-to-USDC
-paths are independently qualified.
-
-The [adaptive qualification workflow](../../.github/workflows/audacefi-adaptive-ci.yml)
-tests the bounded policy and executor, while the
-[guarded rollout workflow](../../.github/workflows/audacefi-adaptive-rollout.yml)
-replaces long-running workers only in a verified flat and already-evaluated
-candle window. A green CI result is not proof of a profitable trade.
+Short, overlapping live evaluations are diagnostic only and cannot promote a
+strategy. Recovery remains disabled unless its twelve-month holdout is
+profitable net of costs, beats baseline by at least 30 bps, has at least six
+completed trades, and stays within the live drawdown guard in both training
+and holdout. The live runner remains the only order executor; the history job
+and Oracle research are read-only. Backtests do not guarantee live gains.
 
 ## Historical data, AutoTrader reuse and Oracle VM
 

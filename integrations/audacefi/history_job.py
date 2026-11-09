@@ -19,25 +19,21 @@ import sys
 from autotrader.config import StrategyConfig
 from autotrader.learning import sector_factors
 from .adaptive_learning import PRESETS, _simulate, validate_candles
-from .history_research import WINDOW, complete_months, load_history, walk_forward
+from .history_research import complete_months, load_history, walk_forward
 from .live_probe import read_route
 
 
 def stock_learning_calibration(bars: list[list], symbol: str) -> float:
     """Reuses the existing AutoTrader's shrinkage calibration as research only.
 
-    Each historical TRAINING fold is a completed, mature observation.
-    The unseen final quarter is never considered for these factors.
+    This contributes at most one completed chronological training observation;
+    slices from the same price path are never counted as independent evidence.
     """
-    split = (len(bars) // WINDOW) * 3 // 4
+    parsed = validate_candles(bars)
+    split = len(parsed) * 3 // 4
     observations = []
-    for index in range(split):
-        block = bars[index * WINDOW:(index + 1) * WINDOW]
-        if not validate_candles(block):
-            continue
-        baseline = _simulate(block, PRESETS["baseline"], 96, len(block))
-        # Only matured, genuinely traded rounds are evidence. Windows with
-        # no entries are not losses and must not bias the posterior.
+    if split > 0:
+        baseline = _simulate(parsed, PRESETS["baseline"], 96, split, symbol=symbol)
         if baseline["trades"] > 0:
             observations.append({"sector": symbol,
                                  "excess_return": baseline["net_return"]})
@@ -131,7 +127,7 @@ def research_one(symbol: str, months: list[str]) -> dict:
                 raise
             quote = "USDC"
             bars = load_history(symbol, months, quote=quote)
-        outcome = walk_forward(bars)
+        outcome = walk_forward(bars, symbol=symbol)
         calibration = stock_learning_calibration(bars, symbol)
         return {
             "symbol": symbol, "proxyQuote": quote,
@@ -180,7 +176,7 @@ def main() -> int:
         for future in as_completed(futures):
             results.append(future.result())
     results.sort(key=lambda row: row["symbol"])
-    checked = sum(row.get("historyBars", 0) >= 2560 for row in results)
+    checked = sum(row.get("historyBars", 0) >= 30_000 for row in results)
     qualified = sum(row.get("status") == "VALIDATED_HISTORICAL_CANDIDATE"
                     for row in results)
     outcome = {
@@ -191,7 +187,7 @@ def main() -> int:
         "allowlistVerifiedAtUtc": snapshot.get("verifiedAtUtc") if snapshot else None,
         "allowlistExpiresAtUtc": snapshot.get("expiresAtUtc") if snapshot else None,
         "historicalCoverage": checked, "validatedCandidates": qualified,
-        "stockCalibrationMethod": "autotrader.learning.sector_factors",
+        "stockCalibrationMethod": "autotrader.learning.sector_factors_single_training_curve",
         "results": results,
     }
     report_path = Path(os.environ.get(
@@ -206,17 +202,23 @@ def main() -> int:
     if summary:
         with open(summary, "a", encoding="utf-8") as f:
             f.write("## AudaceFi — historical 15m strategy qualification\n\n")
-            f.write(f"Official allowlist: {len(symbols)} assets. Four completed months: {', '.join(months)}.\n\n")
+            f.write(f"Official allowlist: {len(symbols)} assets. Twelve completed months: {', '.join(months)}.\n\n")
             f.write(f"{checked} supported histories, {qualified} independently validated candidate(s).\n\n")
-            f.write("| Token | Status | Bars | Candidate | Holdout net | AutoTrader calibrated factor |\n")
-            f.write("|---|---|---:|---|---:|---:|\n")
+            f.write("| Token | Status | Bars | Candidate | Baseline holdout net | Recovery holdout net | Drawdown | Swaps | Est. costs USDC | Decision |\n")
+            f.write("|---|---|---:|---|---:|---:|---:|---:|---:|---|\n")
             for item in results:
-                ho = item.get("holdout", {})
+                comparison = item.get("comparison", {})
+                base = comparison.get("baseline", {}).get("holdout", {})
+                recovery = comparison.get("recovery", {}).get("holdout", {})
                 f.write(f"| {item['symbol']} | {item['status']} | {item.get('historyBars', 0)} | "
                         f"{item.get('profile', '—')} | "
-                        f"{100 * ho.get('net_return', 0):.2f}% | "
-                        f"{item.get('bayesianPriorMultiplier', 1.0):.4f} |\n")
-            f.write("\nThis is research only. Historical performance is not a promise of live gains.\n")
+                        f"{100 * base.get('net_return', 0):.2f}% | "
+                        f"{100 * recovery.get('net_return', 0):.2f}% | "
+                        f"{100 * recovery.get('max_drawdown', 0):.2f}% | "
+                        f"{recovery.get('swaps', 0)} | "
+                        f"{recovery.get('estimated_costs_usdc', 0):.2f} | "
+                        f"{item.get('decisionReason', item.get('reason', 'n/a'))} |\n")
+            f.write("\nEquity/max drawdown use a continuous curve per chronological partition; modeled costs are estimates, not observed AudaceFi fills. Historical results do not promise live gains.\n")
     return 0
 
 

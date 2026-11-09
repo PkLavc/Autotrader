@@ -6,8 +6,10 @@ on:
     branches: [main]
     paths:
       - 'integrations/audacefi/adaptive_learning.py'
+      - 'integrations/audacefi/intraday_signal.py'
       - 'integrations/audacefi/live_decision.py'
       - 'integrations/audacefi/league_strategy.py'
+      - 'integrations/audacefi/strategy_qualification.py'
       - 'integrations/audacefi/direct-auto.mjs'
       - 'integrations/audacefi/adaptive-handoff.mjs'
       - 'integrations/audacefi/handoff-journal.mjs'

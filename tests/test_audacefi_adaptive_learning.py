@@ -40,7 +40,9 @@ def test_training_does_not_fabricate_improvement_over_baseline():
 def test_fee_and_slippage_are_charged_on_each_round_trip():
     rows = validate_candles(candles(drift=.0003))
     evaluation = _simulate(rows, PRESETS["baseline"], 96, len(rows))
-    assert evaluation["net_return"] <= .001
+    assert evaluation["estimated_costs_usdc"] > 0
+    assert evaluation["estimated_round_trip_cost_bps"] == 30
+    assert evaluation["max_rolling_swaps_24h"] <= 10
 
 
 def test_active_profile_can_only_be_an_enumerated_preset():
@@ -51,24 +53,21 @@ def test_active_profile_can_only_be_an_enumerated_preset():
     assert policy_for("early", base).max_position_weight == .35
 
 
-def test_promotion_requires_three_distinct_consecutive_confirmations():
+def test_short_validation_cannot_promote_any_new_strategy():
     suggestion = {"status": "VALIDATED_CANDIDATE", "profile": "early"}
     s1 = update_promotion(None, suggestion, window=100)
-    assert s1 == {"active": "baseline", "pending": "early", "count": 1, "window": 100}
-    assert update_promotion(s1, suggestion, window=100) == s1
-    s2 = update_promotion(s1, suggestion, window=101)
-    assert s2["active"] == "baseline" and s2["count"] == 2
-    s3 = update_promotion(s2, suggestion, window=102)
-    assert s3["active"] == "early" and s3["count"] == 0
+    assert s1 == {"active": "baseline", "pending": None, "count": 0, "window": 100}
+    existing = {"active": "steady", "pending": "early", "count": 2, "window": 100}
+    assert update_promotion(existing, suggestion, window=101) == {
+        "active": "steady", "pending": None, "count": 0, "window": 101}
 
 
-def test_duplicate_or_overlapping_validation_blocks_do_not_count():
+def test_overlapping_short_validation_does_not_authorize_a_variant():
     suggestion = {"status": "VALIDATED_CANDIDATE", "profile": "early"}
     s1 = update_promotion(None, suggestion, window=100)
     assert update_promotion(s1, suggestion, window=100) == s1
-    # A skipped block means the next validation is not consecutive evidence.
     s2 = update_promotion(s1, suggestion, window=102)
-    assert s2["active"] == "baseline" and s2["count"] == 1
+    assert s2["active"] == "baseline" and s2["count"] == 0
 
 
 def test_recovery_is_not_promoted_from_short_live_validation():
@@ -78,8 +77,13 @@ def test_recovery_is_not_promoted_from_short_live_validation():
 
 
 def test_recovery_requires_12_month_out_of_sample_advantage():
-    comparison = {"recovery": {"holdout": {"net_return": .02}},
-                  "baseline": {"holdout": {"net_return": .01}}}
+    comparison = {"recovery": {"train": {"net_return": .03, "trades": 12,
+                                          "max_drawdown": .01, "max_rolling_swaps_24h": 4},
+                                "holdout": {"net_return": .02, "trades": 8, "max_drawdown": .01,
+                                            "max_rolling_swaps_24h": 4,
+                                            "usdc_only_at_end": True}},
+                  "baseline": {"train": {"net_return": .02},
+                               "holdout": {"net_return": .01}}}
     report = {"results": [{"symbol": "SOL",
                            "status": "VALIDATED_HISTORICAL_CANDIDATE",
                            "profile": "recovery", "comparison": comparison}]}
@@ -89,12 +93,31 @@ def test_recovery_requires_12_month_out_of_sample_advantage():
 
 
 def test_recovery_requires_exact_candidate_filters_and_cost_edge():
-    from integrations.audacefi.adaptive_learning import _qualifies
-    p = PRESETS["recovery"]
-    # All requested recovery filters pass, but the short-horizon move cannot
-    # pay modeled fees and slippage, so it must not produce a trade.
-    assert not _qualifies((.001, .0085, .0035, -.005, -.03, True, 2_000_000), p, .003)
-    assert _qualifies((.002, .015, .012, -.005, -.03, True, 2_000_000), p, .003)
+    from datetime import datetime, timezone
+    from integrations.audacefi.league_strategy import decide
+    now = datetime(2026, 11, 9, 12, tzinfo=timezone.utc)
+    context = {"verified": True, "category": "crypto-bro",
+        "restrictions_verified": True, "wallet_ready": True,
+        "network": "solana-devnet", "season_status": "active",
+        "start_utc": "2026-11-09T00:00:00Z", "end_utc": "2026-11-14T00:00:00Z",
+        "eligible_symbols": ["SOL"], "max_position_weight": .35,
+        "max_total_exposure": .35, "start_snapshot_confirmed": True}
+    portfolio = {"equity_usdc": 10_000, "cash_usdc": 10_000,
+                 "peak_equity_usdc": 10_000, "positions": {}}
+    policy = policy_for("recovery", LeaguePolicy(
+        maximum_season_drawdown=.018, round_trip_cost_bps=30,
+        minimum_net_edge=.004, max_position_weight=.35, max_total_exposure=.35))
+    def result(m3, m6):
+        return decide(context, portfolio, {"asset_class": "crypto",
+            "model": "coinbase_completed_15m", "generated_at": now.isoformat(),
+            "signals": [{"symbol": "SOL", "last_close_usd": 100,
+                "median_15m_dollar_volume_usd": 2_000_000, "above_ema20": True,
+                "momentum_1h": .002, "momentum_3h": m3, "momentum_6h": m6,
+                "momentum_12h": -.005, "momentum_24h": -.03}]}, now=now, policy=policy)
+    # Filters pass, but strength cannot pay the 30bps estimate plus the 40bps
+    # required net edge. The shared engine therefore holds.
+    assert result(.0085, .0035)["status"] == "HOLD"
+    assert result(.015, .012)["actions"][0]["strategy"] == "recovery"
 
 
 def test_unvalidated_candidate_resets_streak_without_changing_live_policy():

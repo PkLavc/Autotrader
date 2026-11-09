@@ -32,7 +32,8 @@ def archive(start=1_730_000_700, length=320, change=.0005):
 
 def test_months_are_closed_utc_only():
     assert history_research.complete_months(datetime(2026, 11, 9, tzinfo=timezone.utc)) == [
-        "2026-07", "2026-08", "2026-09", "2026-10"]
+        "2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04",
+        "2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"]
     assert history_research.complete_months(datetime(2026, 1, 10, tzinfo=timezone.utc), 2) == [
         "2025-11", "2025-12"]
     yearly = history_research.complete_months(
@@ -90,13 +91,16 @@ def test_short_history_is_not_automatically_qualified():
                                           for i in range(1000)])["status"] == "INSUFFICIENT_HISTORY"
 
 
-def test_chronological_walk_forward_preserves_holdout():
+def test_continuous_chronological_train_and_holdout_curves():
     values = [[(1_700_000_100 - 1_700_000_100 % 900) + i * 900,
-               100 * 1.0005 ** i, 500000] for i in range(320 * 9)]
+               100, 500000] for i in range(30_000)]
     result = history_research.walk_forward(values)
-    assert result["folds"] == 9
-    assert result["status"] in {"NO_TRAINING_EDGE", "REJECTED_OOS",
-                                "VALIDATED_HISTORICAL_CANDIDATE"}
+    assert result["trainingBars"] == 22_500
+    assert result["holdoutBars"] == 7_500
+    assert result["holdoutStartUtc"] > result["trainEndUtc"]
+    assert result["costModel"]["maximumRollingSwaps24h"] == 10
+    assert result["baselineHoldout"]["max_rolling_swaps_24h"] <= 10
+    assert result["status"] == "NO_TRAINING_EDGE"
 
 
 def test_existing_autotrader_bayesian_calibration_is_reused():

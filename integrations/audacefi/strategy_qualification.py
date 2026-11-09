@@ -17,7 +17,17 @@ def qualification(report: dict, run_id: str) -> dict:
         row.get("profile") == "recovery" and
         isinstance(row.get("comparison"), dict) and
         row["comparison"].get("recovery", {}).get("holdout", {}).get("net_return", 0) >
-        row["comparison"].get("baseline", {}).get("holdout", {}).get("net_return", 0) + .003
+        row["comparison"].get("baseline", {}).get("holdout", {}).get("net_return", 0) + .003 and
+        row["comparison"].get("recovery", {}).get("train", {}).get("net_return", 0) >
+        row["comparison"].get("baseline", {}).get("train", {}).get("net_return", 0) and
+        row["comparison"].get("recovery", {}).get("train", {}).get("trades", 0) >= 10 and
+        row["comparison"].get("recovery", {}).get("holdout", {}).get("net_return", 0) > 0 and
+        row["comparison"].get("recovery", {}).get("holdout", {}).get("trades", 0) >= 6 and
+        row["comparison"].get("recovery", {}).get("train", {}).get("max_rolling_swaps_24h", 11) <= 10 and
+        row["comparison"].get("recovery", {}).get("holdout", {}).get("max_rolling_swaps_24h", 11) <= 10 and
+        row["comparison"].get("recovery", {}).get("holdout", {}).get("usdc_only_at_end") is True and
+        row["comparison"].get("recovery", {}).get("holdout", {}).get("max_drawdown", 1) <= .018 and
+        row["comparison"].get("recovery", {}).get("train", {}).get("max_drawdown", 1) <= .018
         for row in results
     )
     try:

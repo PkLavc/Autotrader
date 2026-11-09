@@ -82,6 +82,7 @@ def test_intraday_candidate_uses_closed_15m_trend_and_35_percent_cap(monkeypatch
     monkeypatch.setattr(live_decision, "completed_intraday_signal", lambda symbol, _: {
         **signal, "symbol": symbol})
     request = {"fetchSignals": True, "signalMode": "intraday",
+               "activeProfile": "early", "adaptiveState": {"active": "early"},
                "context": {"verified": True, "category": "crypto-bro",
                            "restrictions_verified": True, "wallet_ready": True,
                            "network": "solana-devnet", "season_status": "active",
@@ -104,6 +105,8 @@ def test_intraday_candidate_uses_closed_15m_trend_and_35_percent_cap(monkeypatch
     assert "estimated_net_edge" not in action
     assert result["assetDiagnostics"][0]["strategySelected"] == "momentum"
     assert result["assetDiagnostics"][0]["reason"] == "ORDER_PROPOSED"
+    assert result["activeProfile"] == "baseline"
+    assert result["adaptiveState"]["active"] == "baseline"
 
 
 def test_intraday_reversal_exits_existing_position(monkeypatch):

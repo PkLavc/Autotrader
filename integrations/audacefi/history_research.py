@@ -20,18 +20,19 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from zipfile import ZipFile, BadZipFile
 
-from .adaptive_learning import PRESETS, _simulate, validate_candles
+from .adaptive_learning import (MAX_ROLLING_SWAPS, PRESETS, _simulate,
+                                validate_candles)
 
 ORIGIN = "https://data.binance.vision"
 MAX_ZIP = 5_000_000
 MAX_CSV = 15_000_000
-WINDOW = 320
+WINDOW = 5 * 24 * 4
 MIN_TRAIN_TRADES = 10
 MIN_TEST_TRADES = 6
-ROUND_TRIP_FEE_ESTIMATE_BPS = 60
+ROUND_TRIP_FEE_ESTIMATE_BPS = 30
 
 
-def complete_months(now: datetime, count: int = 4) -> list[str]:
+def complete_months(now: datetime, count: int = 12) -> list[str]:
     if now.tzinfo is None or count < 1 or count > 12:
         raise ValueError("INVALID_MONTH_REQUEST")
     value = now.astimezone(timezone.utc)
@@ -125,66 +126,72 @@ def load_history(symbol: str, months: list[str], loader=download,
     return all_rows
 
 
-def aggregate(folds: list[dict]) -> dict:
-    compounded = 1.0
-    max_single_drawdown = 0.0
-    trades = 0
-    winning = 0
-    for fold in folds:
-        compounded *= 1 + fold["net_return"]
-        trades += fold["trades"]
-        winning += fold["win_rate"] * fold["trades"]
-        max_single_drawdown = max(max_single_drawdown, fold["max_drawdown"])
-    return {"trades": trades, "net_return": round(compounded - 1, 8),
-            "max_drawdown": round(max_single_drawdown, 8),
-            "win_rate": round(winning / trades, 6) if trades else 0.0}
+def walk_forward(rows: list[list], symbol: str = "SOL") -> dict:
+    """One chronological train/holdout replay with uninterrupted equity curves.
 
-
-def walk_forward(rows: list[list]) -> dict:
-    if not isinstance(rows, list) or len(rows) < WINDOW * 8:
-        return {"status": "INSUFFICIENT_HISTORY"}
-    # Each simulated block is non-overlapping. All price features warm up
-    # using data from the same block; no lookahead across block boundaries.
-    folds = []
-    for begin in range(0, len(rows) - WINDOW + 1, WINDOW):
-        batch = rows[begin:begin + WINDOW]
-        if not validate_candles(batch):
-            continue
-        folds.append({name: _simulate(batch, p, 96, len(batch))
-                      for name, p in PRESETS.items()})
-    if len(folds) < 8:
-        return {"status": "INSUFFICIENT_FOLDS"}
-    # Keep a chronological final quarter completely outside parameter selection.
-    split = len(folds) * 3 // 4
-    training = {name: aggregate([fold[name] for fold in folds[:split]])
-                for name in PRESETS}
-    holdout_comparison = {name: aggregate([fold[name] for fold in folds[split:]])
-                          for name in PRESETS}
-    baseline = training["baseline"]
-    names = [name for name in PRESETS if name != "baseline" and
-             training[name]["trades"] >= MIN_TRAIN_TRADES and
-             training[name]["net_return"] > 0 and
-             training[name]["net_return"] > baseline["net_return"]]
-    if not names:
-        return {"status": "NO_TRAINING_EDGE", "folds": len(folds),
-                "baselineTrain": baseline,
-                "baselineHoldout": holdout_comparison["baseline"],
-                "comparison": {name: {"train": training[name],
-                                      "holdout": holdout_comparison[name]}
-                               for name in PRESETS}}
-    # One choice from TRAIN only. Do not search the final holdout for a winner.
-    name = max(names, key=lambda n: (training[n]["net_return"], n))
-    testing = holdout_comparison[name]
-    reference = holdout_comparison["baseline"]
-    valid = (testing["trades"] >= MIN_TEST_TRADES and
-             testing["net_return"] > .003 and
-             testing["net_return"] > reference["net_return"] + .003 and
-             testing["max_drawdown"] <= .012 and
-             testing["win_rate"] >= .5)
-    return {"status": "VALIDATED_HISTORICAL_CANDIDATE" if valid else "REJECTED_OOS",
-            "profile": name, "folds": len(folds), "train": training[name],
-            "holdout": testing, "baselineHoldout": reference,
-            "comparison": {profile: {"train": training[profile],
-                                     "holdout": holdout_comparison[profile]}
-                           for profile in PRESETS},
-            "estimatedRoundTripCostBps": ROUND_TRIP_FEE_ESTIMATE_BPS}
+    The last quarter is untouched while choosing the candidate. Each portion
+    is replayed continuously across its real five-day competition windows;
+    equity and max drawdown are never aggregated from isolated fold returns.
+    """
+    parsed = validate_candles(rows)
+    if not parsed or len(parsed) < 30_000:
+        return {"status": "INSUFFICIENT_HISTORY", "historyBars": len(parsed)}
+    if not isinstance(symbol, str) or not re.fullmatch(r"[A-Z0-9]{2,12}", symbol):
+        return {"status": "UNSUPPORTED_SIMULATION_SYMBOL"}
+    split = len(parsed) * 3 // 4
+    if split < 20_000 or len(parsed) - split < 7_000:
+        return {"status": "INSUFFICIENT_CHRONOLOGICAL_SPLIT"}
+    profiles = ("baseline", "recovery")
+    training = {name: _simulate(parsed, PRESETS[name], 96, split, symbol=symbol)
+                for name in profiles}
+    holdout = {name: _simulate(parsed, PRESETS[name], split, len(parsed), symbol=symbol)
+               for name in profiles}
+    baseline_train, baseline_test = training["baseline"], holdout["baseline"]
+    candidate = training["recovery"]
+    train_edge = (candidate["net_return"] > baseline_train["net_return"] and
+                  candidate["trades"] >= MIN_TRAIN_TRADES)
+    test = holdout["recovery"]
+    valid = (train_edge and test["trades"] >= MIN_TEST_TRADES and
+             test["max_rolling_swaps_24h"] <= MAX_ROLLING_SWAPS and
+             training["recovery"]["max_rolling_swaps_24h"] <= MAX_ROLLING_SWAPS and
+             test["usdc_only_at_end"] is True and
+             test["net_return"] > 0 and
+             test["net_return"] > baseline_test["net_return"] + .003 and
+             test["max_drawdown"] <= .018 and
+             training["recovery"]["max_drawdown"] <= .018)
+    status = ("VALIDATED_HISTORICAL_CANDIDATE" if valid else
+              "REJECTED_OOS" if train_edge else "NO_TRAINING_EDGE")
+    if not train_edge:
+        reason = "RECOVERY_NOT_BETTER_DURING_TRAINING"
+    elif (test["max_rolling_swaps_24h"] > MAX_ROLLING_SWAPS or
+          training["recovery"]["max_rolling_swaps_24h"] > MAX_ROLLING_SWAPS):
+        reason = "ROLLING_SWAP_LIMIT_EXCEEDED"
+    elif not test["usdc_only_at_end"]:
+        reason = "HOLDOUT_NOT_LIQUIDATED_TO_USDC"
+    elif test["trades"] < MIN_TEST_TRADES:
+        reason = "INSUFFICIENT_HOLDOUT_TRADES"
+    elif test["net_return"] <= 0:
+        reason = "RECOVERY_HOLDOUT_NOT_PROFITABLE_NET_OF_COSTS"
+    elif test["net_return"] <= baseline_test["net_return"] + .003:
+        reason = "RECOVERY_HOLDOUT_EDGE_BELOW_30_BPS"
+    elif test["max_drawdown"] > .018 or training["recovery"]["max_drawdown"] > .018:
+        reason = "DRAWDOWN_EXCEEDS_LIVE_1_8_PERCENT_GUARD"
+    else:
+        reason = "VALIDATED_12M_OOS_ADVANTAGE"
+    comparison = {name: {"train": training[name], "holdout": holdout[name]}
+                  for name in profiles}
+    return {"status": status, "decisionReason": reason, "profile": "recovery",
+            "historyBars": len(parsed), "trainingBars": split,
+            "holdoutBars": len(parsed) - split,
+            "trainStartUtc": datetime.fromtimestamp(parsed[96][0], timezone.utc).isoformat(),
+            "trainEndUtc": datetime.fromtimestamp(parsed[split - 1][0], timezone.utc).isoformat(),
+            "holdoutStartUtc": datetime.fromtimestamp(parsed[split][0], timezone.utc).isoformat(),
+            "holdoutEndUtc": datetime.fromtimestamp(parsed[-1][0], timezone.utc).isoformat(),
+            "train": training["recovery"], "holdout": test,
+            "baselineTrain": baseline_train, "baselineHoldout": baseline_test,
+            "comparison": comparison,
+            "costModel": {"estimatedRoundTripCostBps": ROUND_TRIP_FEE_ESTIMATE_BPS,
+                "estimatedFeeBpsPerSwap": 10, "estimatedSlippageBpsPerSwap": 5,
+                "maximumRollingSwaps24h": 10, "reservedExitSwapForEntry": True,
+                "positionCap": .35, "exposureCap": .35,
+                "drawdownGuard": .018, "mandatoryUsdcClose": True}}

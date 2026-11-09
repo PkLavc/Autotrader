@@ -10,13 +10,13 @@ from datetime import datetime, timezone
 import json
 import math
 import sys
-from statistics import median
 from urllib.request import Request, urlopen
 
 from autotrader.data import load_daily_history
 from .crypto_research import completed_crypto_bars
 from .league_strategy import LeaguePolicy, decide
 from .adaptive_learning import evaluate, policy_for, update_promotion
+from .intraday_signal import signal_from_rows
 
 
 def completed_intraday_signal(symbol: str, now: datetime) -> dict:
@@ -51,18 +51,11 @@ def completed_intraday_signal(symbol: str, now: datetime) -> dict:
         raise ValueError("CANDLES_STALE")
     if any(latest - 900 * step not in values for step in range(97)):
         raise ValueError("CANDLE_WINDOW_GAPPED")
-    close = values[latest][0]
-    moves = {f"momentum_{label}": close / values[latest - 900 * periods][0] - 1
-             for label, periods in (("1h", 4), ("3h", 12), ("6h", 24),
-                                    ("12h", 48), ("24h", 96))}
-    ema = values[latest - 900 * 20][0]
-    for step in range(19, -1, -1):
-        ema = (2 / 21) * values[latest - 900 * step][0] + (19 / 21) * ema
-    volume = median(values[latest - 900 * step][0] * values[latest - 900 * step][1]
-                    for step in range(96))
-    return {"symbol": symbol, "last_close_usd": close,
-            "median_15m_dollar_volume_usd": volume,
-            "above_ema20": close > ema, **moves,
+    rows = [(ts, values[ts][0], values[ts][1]) for ts in sorted(values)]
+    signal = signal_from_rows(symbol, rows, len(rows) - 1)
+    if signal is None:
+        raise ValueError("CANDLE_SIGNAL_INVALID")
+    return {**signal,
             # Private to the local training process; never sent to the exchange.
             "_candles": [[ts, *values[ts]] for ts in sorted(values)]}
 
@@ -119,12 +112,18 @@ def main() -> int:
         profile = request.get("activeProfile", "baseline")
         if not isinstance(profile, str) or profile not in {"baseline", "early", "steady", "breakout", "recovery"}:
             raise ValueError("INVALID_ADAPTIVE_PROFILE")
-        policy = policy_for(profile, policy)
         approved = request.get("historicalStrategy") == "recovery"
         if approved:
+            policy = policy_for(profile, policy)
             policy = policy_for("recovery", policy)
-        elif profile == "recovery":
+        else:
+            # Legacy short-window promotions are not OOS evidence. Keep the
+            # shared exit engine unchanged, but use baseline for new entries.
             profile = "baseline"
+            prior_state = request.get("adaptiveState")
+            request["adaptiveState"] = {
+                **(prior_state if isinstance(prior_state, dict) else {}),
+                "active": "baseline"}
             policy = policy_for(profile, policy)
     result = decide(context, portfolio, report, now=now, policy=policy)
     if intraday:
@@ -134,7 +133,10 @@ def main() -> int:
         # completed-candle windows. It applies on the NEXT decision.
         result["adaptiveState"] = update_promotion(
             request.get("adaptiveState"), adaptive,
-            window=int(now.timestamp() // (88 * 900)),
+            # The operator's idempotence marker is a completed 15m candle.
+            # Short windows are diagnostic only; 12m history is the only
+            # path that may approve a new strategy.
+            window=int(now.timestamp() // 900),
         )
         actions_by_symbol = {row.get("symbol"): row for row in result.get("actions", [])}
         diagnostics = []
