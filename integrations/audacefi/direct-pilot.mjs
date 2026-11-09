@@ -2,6 +2,8 @@
 // bench builder/finality verifier. The stock Autotrader is not imported.
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { openDurableJournal } from './durable-journal.mjs';
 import { createDirectClient } from './direct-client.mjs';
 
@@ -80,7 +82,10 @@ await adapters.ports.verifyTarget();
 if (await wallet.publicKey() !== expectedAddress) throw Error('PILOT_SIGNER_MISMATCH');
 console.log('DIRECT_PILOT_CHAIN_AND_WALLET_READY=true');
 
-const journalStore = await openDurableJournal('/tmp/audacefi-journal', {
+// A long Actions session starts a new Node process on each check. Reload the
+// encrypted remote journal into a fresh private directory for every process.
+const journalDirectory = await mkdtemp(resolve(tmpdir(), 'audacefi-journal-'));
+const journalStore = await openDurableJournal(journalDirectory, {
   repository: process.env.GITHUB_REPOSITORY,
   githubToken: process.env.GITHUB_TOKEN,
   encryptionKey: process.env.AUDACEFI_JOURNAL_KEY,
