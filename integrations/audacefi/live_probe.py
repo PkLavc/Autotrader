@@ -16,6 +16,7 @@ ROUTES = (
     ("allowlist", "/api/v1/me/allowlist?category=crypto_bro&mode=real"),
     ("bench", "/api/v1/devnet/bench"),
     ("discipline", "/api/v1/me/discipline?category=crypto_bro"),
+    ("feed", "/api/v1/me/feed?category=crypto-bro"),
 )
 MAX_BYTES = 256 * 1024
 
@@ -117,6 +118,25 @@ def summarize(name: str, body: dict | list | None) -> None:
                 print("DISCIPLINE_ENTRY_FIELDS=" +
                       ",".join(sorted(entries[0])))
         return
+    if name == "feed" and isinstance(body, dict):
+        items = body.get("items")
+        print("FEED_ROOT_FIELDS=" + ",".join(sorted(
+            field for field in body if field in {"items", "nextCursor", "seasonId", "category"})))
+        if isinstance(items, list):
+            print("FEED_ITEM_COUNT=" + str(len(items)))
+            if items and isinstance(items[0], dict):
+                print("FEED_ITEM_FIELDS=" + ",".join(sorted(items[0])))
+            event_types = sorted({item.get("type") for item in items
+                if isinstance(item, dict) and isinstance(item.get("type"), str) and
+                1 <= len(item["type"]) <= 64 and all(
+                    char.islower() or char.isdigit() or char == "_"
+                    for char in item["type"])})
+            statuses = sorted({item.get("status") for item in items
+                if isinstance(item, dict) and item.get("status") in {
+                    "confirmed", "finalized", "settled", "submitted", "failed", "pending"}})
+            print("FEED_EVENT_TYPES=" + ",".join(event_types))
+            print("FEED_KNOWN_STATUSES=" + ",".join(statuses))
+        return
     if isinstance(body, dict):
         print(name.upper() + "_ROOT_FIELDS=" + ",".join(sorted(
             k for k in body if k in {
@@ -180,11 +200,11 @@ def main() -> int:
                     char.isupper() or char.isdigit() or char == "_" for char in code
                 ):
                     print(name.upper() + "_ERROR_CODE=" + code)
-            if status != 200 and name != "discipline":
+            if status != 200 and name not in {"discipline", "feed"}:
                 ok = False
         except (OSError, ValueError, http.client.HTTPException):
             print(name.upper() + "_CONNECT_FAILED")
-            if name != "discipline":
+            if name not in {"discipline", "feed"}:
                 ok = False
     for name, route in (("wallet", "/api/v1/me/wallet?category=crypto_bro"),
                         ("player", "/api/v1/players/" + str(account_id) if account_id else "")):

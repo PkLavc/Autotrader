@@ -29,4 +29,4 @@ jobs:
       - name: Record invariant (no writes)
         if: always()
         run: |
-          echo 'AudaceFi execution remains disabled; this job only checks documented GET endpoints.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'This diagnostic submits no orders; the separate trading workflow remains the sole executor.' >> "$GITHUB_STEP_SUMMARY"
