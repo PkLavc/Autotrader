@@ -103,6 +103,8 @@ if (mode === 'history') {
   if (!saved) throw Error('PILOT_HISTORY_SUBMISSION_MISSING');
   const sell = await journal.read(SELL_KEY);
   console.log('DIRECT_PILOT_SELL_JOURNAL_FINAL=' + strBoolean(sell.events.at(-1)?.stage === 'FINAL_CONFIRMED'));
+  const chainHolding = await adapters.readSpotHoldings(expectedAddress, sol.mint);
+  console.log('DIRECT_PILOT_CHAIN_SOL_ZERO=' + strBoolean(BigInt(chainHolding.assetRaw) === 0n));
   for (const [name, route] of [
     ['FEED', '/v1/me/feed?category=crypto-bro'],
     ['DISCIPLINE', '/v1/me/discipline?category=crypto_bro'],
