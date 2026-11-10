@@ -299,45 +299,70 @@
       "sector": "utilities",
       "signal_date": "2026-10-30",
       "symbol": "VST"
-    }
-  ],
-  "last_evaluation_date": "2026-11-06",
-  "pending": [
+    },
     {
+      "actual_return": 0.03283273229413797,
+      "benchmark_return": 0.0007845058830231455,
+      "direction_correct": true,
+      "excess_return": 0.03204822641111482,
       "expected_return": 0.13931467967863287,
       "id": "2026-11-02:GOOGL",
+      "resolution_date": "2026-11-09",
       "sector": "communication",
       "signal_date": "2026-11-02",
       "symbol": "GOOGL"
     },
     {
+      "actual_return": -0.0051259374361312116,
+      "benchmark_return": 0.0007845058830231455,
+      "direction_correct": false,
+      "excess_return": -0.005910443319154357,
       "expected_return": 0.17418710759855038,
       "id": "2026-11-02:VST",
+      "resolution_date": "2026-11-09",
       "sector": "utilities",
       "signal_date": "2026-11-02",
       "symbol": "VST"
     },
     {
+      "actual_return": 0.06685653044043827,
+      "benchmark_return": 0.0007845058830231455,
+      "direction_correct": true,
+      "excess_return": 0.06607202455741512,
       "expected_return": 0.09849318598190515,
       "id": "2026-11-02:UBER",
+      "resolution_date": "2026-11-09",
       "sector": "industrials",
       "signal_date": "2026-11-02",
       "symbol": "UBER"
     },
     {
+      "actual_return": -0.008534276467863422,
+      "benchmark_return": 0.0007845058830231455,
+      "direction_correct": false,
+      "excess_return": -0.009318782350886567,
       "expected_return": 0.12601004296592255,
       "id": "2026-11-02:AVGO",
+      "resolution_date": "2026-11-09",
       "sector": "technology",
       "signal_date": "2026-11-02",
       "symbol": "AVGO"
     },
     {
+      "actual_return": 0.05947894489419947,
+      "benchmark_return": 0.0007845058830231455,
+      "direction_correct": true,
+      "excess_return": 0.058694439011176325,
       "expected_return": 0.0655131856057769,
       "id": "2026-11-02:MCD",
+      "resolution_date": "2026-11-09",
       "sector": "discretionary",
       "signal_date": "2026-11-02",
       "symbol": "MCD"
-    },
+    }
+  ],
+  "last_evaluation_date": "2026-11-09",
+  "pending": [
     {
       "expected_return": 0.2874614470154053,
       "id": "2026-11-03:NFLX",
