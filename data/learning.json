@@ -359,45 +359,70 @@
       "sector": "discretionary",
       "signal_date": "2026-11-02",
       "symbol": "MCD"
-    }
-  ],
-  "last_evaluation_date": "2026-11-09",
-  "pending": [
+    },
     {
+      "actual_return": -0.0025228611168653936,
+      "benchmark_return": -0.005872596035202737,
+      "direction_correct": false,
+      "excess_return": 0.0033497349183373437,
       "expected_return": 0.2874614470154053,
       "id": "2026-11-03:NFLX",
+      "resolution_date": "2026-11-10",
       "sector": "communication",
       "signal_date": "2026-11-03",
       "symbol": "NFLX"
     },
     {
+      "actual_return": 0.026247209711658392,
+      "benchmark_return": -0.005872596035202737,
+      "direction_correct": true,
+      "excess_return": 0.03211980574686113,
       "expected_return": 0.14390428184410609,
       "id": "2026-11-03:GOOGL",
+      "resolution_date": "2026-11-10",
       "sector": "communication",
       "signal_date": "2026-11-03",
       "symbol": "GOOGL"
     },
     {
+      "actual_return": 0.05180187172192352,
+      "benchmark_return": -0.005872596035202737,
+      "direction_correct": true,
+      "excess_return": 0.05767446775712626,
       "expected_return": 0.09352824565734519,
       "id": "2026-11-03:UBER",
+      "resolution_date": "2026-11-10",
       "sector": "industrials",
       "signal_date": "2026-11-03",
       "symbol": "UBER"
     },
     {
+      "actual_return": 0.008096983669615865,
+      "benchmark_return": -0.005872596035202737,
+      "direction_correct": true,
+      "excess_return": 0.013969579704818602,
       "expected_return": 0.08062411605101483,
       "id": "2026-11-03:TT",
+      "resolution_date": "2026-11-10",
       "sector": "industrials",
       "signal_date": "2026-11-03",
       "symbol": "TT"
     },
     {
+      "actual_return": -0.00045161200216548014,
+      "benchmark_return": -0.005872596035202737,
+      "direction_correct": false,
+      "excess_return": 0.005420984033037257,
       "expected_return": 0.1047898805098042,
       "id": "2026-11-03:AVGO",
+      "resolution_date": "2026-11-10",
       "sector": "technology",
       "signal_date": "2026-11-03",
       "symbol": "AVGO"
-    },
+    }
+  ],
+  "last_evaluation_date": "2026-11-10",
+  "pending": [
     {
       "expected_return": 0.04600854763062867,
       "id": "2026-11-06:CDNS",
