@@ -421,7 +421,7 @@
       "symbol": "AVGO"
     }
   ],
-  "last_evaluation_date": "2026-11-11",
+  "last_evaluation_date": "2026-11-12",
   "pending": [
     {
       "expected_return": 0.04600854763062867,
@@ -429,6 +429,20 @@
       "sector": "technology",
       "signal_date": "2026-11-06",
       "symbol": "CDNS"
+    },
+    {
+      "expected_return": 0.06354952570165695,
+      "id": "2026-11-12:TJX",
+      "sector": "discretionary",
+      "signal_date": "2026-11-12",
+      "symbol": "TJX"
+    },
+    {
+      "expected_return": 0.026670732256799612,
+      "id": "2026-11-12:MCD",
+      "sector": "discretionary",
+      "signal_date": "2026-11-12",
+      "symbol": "MCD"
     }
   ],
   "schema_version": 1
