@@ -419,17 +419,22 @@
       "sector": "technology",
       "signal_date": "2026-11-03",
       "symbol": "AVGO"
-    }
-  ],
-  "last_evaluation_date": "2026-11-12",
-  "pending": [
+    },
     {
+      "actual_return": 0.009658652813818502,
+      "benchmark_return": 0.025948969331843985,
+      "direction_correct": true,
+      "excess_return": -0.016290316518025483,
       "expected_return": 0.04600854763062867,
       "id": "2026-11-06:CDNS",
+      "resolution_date": "2026-11-13",
       "sector": "technology",
       "signal_date": "2026-11-06",
       "symbol": "CDNS"
-    },
+    }
+  ],
+  "last_evaluation_date": "2026-11-13",
+  "pending": [
     {
       "expected_return": 0.06354952570165695,
       "id": "2026-11-12:TJX",
@@ -442,6 +447,13 @@
       "id": "2026-11-12:MCD",
       "sector": "discretionary",
       "signal_date": "2026-11-12",
+      "symbol": "MCD"
+    },
+    {
+      "expected_return": 0.02641632610192679,
+      "id": "2026-11-13:MCD",
+      "sector": "discretionary",
+      "signal_date": "2026-11-13",
       "symbol": "MCD"
     }
   ],
