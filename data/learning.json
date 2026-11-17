@@ -433,7 +433,7 @@
       "symbol": "CDNS"
     }
   ],
-  "last_evaluation_date": "2026-11-13",
+  "last_evaluation_date": "2026-11-16",
   "pending": [
     {
       "expected_return": 0.06354952570165695,
@@ -454,6 +454,13 @@
       "id": "2026-11-13:MCD",
       "sector": "discretionary",
       "signal_date": "2026-11-13",
+      "symbol": "MCD"
+    },
+    {
+      "expected_return": 0.027511705885535864,
+      "id": "2026-11-16:MCD",
+      "sector": "discretionary",
+      "signal_date": "2026-11-16",
       "symbol": "MCD"
     }
   ],
