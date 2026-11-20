@@ -431,24 +431,34 @@
       "sector": "technology",
       "signal_date": "2026-11-06",
       "symbol": "CDNS"
-    }
-  ],
-  "last_evaluation_date": "2026-11-18",
-  "pending": [
+    },
     {
+      "actual_return": 0.025224356834390393,
+      "benchmark_return": -0.05448277718991601,
+      "direction_correct": true,
+      "excess_return": 0.0797071340243064,
       "expected_return": 0.06354952570165695,
       "id": "2026-11-12:TJX",
+      "resolution_date": "2026-11-19",
       "sector": "discretionary",
       "signal_date": "2026-11-12",
       "symbol": "TJX"
     },
     {
+      "actual_return": -0.0046778451063692605,
+      "benchmark_return": -0.05448277718991601,
+      "direction_correct": false,
+      "excess_return": 0.04980493208354675,
       "expected_return": 0.026670732256799612,
       "id": "2026-11-12:MCD",
+      "resolution_date": "2026-11-19",
       "sector": "discretionary",
       "signal_date": "2026-11-12",
       "symbol": "MCD"
-    },
+    }
+  ],
+  "last_evaluation_date": "2026-11-19",
+  "pending": [
     {
       "expected_return": 0.02641632610192679,
       "id": "2026-11-13:MCD",
@@ -461,6 +471,13 @@
       "id": "2026-11-16:MCD",
       "sector": "discretionary",
       "signal_date": "2026-11-16",
+      "symbol": "MCD"
+    },
+    {
+      "expected_return": 0.027573502428464014,
+      "id": "2026-11-19:MCD",
+      "sector": "discretionary",
+      "signal_date": "2026-11-19",
       "symbol": "MCD"
     }
   ],
