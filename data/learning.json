@@ -455,17 +455,22 @@
       "sector": "discretionary",
       "signal_date": "2026-11-12",
       "symbol": "MCD"
-    }
-  ],
-  "last_evaluation_date": "2026-11-19",
-  "pending": [
+    },
     {
+      "actual_return": 0.004669592263748523,
+      "benchmark_return": -0.08558134334142586,
+      "direction_correct": true,
+      "excess_return": 0.09025093560517439,
       "expected_return": 0.02641632610192679,
       "id": "2026-11-13:MCD",
+      "resolution_date": "2026-11-20",
       "sector": "discretionary",
       "signal_date": "2026-11-13",
       "symbol": "MCD"
-    },
+    }
+  ],
+  "last_evaluation_date": "2026-11-20",
+  "pending": [
     {
       "expected_return": 0.027511705885535864,
       "id": "2026-11-16:MCD",
