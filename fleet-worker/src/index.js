@@ -136,16 +136,25 @@ async function alpaca(account, credentials, path, options = {}) {
   const base = account.broker_mode === "paper"
     ? "https://paper-api.alpaca.markets"
     : "https://api.alpaca.markets";
-  const response = await fetch(base + path, {
-    ...options,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "User-Agent": "PkLavc-Autotrader-Fleet/1",
-      ...credentialHeaders(account, credentials),
-      ...(options.headers || {}),
-    },
-  });
+  let response;
+  try {
+    response = await fetch(base + path, {
+      ...options,
+      signal: AbortSignal.timeout(15_000),
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "User-Agent": "PkLavc-Autotrader-Fleet/1",
+        ...credentialHeaders(account, credentials),
+        ...(options.headers || {}),
+      },
+    });
+  } catch (error) {
+    if (error?.name === "TimeoutError" || error?.name === "AbortError") {
+      throw new HttpError(502, "Alpaca request timed out");
+    }
+    throw error;
+  }
   const text = await response.text();
   let payload = null;
   try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
