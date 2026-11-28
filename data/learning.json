@@ -479,17 +479,21 @@
       "sector": "discretionary",
       "signal_date": "2026-11-16",
       "symbol": "MCD"
-    }
-  ],
-  "last_evaluation_date": "2026-11-25",
-  "pending": [
+    },
     {
+      "actual_return": 0.03770878936484556,
+      "benchmark_return": 0.017391442988182737,
+      "direction_correct": true,
+      "excess_return": 0.020317346376662826,
       "expected_return": 0.027573502428464014,
       "id": "2026-11-19:MCD",
+      "resolution_date": "2026-11-27",
       "sector": "discretionary",
       "signal_date": "2026-11-19",
       "symbol": "MCD"
     }
   ],
+  "last_evaluation_date": "2026-11-27",
+  "pending": [],
   "schema_version": 1
 }
